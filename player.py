@@ -35,7 +35,7 @@ class Player:
 
 	def start_golden_age(self):
 		self.in_golden_age = True
-		self.golden_age_turns_left = 10
+		self.golden_age_turns_left += 10
 		self.happiness_points = 0  # reset points on start, what about our policy tho?
 
 	def end_golden_age(self):
@@ -55,6 +55,17 @@ class Player:
 		# Start golden age if threshold reached and not already in one
 		if not self.in_golden_age and self.happiness_points >= 500:
 			self.start_golden_age()
+
+	@property
+	def max_trade_routes(self):
+		trade_route_techs = {
+			"Sailing",
+		"Animal Husbandry",
+		"Engineering",
+		"Compass",
+		"Banking"
+	    }
+		return sum(1 for tech in trade_route_techs if tech in self.science_system.unlocked_techs)
 
 	@property
 	def happiness(self):
@@ -123,12 +134,12 @@ class Player:
 
 		cost_per_unlocked_policy = 25 + (6 * k) ** 1.7
 
-		base_penalty = 0.15 * (n - 1)
+		city_penalty = 0.15 * (n - 1)
 
 		if "Representation" in self.unlocked_policies:
-			base_penalty *= 0.67  # reduce penalty by 33%
+			city_penalty *= 0.67  # reduce penalty by 33%
 
-		penalty_multiplier = 1 + base_penalty
+		penalty_multiplier = 1 + city_penalty
 
 		base = cost_per_unlocked_policy * penalty_multiplier
 		return int(math.ceil(base / 5.0) * 5)
@@ -162,27 +173,21 @@ class Player:
 		if policy.name == "Citizenship":
 			spawn_unit_near_capital(self, game, "Worker", "A free Worker has arrived!")
 
+		if policy.name == "Representation":
+			player.start_golden_age()
+
 		if policy.name == "Legalism":
 			# Monument (FREE) in first four cities if they don't already have a Monument
 			for city in self.cities[:4]:
 				has_monument = any("Monument" in b.name for b in city.buildings)
 				if not has_monument:
 					monument_data = dictionary.BUILDINGS.get("Monument", {})
-					free_monument = Building(
-		            name="Monument (FREE)",
-		                            food=monument_data.get("food", 0),
-		                                production=monument_data.get("production", 0),
-		                                gold=monument_data.get("gold", 0),
-		                                science=monument_data.get("science", 0),
-		                                culture=monument_data.get("culture", 0),
-		                                happiness=monument_data.get("happiness", 0),
-		                                growth_percentage=monument_data.get("growth_percentage", 0),
-		                                science_percentage=monument_data.get("science_percentage", 0),
-		                                production_cost=0,
-		                                gold_cost=0
-		    )
+					free_monument = helper.create_building("Monument (FREE)", monument_data)
+					free_monument.production_cost = 0
+					free_monument.gold_cost = 0
 					city.buildings.append(free_monument)
 					game.show_message(f"{city.name} receives a free Monument!", 90)
+
 
 		return True
 

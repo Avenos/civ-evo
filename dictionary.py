@@ -1,39 +1,35 @@
 
-#git
-#fix science system overflow, also effects mostly prereqs?
+#verify science system overflow, meeting people tech boost? civil service, iron and horses, bridges over rivers? machinery road movement
 #purchase system finalize #purhcased things landing on same tile... stacking system?
-#ui food decimal rounding? or floor? 
-#golden age verify tile gold also point req
-#policies effects!
+#golden age verify tile gold also point req func, stacking?
+#policies effects! finalize
 #pantheon system finalize impllement
+#verify starvation
 #city connections check
+#trade routes caravans
+#negative gold penalties check
+#program all building effects, stoneworks, stable, hanging gardens, lighthouse, aqeuduct, etc
+#make ui nice food decimal rounding? or floor?
 
-#program all building effects, granary
-#make ui nice
 #tile improvement system #add dict improvement values, also adjacency bonuses for differnt tile types? flood plains? marsh?
-#generate the map, one row a day #verify forests at top part of minimap #define all rivers,
-#border growth algorithm and formula
-#verify food cost and starvation
+#verify forests at top part of minimap #define all rivers, add columns
 #settler cost situation
 #citizen tile assignment choice system, #if city grows auto update the next worked tile to highest production tile then by gold
 #tile purhcasing finalize
-#figure out gpt formula
-
 #happiness, gold and culture are ints?
-#negative gold penalties check - do we need hover formulas?
-#meeting people tech boost? also embassies
-#wonders allowed toa by 42 pyramids by 52 else gold? or just give lots of fitness for TOA by turn 42?
+#wonders allowed toa by 42 pyramids by 52 else gold?
 #great person slots
-#reserarch agreements and embassies?
 
 #EVOLUTIONARY ALGORITHM TO TURN 121!!!!!! simpler gamestate, fitness func, and actions are best. pathfinding? forced TOA or nat college to test different builds?
-#music selector? map importer? not just gandhi? standard map size? #reserarch agreements
+##hover formulas? eh music selector? map importer? not just gandhi? standard map size? #reserarch agreements
 
-#gpt notes:
+#figure out gpt formula:
 #1war and 1 worker =  1gpt
+#embassies sim
 
-#culture border bgrowth notes:
-#15 for first, NW ccotton
+#border growth algorithm and formula
+#15 for first, NW ccotton 
+#w/ tradition...
 
 #turn 121 to beat:
 #science 195, 6 turns till banking
@@ -104,7 +100,7 @@ UNITS = {
 BUILDINGS = {
         "Palace":    {"science": 3, "production": 3, "gold": 3, "culture": 1},
     "Library":    {"maintenance": 1, "production_cost": 75, "techs_required": ["Writing"], "gold_cost": 400},
-    "Shrine":    {"maintenance": 1, "production_cost": 40, "techs_required": ["Pottery"], "gold_cost": 250},
+    "Shrine":    {"maintenance": 1, "faith": 1, "production_cost": 40, "techs_required": ["Pottery"], "gold_cost": 250},
     "Monument":    {"maintenance": 1,  "culture": 2, "production_cost": 40, "gold_cost": 280},
     "Monument (Free)":    {"culture": 2},
     "Granary":    {"maintenance": 1, "food": 2, "growth_percentage": 0.1, "production_cost": 60, "techs_required": ["Pottery"], "gold_cost": 340},
@@ -128,6 +124,7 @@ BUILDINGS = {
     "Workshop":    {"maintenance": 2, "production_cost": 120, "techs_required": ["Metal Casting"], "gold_cost": 580},
     "Observatory":    {"science_percentage": 0.5, "production_cost": 200, "techs_required": ["Astronomy"], "gold_cost": 780}, #must be built next to mountain
     "Garden":    {"maintenance": 1, "production_cost": 120, "techs_required": ["Theology"], "gold_cost": 580}, #City must border a source of fresh water
+    "Forbidden Palace": {"production_cost": 2220, "techs_required": ["Banking"], "policies_required": ["Patronage"]}
 }
 
 RESOURCES = {
@@ -217,36 +214,36 @@ TECHS = {
 }
 
 POLICIES = {
-        "Tradition": {"desc": "Greatly increases rate of border growth. +3 Culture. Allows hanging gardens", "prerequisites": []},
-        "Aristocracy": {"desc": "+1 happiness for every 10 citizens in a city. +15% wonder production", "prerequisites": ["Tradition"]},
+        "Tradition": {"desc": "Greatly increases rate of border growth. +3 Culture. Allows hanging gardens", "prerequisites": []}, #Implemented except border
+        "Aristocracy": {"desc": "+1 happiness for every 10 citizens in a city. +15% wonder production", "prerequisites": ["Tradition"]}, #local or global
     "Oligarchy": {"desc": "Units in cities cost no maintenance", "prerequisites": ["Tradition"]},
-    "Legalism": {"desc": "First four cities get a FREE monument if they don't already have one", "prerequisites": ["Oligarchy"]},
-    "Landed Elite": {"desc": "+2 food and +10% excess food in the capitol", "prerequisites": ["Legalism"]},
-    "Monarchy": {"desc": "+1 gold and -1 unhappiness for every 2 citizens in the capital", "prerequisites": ["Legalism"]},
+    "Legalism": {"desc": "First four cities get a FREE monument if they don't already have one", "prerequisites": ["Oligarchy"]}, #Implemented
+    "Landed Elite": {"desc": "+2 food and +10% excess food in the capitol", "prerequisites": ["Legalism"]}, #Implemented
+    "Monarchy": {"desc": "+1 gold and -1 unhappiness for every 2 citizens in the capital", "prerequisites": ["Legalism"]}, #local or global
     #free aqueduct and 15% growth in first four cities upon completion
 
-    "Liberty": {"desc": "+1 culture per city. Allows pyramids", "prerequisites": []},
-    "Republic": {"desc": "+1 production per city, 5% more building production", "prerequisites": ["Liberty"]},
+    "Liberty": {"desc": "+1 culture per city. Allows pyramids", "prerequisites": []}, #Implemented
+    "Republic": {"desc": "+1 production per city, 5% more building production", "prerequisites": ["Liberty"]}, #Implemented
     "Citizenship": {"desc": "Immediate worker, workers upgrade tiles 25% faster", "prerequisites": ["Liberty"]},
     "Collective Rule": {"desc": "Immediate settler, settlers cost 50% less.", "prerequisites": ["Republic"]},
-    "Representation": {"desc": "Immediate golden age, culture cost from extra cities is 33% less", "prerequisites": ["Citizenship"]},
-    "Meritocracy": {"desc": "+1 happiness for each city connected to capitol, also -5% unhappiness from citizens", "prerequisites": ["Citizenship"]},
+    "Representation": {"desc": "Immediate golden age, culture cost from extra cities is 33% less", "prerequisites": ["Citizenship"]}, #Implemented
+    "Meritocracy": {"desc": "+1 happiness for each city connected to capitol, also -5% unhappiness from citizens", "prerequisites": ["Citizenship"]}, #local or global
     #great scientist/engineer upon completion
 
-    "Patronage": {"desc": "City state rep is more resilient. Allows forbidden palace", "prerequisites": ["classical era?"]},
-    "Commerce": {"desc": "Gold yields up 25% in capitol. Allows big ben", "prerequisites": ["medieval era?"]},
+    "Patronage": {"desc": "City state rep is more resilient. Allows forbidden palace", "prerequisites": ["classical era?"]}, #Implemented
+    "Commerce": {"desc": "Gold yields up 25% in capitol. Allows big ben", "prerequisites": ["medieval era?"]}, #Implemented
 
-    "Rationalism": {"desc": "Global science up 10%. Allows porcelain tower", "prerequisites": ["rennaisance era"]}
+    "Rationalism": {"desc": "Global science up 10%. Allows porcelain tower", "prerequisites": ["rennaisance era"]} #Implemented
 }
 
-PANTHEONS = {
+PANTHEONS = { # do NEW cities not auto get pantheons or do they?
         "Oral Tradition": {"desc": " +1 Culture from Plantations"},
-    "Goddess of Love": {"desc": " +1 Happiness from cities with Population of 6+"},
-    "God of Craftsmen": {"desc": "+1 Production in cities with Population of 3+"},
-    "Fertility Rites": {"desc": "+10% Growth in all cities"},
+    "Goddess of Love": {"desc": " +1 Happiness from cities with Population of 6+"}, #local or global
+    "God of Craftsmen": {"desc": "+1 Production in cities with Population of 3+"}, #Implemented
+    "Fertility Rites": {"desc": "+10% Growth in all cities"}, #Implemented
     "Goddess of the Hunt": {"desc": "+1 Food from Camps"},
-    "God-King": {"desc": "+1 of each: Faith, Culture, Gold, Science, Production in Capital"},
+    "God-King": {"desc": "+1 of each: Faith, Culture, Gold, Science, Production in Capital"}, #Implemented
     "Messenger of the Gods": {"desc": "2 Science in cities with a City Connection"},
-    "Sacred Waters": {"desc": "+1 Happiness from cities on rivers"},
-    "Sun God": {"desc": "+1 Food for each Bananas, Citrus, and Wheat resource"},
+    "Sacred Waters": {"desc": "+1 Happiness from cities on rivers"}, #local or global
+    "Sun God": {"desc": "+1 Food for each Bananas, Citrus, and Wheat resource"}, #Implemented
 }

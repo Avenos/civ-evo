@@ -357,7 +357,7 @@ def can_purchase_tile(city, tile, engine): #player not city?
 	return True
 
 def is_adjacent_to_controlled_tile(city, tile, engine): #player not city?
-	neighbors = helper.get_neighboring_hexes(tile.q, tile.r)
+	neighbors = hex_neighbors(tile.q, tile.r)
 	for nq, nr in neighbors:
 		if (0 <= nq < engine.map_width and 0 <= nr < engine.map_height):
 			neighbor_tile = engine.tiles[nq][nr]

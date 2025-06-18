@@ -23,6 +23,9 @@ class ProductionSystem:
 		available = []
 		seen = set()
 	
+		# Check for Monument or Monument (FREE) already built
+		has_monument = any("Monument" in b.name for b in self.city.buildings)
+	
 		for proj in self.projects:
 			if proj.completed or proj.production_cost <= 0:
 				continue
@@ -32,6 +35,11 @@ class ProductionSystem:
 				continue
 			if proj.name in seen:
 				continue
+	
+			# Restriction: don't offer Monument if any Monument is already present
+			if proj.name == "Monument" and has_monument:
+				continue
+	
 			# Settler restriction if unit
 			if isinstance(proj, Unit) and proj.name == "Settler" and self.city.population < 2:
 				continue
@@ -40,7 +48,6 @@ class ProductionSystem:
 			seen.add(proj.name)
 	
 		return available
-	
 
 	def set_current_project(self, project_name):
 		for proj in self.projects:  # self.projects should be list of objects

@@ -6,6 +6,7 @@ import math
 import time
 import renderer
 import os
+import sys
 import dictionary
 import copy
 import helper
@@ -16,7 +17,15 @@ from engine import Engine
 from constants import GRID_WIDTH, GRID_HEIGHT, HEX_RADIUS, WIDTH, HEIGHT, FPS, CITY_NAMES
 
 def main():
-	pygame.init()
+	start = time.time()
+	print(f"Startup time: {time.time() - start:.2f} seconds")
+	
+	#pygame.init()
+	start = time.time()
+	pygame.display.init()
+	pygame.font.init()	
+	
+	print(f"Init pygame: {time.time() - start:.2f} seconds")
 	screen = pygame.display.set_mode((WIDTH, HEIGHT))
 	pygame.display.set_caption("Civ V Build Order Optimizer")
 	clock = pygame.time.Clock()
@@ -26,6 +35,7 @@ def main():
 	hovered_tile_coords = None
 	hover_start_time = 0
 	HOVER_DELAY = 0.2  # seconds
+
  
 	terrain_overlays = {}
 	
@@ -46,6 +56,7 @@ def main():
 
 	engine = Engine()
 	running = True
+	
 
 	while running:
 		clock.tick(FPS)
@@ -243,6 +254,6 @@ def main():
 	pygame.mixer.quit()
 	pygame.event.pump()
 	pygame.quit()
-
+	sys.exit()
 if __name__ == "__main__":
 	main()

@@ -95,22 +95,50 @@ class City:
 
 	@property
 	def food_per_turn(self):
-		positive = sum(tile.food for tile in self.worked_tiles) + sum(b.food for b in self.buildings)
+		granary_bonus_resources = {"wheat", "deer", "bananas"}
+		sun_god_bonus_resources = {"wheat", "citrus", "bananas"}
+	
+		# Compute base food from worked tiles, with Granary bonuses
+		positive = 0
+		for tile in self.worked_tiles:
+			tile_food = tile.food
+			if any("Granary" in b.name for b in self.buildings) and getattr(tile, "resource", None) in granary_bonus_resources:
+				tile_food += 1
+			if self.owner.pantheon == "Sun God" and getattr(tile, "resource", None) in sun_god_bonus_resources:
+				tile_food += 1
+			
+			positive += tile_food
+	
+		# Add food from buildings
+		positive += sum(b.food for b in self.buildings)
+		
+		if "Landed Elite" in self.owner.unlocked_policies and self.is_capital:
+			positive += 2
+	
+		# Temple of Artemis: +10% total food empire-wide
+		if any("Temple of Artemis" in b.name for city in self.owner.cities for b in city.buildings):
+			positive *= 1.10
+	
+		# Subtract population consumption
 		negative = 2 * self.population
 		difference = positive - negative
-
+	
+		# Growth modifiers (apply only to surplus food)
 		growth_modifier = 1.0
-
 		if self.owner.happiness < 0:
 			growth_modifier -= 0.75
-
+			
+		if "Landed Elite" in self.owner.unlocked_policies and self.is_capital:
+			growth_modifier += 0.1
+			
+		if self.owner.pantheon == "Fertility Rites":
+			growth_modifier += 0.1			
+	
 		for building in self.buildings:
-			growth_modifier += building.growth_percentage  # assuming buildings have this attribute
+			growth_modifier += building.growth_percentage
+	
+		return growth_modifier * difference if difference >= 0 else difference
 
-		if difference >= 0:
-			return growth_modifier * difference
-		else:
-			return difference  # starving: modifier doesn't apply
 
 	@property
 	def food_needed_for_growth(self):
@@ -166,13 +194,21 @@ class City:
 	def gold(self):
 		from_tiles = sum(tile.gold for tile in self.worked_tiles)
 		from_buildings = sum(b.gold for b in self.buildings)
+	
+		golden_age_bonus = 0
+		if self.owner.in_golden_age:
+			golden_age_bonus = sum(1 for tile in self.worked_tiles if tile.gold >= 1)
+	
+		total_gold = from_tiles + from_buildings + golden_age_bonus
+		if self.owner.pantheon == "God-King" and self.is_capital:
+			total_gold += 1
+	
+		percentage_modifier = 1.0
+		if "Commerce" in self.owner.unlocked_policies:
+			percentage_modifier += 0.25
+	
+		return percentage_modifier * total_gold
 
-		total_gold = from_tiles + from_buildings
-
-		if self.owner.pantheon == "God-King" and self.is_capital == True:
-			total_gold += 1				
-
-		return total_gold
 
 	@property
 	def production_per_turn(self):
