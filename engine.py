@@ -9,8 +9,12 @@ from constants import GRID_HEIGHT, GRID_WIDTH
 
 class Engine:
 	def __init__(self):
+		self.is_replay = False  # Set True during replay
+		self.recorded_actions = []  # Populated only during manual play		
+		
 		self.message = ""
 		self.message_timer = 0
+		self.action_log = {}
 
 		with open("map.json") as f:
 			map_layout = json.load(f)
@@ -86,6 +90,48 @@ class Engine:
 		self.selected_city = None
 
 
+	def record_action(self, turn, action_type, data):
+		if not self.is_replay:
+			engine.recorded_actions.append([turn, action_type, data])
+			
+	def get_legal_actions(self, player):
+		actions = []
+	
+		# Move units
+		for unit in player.units:
+			for dq, dr in directions:  # probably 6 hex directions
+				to_q = unit.q + dq
+				to_r = unit.r + dr
+				if self.can_move_unit(unit, to_q, to_r):  # <- YOUR check
+					actions.append({"action": "move_unit", "unit_id": unit.id, "to": [to_q, to_r]})
+	
+		# Found city
+		for unit in player.units:
+			if unit.name == "Settler" and self.can_found_city(unit):  # <- YOUR logic
+				actions.append({"action": "found_city", "unit_id": unit.id})
+	
+		# Policy selection
+		if player.can_choose_policy():
+			for policy in player.get_available_policies():
+				actions.append({"action": "select_policy", "policy": policy})
+	
+		# Tech selection
+		if player.science_system.needs_research():
+			for tech in player.science_system.get_available_techs():
+				actions.append({"action": "select_tech", "tech": tech})
+	
+		# City production
+		for city in player.cities:
+			if city.needs_production():
+				for buildable in city.get_buildable_things():
+					actions.append({"action": "set_production", "city_id": city.id, "name": buildable})
+	
+		# End turn (only if all required actions are taken)
+		if self.can_end_turn(player):
+			actions.append({"action": "end_turn"})
+	
+		return actions	
+
 	def show_message(self, text, duration=90):
 		self.message = text
 		self.message_timer = duration
@@ -95,6 +141,19 @@ class Engine:
 		self.units.append(unit)
 		self.tiles[q][r].unit = unit
 		return unit
+
+	def get_unit_by_id(self, unit_id):
+		for unit in self.units:
+			if unit.id == unit_id:
+				return unit
+		return None
+
+	def get_city_by_id(self, city_id):
+		for player in self.players:
+			for city in player.cities:
+				if city.id == city_id:
+					return city
+		return None
 
 	def get_unit_at(self, q, r):
 		return self.tiles[q][r].unit
@@ -107,11 +166,21 @@ class Engine:
 			city.production_system.apply_production(self)
 
 	def end_turn(self):
-		if self.current_player.end_turn(self):
+		success, message = self.current_player.end_turn(self)
+	
+		if success:
 			self.turn += 1
 			self.selected_unit = None
 			self.spawn_worker_on_schedule()
 			self.start_turn()
+			with open("replayX.json", "w") as f:
+				json.dump(self.action_log, f, indent=2)			
+			return True
+		else:
+			print(f"Turn error: {message}")
+			game.show_message(message, 180)
+	
+			return False
 
 	def spawn_worker_on_schedule(self, start_turn=20, interval=10, spawn_tile_q=0, spawn_tile_r=0):
 		if self.turn >= start_turn and (self.turn - start_turn) % interval == 0:
@@ -145,63 +214,60 @@ class Engine:
 	def get_tile(self, q, r):
 		return self.tiles[q][r]
 
-	def found_city(self, unit):
-		self.current_player.found_city(unit, self)
-
 	def get_state(self):
 		return {
-	        "turn": self.turn,
-	            "player": {
-	                        "name": self.name,
-	                    "gold": self.gold,
-	                        "culture": self.culture,
-	                        "science": self.science,
-	                        "faith": self.faith,
-	                        "unlocked_policies": list(self.unlocked_policies),
-	                        "current_research": self.science_system.current_research,
-	                        },
-	                "units": [
-	                        {
-	                            "type": u.name,
-	                            "q": u.q,
-	                                "r": u.r,
-	                                "moves_left": u.moves_left,
-	                    }
-	                    for u in self.units
-	                        ],
-	                "cities": [
-	                        {
-	                            "name": c.name,
-	                            "q": c.q,
-	                                "r": c.r,
-	                                "population": c.population,
-	                                "food": c.food,
-	                                "production": c.production,
-	                                "worked_tiles": list(c.worked_tiles),
-	                                "build_queue": c.build_queue[:],  # if applicable
-	                                "build_progress": c.build_progress,
-	                    }
-	                    for c in self.cities
-	                        ],
-	                "tiles": [
-	                        [
-	                            {
-	                                    "q": t.q,
-	                                    "r": t.r,
-	                                        "terrain": t.terrain,
-	                                        "elevation": t.elevation,
-	                                        "trees": t.trees,
-	                                        "resource": t.resource,
-	                                        "food": t.food,
-	                                        "production": t.production,
-	                                        "gold": t.gold,
-	                                        "city": t.city.name if t.city else None,
-	                                        "improvement": t.improvement,
-	                                        "unit": t.unit.name if t.unit else None,
-	                                        "territory": t.territory,
-	                            }
-	                            for t in col
-	                    ]
-	                    for col in self.tiles
-	                        ],
-	}
+			"turn": self.turn,
+		"player": {
+			    "name": self.name,
+				"gold": self.gold,
+			    "culture": self.culture,
+				"science": self.science,
+				"faith": self.faith,
+				"unlocked_policies": list(self.unlocked_policies),
+				"current_research": self.science_system.current_research,
+				},
+		    "units": [
+				{
+					"type": u.name,
+				    "q": u.q,
+				    "r": u.r,
+					"moves_left": u.moves_left,
+				}
+				for u in self.units
+			    ],
+			"cities": [
+				{
+					"name": c.name,
+				    "q": c.q,
+				    "r": c.r,
+					"population": c.population,
+					"food": c.food,
+					"production": c.production,
+					"worked_tiles": list(c.worked_tiles),
+					"build_queue": c.build_queue[:],  # if applicable
+					"build_progress": c.build_progress,
+				}
+				for c in self.cities
+			    ],
+			"tiles": [
+				[
+					{
+					    "q": t.q,
+					    "r": t.r,
+					    "terrain": t.terrain,
+						"elevation": t.elevation,
+						"trees": t.trees,
+						"resource": t.resource,
+						"food": t.food,
+						"production": t.production,
+						"gold": t.gold,
+						"city": t.city.name if t.city else None,
+						"improvement": t.improvement,
+						"unit": t.unit.name if t.unit else None,
+						"territory": t.territory,
+				    }
+				    for t in col
+				]
+				for col in self.tiles
+			    ],
+		}

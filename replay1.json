@@ -1,0 +1,8 @@
+[
+  [1, "move_unit", {"unit_id": 0, "to": [5, 8]}],
+  [1, "move_unit", {"unit_id": 1, "to": [6, 7]}],
+  [1, "found_city", {"unit_id": 1}],
+  [1, "choose_production", {"city_id": 0, "name": "Monument"}],
+  [2, "move_unit", {"unit_id": 0, "to": [4, 8]}],
+  [3, "move_unit", {"unit_id": 0, "to": [3, 8]}]
+]

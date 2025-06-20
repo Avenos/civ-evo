@@ -51,7 +51,7 @@ class Player:
 
 		if not self.in_golden_age:
 			self.happiness_points += max(0, self.happiness)  # Only add if happiness positive
-			
+
 		# Start golden age if threshold reached and not already in one
 		if not self.in_golden_age and self.happiness_points >= 500:
 			self.start_golden_age()
@@ -60,24 +60,47 @@ class Player:
 	def max_trade_routes(self):
 		trade_route_techs = {
 			"Sailing",
-		"Animal Husbandry",
-		"Engineering",
+			"Animal Husbandry",
+			"Engineering",
 		"Compass",
 		"Banking"
-	    }
+		}
 		return sum(1 for tech in trade_route_techs if tech in self.science_system.unlocked_techs)
 
 	@property
 	def happiness(self):
-		base = 9
-		lux_bonus = 4 * len(set(self.improved_tiles))
-		nat_wonder_bonus = 1
-		local_happiness =  sum(city.local_happiness for city in self.cities)
-		city_penalty = -3.6 * len(self.cities)
-		pop_penalty = -0.5 * sum(city.population for city in self.cities)
+		happiness = 9 # Base happiness
+		happiness += 4 * len(set(self.improved_tiles)) # +4 happiness for each unique luxury resource
+		happiness += 1 # +1 for discovering natural wonders
+		happiness += sum(city.local_happiness for city in self.cities) # Local city happiness
 
-		total_happiness = base + lux_bonus + nat_wonder_bonus + city_penalty + pop_penalty
-		return math.floor(total_happiness)
+		if "Meritocracy" in self.unlocked_policies:
+			happiness += sum(1 for city in self.cities if city.has_city_connection)
+
+		if "Aristocracy" in self.unlocked_policies:
+			happiness += sum(city.population // 10 for city in self.cities)
+
+		capital = next((c for c in self.cities if c.is_capital), None)
+		if "Monarchy" in self.unlocked_policies and capital:
+			happiness += capital.population // 2
+
+		if self.pantheon == "Goddess of Love":
+			happiness += sum(1 for city in self.cities if city.population >= 6)
+
+		# --- Unhappiness calculation ---
+		gandhi_city_modifier = 2
+		city_unhappiness = 1.8 * len(self.cities) * gandhi_city_modifier
+
+		gandhi_citizen_modifier = 0.5
+		meritocracy_modifier = 0.95 if "Meritocracy" in self.unlocked_policies else 1.0
+
+		citizen_unhappiness = sum(city.population for city in self.cities) * (gandhi_citizen_modifier * meritocracy_modifier)
+
+		unhappiness = city_unhappiness + citizen_unhappiness
+
+		# Final happiness score (floored to match game mechanics)
+		return math.floor(happiness - unhappiness)
+
 
 	@property
 	def science_per_turn(self):
@@ -115,17 +138,18 @@ class Player:
 	def gold_per_turn(self):
 		income = 20 + sum(city.gold for city in self.cities)
 
-		# Count duplicates in luxuries
-		luxury_counts = Counter(self.luxuries)
-		duplicates_bonus = sum((count - 1) * 7 for count in luxury_counts.values() if count > 1)
+		capital = next((c for c in self.cities if c.is_capital), None)
+		if "Monarchy" in self.unlocked_policies and capital:
+			income += capital.population // 2
 
-		tile_maintenance_cost = len(self.improved_tiles)
-		unit_maintenance_cost = 2 * len(self.units)
+		luxury_counts = Counter(self.luxuries)
+		income += sum((count - 1) * 7 for count in luxury_counts.values() if count > 1) #trading simulation... need to offer exchange as well...
+
+		expenses = len(self.improved_tiles) #that are in territory?
+		expenses += 2 * len(self.units)
 		# building_maintenance_cost = sum(city.building_maintenance_cost for city in self.cities)
 
-		total_maintenance = tile_maintenance_cost + unit_maintenance_cost
-
-		return income + duplicates_bonus - total_maintenance
+		return income - expenses
 
 	@property
 	def policy_cost(self):
@@ -194,27 +218,23 @@ class Player:
 	def end_turn(self, game):
 		# Check for policy selection requirement
 		if self.culture >= self.policy_cost and len(self.unlocked_policies) < len(game.all_policies):
-			game.show_message("You must select a social policy before ending your turn!", 180)
-			return False
-
+			return False, "You must select a social policy before ending your turn!"
+	
 		# Check tech research selection first (no progress yet)
 		if not self.science_system.current_research:
-			game.show_message("You must choose a technology to research before ending your turn!", 180)
-			return False
-
+			return False, "You must choose a technology to research before ending your turn!"
+	
 		# Check production projects in cities
 		for city in self.cities:
 			if not city.production_system.current_project:
-				game.show_message(f"{city.name} needs a production project!", 90)
-				return False
-
+				return False, f"{city.name} needs a production project!"
+	
 		# Check Pantheon selection if faith threshold met
 		if self.pantheon is None:
 			required_faith = 20 + (game.turn // 10) * 5
 			if self.faith >= required_faith:
-				game.show_message("You must select a Pantheon before ending your turn!", 180)
-				return False
-
+				return False, "You must select a Pantheon before ending your turn!"
+	
 		# All checks passed, now apply turn-end effects:
 
 		# Apply science progress and notify if tech unlocked
@@ -241,8 +261,7 @@ class Player:
 		# Update golden age state
 		self.update_golden_age()
 
-		return True
-
+		return True, "Turn ended successfully."
 
 	def found_city(self, unit, game):
 		q, r = unit.q, unit.r

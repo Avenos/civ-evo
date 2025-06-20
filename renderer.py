@@ -3,6 +3,7 @@ import math
 import pygame
 import helper
 import dictionary
+import os
 import numpy as np
 from constants import GRID_WIDTH, GRID_HEIGHT, HEX_RADIUS, WIDTH, HEIGHT, FPS, HEX_DIAMETER, HEX_RADIUS
 
@@ -50,8 +51,8 @@ def draw_hex(surface, x, y, color, width=2):
 		py = y + HEX_RADIUS * math.sin(angle)
 		points.append((px, py))
 	pygame.draw.polygon(surface, color, points, width)
-	
-def draw_grid(screen, engine, font, big_font, terrain_overlays, hex_mask):
+
+def draw_grid(screen, engine, font, big_font, terrain_overlays, hex_mask, icon_images):
 	for q in range(GRID_WIDTH):
 		for r in range(GRID_HEIGHT):
 			x, y = helper.hex_to_pixel(q, r)
@@ -84,8 +85,27 @@ def draw_grid(screen, engine, font, big_font, terrain_overlays, hex_mask):
 				ar_rect = ar_surf.get_rect(center=(x, y + HEX_RADIUS // 2))
 				screen.blit(ar_surf, ar_rect)
 
-			# Draw hex border
-			draw_hex(screen, x, y, BLACK)
+				# --- Draw tile yield icons ---
+				yield_offset_x = -20  # Adjust horizontal spacing between icons
+				yield_offset_y = HEX_RADIUS // 3  # Slightly below center of tile
+
+			icon_spacing = 16
+			yield_offset_x = -10
+			yield_offset_y = HEX_RADIUS // 3
+			current_x = x + yield_offset_x
+
+			for attr in ["food", "production", "gold", "science", "culture", "faith"]:
+				amount = getattr(tile, attr, 0)
+				if amount > 0:
+					icon = icon_images.get(attr)
+					if icon:
+						for _ in range(amount):
+							icon_rect = icon.get_rect(midbottom=(current_x, y + yield_offset_y))
+							screen.blit(icon, icon_rect)
+							current_x += icon_spacing
+
+						# Draw hex border
+						draw_hex(screen, x, y, BLACK)
 
 
 def draw_territory_shading(screen, engine, font, big_font):
@@ -196,7 +216,7 @@ def draw_ui(screen, engine, font, big_font):
 	hap_txt = font.render(f"Happiness: {player.happiness} {player.happiness_points}/{player.happiness_points_needed_for_golden_age}", True, BLACK)
 	screen.blit(hap_txt, (col1_x, y_offset))
 	y_offset += 40
-	
+
 	if player.in_golden_age:
 		hap_txt = font.render(f"In golden age! ({player.golden_age_turns_left} turns)", True, BLACK)
 		screen.blit(hap_txt, (col1_x, y_offset))
@@ -389,7 +409,7 @@ def draw_ui(screen, engine, font, big_font):
 			is_current = (
 				current_project
 				and ((isinstance(current_project, dict) and current_project["name"] == name)
-				 or (not isinstance(current_project, dict) and current_project.name == name))
+				     or (not isinstance(current_project, dict) and current_project.name == name))
 			)
 
 			# Highlight color
@@ -413,8 +433,8 @@ def draw_ui(screen, engine, font, big_font):
 			engine.ui_production_buttons.append({
 				"rect": btn_rect,
 				"type": proj_type,  # now either 'building' or 'unit'
-			    "name": name,
-			"cost": cost,
+				"name": name,
+			    "cost": cost,
 			"project": project,
 			})
 

@@ -1,7 +1,7 @@
 
 import helper
 import dictionary
-		
+
 class ProductionSystem:
 	def __init__(self, city):
 		self.city = city
@@ -15,17 +15,17 @@ class ProductionSystem:
 
 	def get_available_projects(self):
 		from core import Unit
-	
+
 		player = self.city.owner
 		unlocked_techs = player.science_system.get_unlocked_names()
 		unlocked_policies = player.unlocked_policies
-	
+
 		available = []
 		seen = set()
-	
+
 		# Check for Monument or Monument (FREE) already built
 		has_monument = any("Monument" in b.name for b in self.city.buildings)
-	
+
 		for proj in self.projects:
 			if proj.completed or proj.production_cost <= 0:
 				continue
@@ -35,18 +35,18 @@ class ProductionSystem:
 				continue
 			if proj.name in seen:
 				continue
-	
+
 			# Restriction: don't offer Monument if any Monument is already present
 			if proj.name == "Monument" and has_monument:
 				continue
-	
+
 			# Settler restriction if unit
 			if isinstance(proj, Unit) and proj.name == "Settler" and self.city.population < 2:
 				continue
-	
+
 			available.append(proj)
 			seen.add(proj.name)
-	
+
 		return available
 
 	def set_current_project(self, project_name):
@@ -60,14 +60,14 @@ class ProductionSystem:
 		from core import Unit
 		available_projects = self.get_available_projects()
 		project_name = getattr(project, "name", None)
-	
+
 		if not any(proj.name == project_name for proj in available_projects):
 			return False
-	
+
 		player = self.city.owner
 		unlocked_techs = player.science_system.get_unlocked_names()
 		unlocked_policies = player.unlocked_policies
-	
+
 		# Verify requirements
 		for req in project.techs_required:
 			if req not in unlocked_techs:
@@ -75,14 +75,14 @@ class ProductionSystem:
 		for req in project.policies_required:
 			if req not in unlocked_policies:
 				return False
-	
+
 		if isinstance(project, Unit):
 			# Additional checks for units if needed
 			pass
 		else:
 			if project.completed:
 				return False
-	
+
 		self.current_project = project
 		return True
 
@@ -91,25 +91,25 @@ class ProductionSystem:
 		from core import Unit
 		if not self.current_project:
 			return
-	
+
 		production = self.city.production_per_turn
-	
+
 		# Check if current project is a Unit or Building based on class
 		if isinstance(self.current_project, Unit):
 			unit = self.current_project
 			unit.progress += production
-	
+
 			if unit.progress >= unit.production_cost:
 				self.city.complete_unit(unit.name, self.city.q, self.city.r, engine)
 				self.current_project = None
-	
+
 		else:
 			# Assume building
 			building = self.current_project
 			if building.completed:
 				return
 			building.progress += production
-	
+
 			if building.progress >= building.production_cost:
 				building.completed = True
 				building.progress = building.production_cost
@@ -227,7 +227,7 @@ class ScienceSystem:
 		tech = self.techs.get(tech_name)
 		if tech and not tech.unlocked and tech.can_research(self.get_unlocked_names()):
 			self.current_research = tech_name
-	
+
 			if player and self.overflow > 0:
 				tech.progress += self.overflow
 				if tech.progress >= tech.get_effective_cost(player):
@@ -245,13 +245,13 @@ class ScienceSystem:
 			if not tech.unlocked and tech.can_research(self.get_unlocked_names()):
 				return tech.name
 		return None
-	
+
 class AncientRuins:
 	RINDS_EFFECTS = {
 		1: "Gain 75 gold",
-	    2: "Gain 20 faith", #only possibly triggers AFTER turn 20
+		2: "Gain 20 faith", #only possibly triggers AFTER turn 20
 	    3: "Gain 1 pop in nearest city",
-		4: "Reveal nearby tiles (useless)",
+	    4: "Reveal nearby tiles (useless)",
 		5: "Unit upgrades (useless)",
 		6: "Reveal barbarian camps (useless)",
 		7: "Free tech",
@@ -325,7 +325,7 @@ class AncientRuins:
 			player.culture += 20
 
 		tile.ancient_ruin = None
-		
+
 class Pantheon:
 	def __init__(self, name, effect_text):
 		self.name = name

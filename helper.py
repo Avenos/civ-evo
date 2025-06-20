@@ -8,6 +8,36 @@ import helper
 from collections import deque
 import heapq
 
+import pygame
+import os
+import helper  # for load_unit_icons
+
+def init_pygame_assets():
+	pygame.display.init()
+	pygame.font.init()
+	screen = pygame.display.set_mode((800, 600))  # adjust size as needed
+	pygame.display.set_caption("Civ V Build Order Optimizer Replay")
+	clock = pygame.time.Clock()
+	font = pygame.font.SysFont(None, 20)
+	big_font = pygame.font.SysFont(None, 24)
+
+	terrain_overlays = {}
+	for filename in os.listdir("assets"):
+		if filename.endswith(".png"):
+			key = filename[:-4]
+			image = pygame.image.load(os.path.join("assets", filename)).convert_alpha()
+			terrain_overlays[key] = image
+
+	yield_types = ["food", "production", "gold", "science", "culture", "faith"]
+	icon_images = {}
+	for yield_type in yield_types:
+		icon_images[yield_type] = pygame.image.load(f"assets/icons/{yield_type}.png").convert_alpha()
+
+	unit_icons = helper.load_unit_icons()
+
+	return screen, clock, font, big_font, terrain_overlays, icon_images, unit_icons
+
+
 def a_star_path(start, goal, game_map, move_points_per_turn=2):
 	"""
 	Finds the fastest path (in turns) from start to goal.
@@ -286,8 +316,8 @@ def create_building(building_name, building_data):
 		gold=building_data.get("gold", 0),
 		science=building_data.get("science", 0),
 		culture=building_data.get("culture", 0),
-	    happiness=building_data.get("happiness", 0),
-	growth_percentage=building_data.get("growth_percentage", 0),
+		happiness=building_data.get("happiness", 0),
+	    growth_percentage=building_data.get("growth_percentage", 0),
 	science_percentage=building_data.get("science_percentage", 0),
 	production_cost=building_data.get("production_cost", 0),
 	gold_cost=building_data.get("gold_cost", 0),
@@ -413,13 +443,13 @@ def build_tile_image_key(tile, available_images):
 			return "coast"
 
 	candidates = [
-            f"{terrain}_hill_jungle" if elev == 1 and trees == 2 else None,
-        f"{terrain}_hill_forest" if elev == 1 and trees == 1 else None,
-        f"{terrain}_hill" if elev == 1 else None,
-        f"{terrain}_jungle" if trees == 2 else None,
-        f"{terrain}_forest" if trees == 1 else None,
-        terrain
-    ]
+		f"{terrain}_hill_jungle" if elev == 1 and trees == 2 else None,
+	    f"{terrain}_hill_forest" if elev == 1 and trees == 1 else None,
+	f"{terrain}_hill" if elev == 1 else None,
+	f"{terrain}_jungle" if trees == 2 else None,
+	f"{terrain}_forest" if trees == 1 else None,
+	terrain
+	]
 
 	for key in candidates:
 		if key and key in available_images:

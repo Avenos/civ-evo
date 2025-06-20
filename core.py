@@ -23,9 +23,10 @@ class Tile:
 		self.unit = None  # or maybe a list if you support stacking in the future
 		self.rivers = set()  # Set of edge indices (0 through 5) with rivers
 		self.ancient_ruin = None
+		self.worked_by = None
 
 		#base yields
-		terrain_data = dictionary.TERRAIN_TYPES[terrain_type]
+		self.terrain_data = dictionary.TERRAIN_TYPES[terrain_type]
 
 		#bonus from resources
 		#resource_data = dictionary.RESOURCES.get(resource, dictionary.RESOURCES["n"])
@@ -40,25 +41,53 @@ class Tile:
 			self.movement_cost = 1
 			self.passable = 1
 
-		self.food = terrain_data.get("food", 0)
-		self.production = terrain_data.get("production", 0)
-
-		self.gold = 0
 		self.science = 0
 		self.culture = 0
-		self.faith = 0
+		self.faith = 0		
+
+	@property
+	def food(self):
+		food = self.terrain_data.get("food", 0)	
+
+		if self.worked_by:
+			if any("Granary" in b.name for b in self.worked_by.buildings):
+				if self.resource in {"wheat", "deer", "bananas"}:
+					food += 1
+
+			if self.worked_by.owner.pantheon == "Sun God":
+				if self.resource in {"wheat", "citrus", "bananas"}:
+					food += 1
+
+		return food
+
+
+	@property
+	def production(self):
+		return self.terrain_data.get("production", 0)	
+
+	@property
+	def gold(self):
+		gold = self.terrain_data.get("gold", 0)
+
+		if self.owner and self.owner.in_golden_age and gold >= 1:
+			gold += 1
+
+		return gold
 
 
 class City:
-	name_index = 0  # shared across all City instances
+	_id_counter = 0  # class-level variable for unique ID assignment
 
 	def __init__(self, q, r, player):
-		if City.name_index < len(CITY_NAMES):
-			self.name = CITY_NAMES[City.name_index]
-			City.name_index += 1
+		self.id = City._id_counter
+		City._id_counter += 1 #need to set back to 0 on game start?		
+		
+		if City._id_counter < len(CITY_NAMES):
+			self.name = CITY_NAMES[City._id_counter]
+			City._id_counter += 1
 		else:
-			self.name = f"City{City.name_index}"
-			City.name_index += 1
+			self.name = f"City{City._id_counter}"
+			City._id_counter += 1
 		self.q = q
 		self.r = r
 		self.is_capital = 0
@@ -70,6 +99,7 @@ class City:
 		self.buildings = []
 		self.worked_tiles = set()  # tiles worked (Tile objects)
 
+		#do we really need to call this constantly... is that what properties do?
 	@property
 	def has_city_connection(self):
 		if self.is_capital:
@@ -95,48 +125,41 @@ class City:
 
 	@property
 	def food_per_turn(self):
-		granary_bonus_resources = {"wheat", "deer", "bananas"}
-		sun_god_bonus_resources = {"wheat", "citrus", "bananas"}
-	
-		# Compute base food from worked tiles, with Granary bonuses
+		if self.current_production_name == "Settler":
+			return 0
+
 		positive = 0
 		for tile in self.worked_tiles:
-			tile_food = tile.food
-			if any("Granary" in b.name for b in self.buildings) and getattr(tile, "resource", None) in granary_bonus_resources:
-				tile_food += 1
-			if self.owner.pantheon == "Sun God" and getattr(tile, "resource", None) in sun_god_bonus_resources:
-				tile_food += 1
-			
-			positive += tile_food
-	
+			positive += tile.food
+
 		# Add food from buildings
 		positive += sum(b.food for b in self.buildings)
-		
+
 		if "Landed Elite" in self.owner.unlocked_policies and self.is_capital:
 			positive += 2
-	
-		# Temple of Artemis: +10% total food empire-wide
+
+		# Temple of Artemis: +10% BASE food empire-wide
 		if any("Temple of Artemis" in b.name for city in self.owner.cities for b in city.buildings):
 			positive *= 1.10
-	
+
 		# Subtract population consumption
 		negative = 2 * self.population
 		difference = positive - negative
-	
+
 		# Growth modifiers (apply only to surplus food)
 		growth_modifier = 1.0
 		if self.owner.happiness < 0:
 			growth_modifier -= 0.75
-			
+
 		if "Landed Elite" in self.owner.unlocked_policies and self.is_capital:
 			growth_modifier += 0.1
-			
+
 		if self.owner.pantheon == "Fertility Rites":
 			growth_modifier += 0.1			
-	
+
 		for building in self.buildings:
 			growth_modifier += building.growth_percentage
-	
+
 		return growth_modifier * difference if difference >= 0 else difference
 
 
@@ -165,21 +188,19 @@ class City:
 	@property
 	def science(self):
 		base_science = self.population
-
-		flat_building_science = sum(b.science for b in self.buildings)
-
-		has_library = any(b.name == "Library" for b in self.buildings)
-		library_bonus = self.population // 2 if has_library else 0
-
-		raw_science = base_science + flat_building_science + library_bonus
+		base_science += sum(b.science for b in self.buildings)
+		base_science += self.population // 2 if any(b.name == "Library" for b in self.buildings) else 0
 
 		if self.owner.pantheon == "God-King" and self.is_capital == True:
-			raw_science += 1		
+			base_science += 1
 
-		total_percentage = sum(b.science_percentage for b in self.buildings)
-		bonus_from_percentage = raw_science * total_percentage
+		if self.owner.pantheon == "Messenger of the Gods" and self.has_city_connection:
+			base_science += 2
 
-		return math.floor(raw_science + bonus_from_percentage) #ceiling?
+		percent_modifier = 1
+		percent_modifier += sum(b.science_percentage for b in self.buildings)
+
+		return math.floor(base_science * percent_modifier ) #ceiling?
 
 	@property
 	def faith(self):
@@ -194,19 +215,19 @@ class City:
 	def gold(self):
 		from_tiles = sum(tile.gold for tile in self.worked_tiles)
 		from_buildings = sum(b.gold for b in self.buildings)
-	
+
 		golden_age_bonus = 0
 		if self.owner.in_golden_age:
 			golden_age_bonus = sum(1 for tile in self.worked_tiles if tile.gold >= 1)
-	
+
 		total_gold = from_tiles + from_buildings + golden_age_bonus
 		if self.owner.pantheon == "God-King" and self.is_capital:
 			total_gold += 1
-	
+
 		percentage_modifier = 1.0
 		if "Commerce" in self.owner.unlocked_policies:
 			percentage_modifier += 0.25
-	
+
 		return percentage_modifier * total_gold
 
 
@@ -224,6 +245,9 @@ class City:
 
 		if self.owner.pantheon == "God-King" and self.is_capital == True:
 			total += 1
+
+		if self.owner.pantheon == "God of Craftsmen" and self.population >= 3:
+			total += 1			
 
 		percentage_modifier = 1
 
@@ -400,7 +424,12 @@ class Building:
 		self.completed = False                
 
 class Unit:
+	_id_counter = 0  # class-level variable for unique ID assignment
+	
 	def __init__(self, name, player=None, q=None, r=None, hp=100, moves=2, gold_cost=0, production_cost=0, techs_required=None, policies_required=None):
+		self.id = Unit._id_counter
+		Unit._id_counter += 1 #need to set back to 0 on game start?
+	
 		self.name = name
 		self.player = player
 		self.type = "unit"
@@ -422,48 +451,44 @@ class Unit:
 			player.units.append(self)
 
 	def move_to(self, from_tile, to_tile):
+		# Validation first
 		if self.moves_left == 0:
 			return "No moves left!"
 	
 		if helper.hex_distance(from_tile.q, from_tile.r, to_tile.q, to_tile.r) > 1:
 			return "Can only move to adjacent tiles."
 	
-		if to_tile.passable == 0:
+		if not to_tile.passable:
 			return "Impassable tile."
-	
-		# water tile check here (if needed)
 	
 		if to_tile.unit is not None:
 			return "Tile already occupied."
 	
-		if self.name == "Scout":
-			# Scouts ignore all movement penalties
-			print("Scout ignores terrain and river movement costs.")
-			self.moves_left -= 1
-		else:
-			# Non-Scout movement logic
+		# Calculate movement cost
+		move_cost = 1
+		if self.name != "Scout":
 			if helper.has_river_between(from_tile, to_tile):
 				print(f"River detected between ({from_tile.q},{from_tile.r}) and ({to_tile.q},{to_tile.r})")
-				self.moves_left = 0
-			else:
-				self.moves_left -= 1
+				move_cost = max(move_cost, 1)
+			if to_tile.elevation == 1 or to_tile.trees:
+				move_cost = max(move_cost, self.moves_left)  # Use up all moves on rough terrain
 	
-			if to_tile.elevation == 1 or to_tile.trees != 0:
-				self.moves_left = 0
+		if self.moves_left < move_cost:
+			return "Not enough movement points."
 	
-		# Move the unit
+		# Apply move
+		self.moves_left -= move_cost
 		from_tile.unit = None
 		to_tile.unit = self
-	
 		self.q = to_tile.q
 		self.r = to_tile.r
 	
-		if to_tile.ancient_ruin is not None:
+		if to_tile.ancient_ruin:
 			ruin = to_tile.ancient_ruin
 			ruin.trigger(self.player, to_tile)
 			print(f"Ancient Ruins triggered: {ruin.description}")
 	
-		return True
+		return None  # success
 
 
 	def improve_tile(self, tile, new_improvement=None, game=None):
