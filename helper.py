@@ -10,12 +10,13 @@ import heapq
 
 import pygame
 import os
-import helper  # for load_unit_icons
+import helper
+from constants import WIDTH, HEIGHT
 
 def init_pygame_assets():
 	pygame.display.init()
 	pygame.font.init()
-	screen = pygame.display.set_mode((800, 600))  # adjust size as needed
+	screen = pygame.display.set_mode((WIDTH, HEIGHT))  # adjust size as needed
 	pygame.display.set_caption("Civ V Build Order Optimizer Replay")
 	clock = pygame.time.Clock()
 	font = pygame.font.SysFont(None, 20)

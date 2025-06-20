@@ -48,43 +48,38 @@ class ProductionSystem:
 			seen.add(proj.name)
 
 		return available
-
-	def set_current_project(self, project_name):
-		for proj in self.projects:  # self.projects should be list of objects
-			if proj.name == project_name:
-				self.current_project = proj
-				return True
-		return False
-
+	
 	def start_project(self, project):
 		from core import Unit
 		available_projects = self.get_available_projects()
 		project_name = getattr(project, "name", None)
-
+	
 		if not any(proj.name == project_name for proj in available_projects):
-			return False
-
+			return False, f"Project '{project_name}' is not available."
+	
 		player = self.city.owner
 		unlocked_techs = player.science_system.get_unlocked_names()
 		unlocked_policies = player.unlocked_policies
-
-		# Verify requirements
+	
+		# Verify tech requirements
 		for req in project.techs_required:
 			if req not in unlocked_techs:
-				return False
+				return False, f"Tech requirement '{req}' not met for project '{project_name}'."
+	
+		# Verify policy requirements
 		for req in project.policies_required:
 			if req not in unlocked_policies:
-				return False
-
+				return False, f"Policy requirement '{req}' not met for project '{project_name}'."
+	
 		if isinstance(project, Unit):
-			# Additional checks for units if needed
+			# Add any extra unit-specific checks here if needed
 			pass
 		else:
 			if project.completed:
-				return False
-
+				return False, f"Project '{project_name}' has already been completed."
+	
 		self.current_project = project
-		return True
+		return True, ""
 
 
 	def apply_production(self, engine):

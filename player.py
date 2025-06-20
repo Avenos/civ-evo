@@ -14,7 +14,7 @@ class Player:
 		self.cities = []
 		self.luxuries = []
 		self.improved_tiles = []
-		self.science = 0
+		self.total_science_accrued = 0
 		self.culture = 0
 		self._gold = 1000
 		self.faith = 0
@@ -246,7 +246,7 @@ class Player:
 		# Apply resource yields
 		self.gold += self.gold_per_turn
 		self.culture += self.culture_per_turn
-		self.science += self.science_per_turn
+		self.total_science_accrued += self.science_per_turn
 		self.faith += self.faith_per_turn
 
 		# Process city growth and tile updates
@@ -265,45 +265,47 @@ class Player:
 
 	def found_city(self, unit, game):
 		q, r = unit.q, unit.r
-
+	
 		if unit.name != "Settler":
-			game.show_message("Only Settlers can found cities!", 90)
-			return
-
+			game.show_message("Only Settlers can found cities!", 90) #call showmessage higher up somewhere?
+			return False, "Only Settlers can found cities!"
+	
 		if unit.moves_left < 1:
 			game.show_message("Not enough movement to found a city!", 90)
-			return
-
+			return False, "Not enough movement to found a city!"
+	
 		for player in game.players:
 			for city in player.cities:
 				if helper.hex_distance(q, r, city.q, city.r) < 4:
 					game.show_message("Too close to another city!", 90)
-					return
-
+					return False, "Too close to another city!"
+	
 		city = City(q, r, game.current_player)
-
+	
 		from core import Building
-
+	
 		if len(self.cities) == 0:
 			palace_data = dictionary.BUILDINGS["Palace"]
 			palace = Building("Palace", **palace_data)
 			palace.completed = True  # ← This is crucial
 			city.buildings.append(palace)
 			city.is_capital = 1
-
+	
 		self.cities.append(city)
 		game.tiles[q][r].city = city
 		game.territory.add((q, r))
-
+	
 		for nq, nr in helper.hex_neighbors(q, r):
 			if 0 <= nq < GRID_WIDTH and 0 <= nr < GRID_HEIGHT:
 				game.territory.add((nq, nr))
 				game.tiles[nq][nr].territory = True
-
+	
 		game.tiles[q][r].territory = True
 		city.update_worked_tiles(game)
 		self.remove_unit(unit, game)
 		game.selected_city = city
+	
+		return True, None
 
 
 	def remove_unit(self, unit, game):

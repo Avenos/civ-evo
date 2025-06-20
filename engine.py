@@ -47,19 +47,19 @@ class Engine:
 
 
 		# --- A* TEST BLOCK --- #
-		print("\nRunning pathfinding test...")
+		#print("\nRunning pathfinding test...")
 
-		# Convert self.tiles into flat game_map dict {(q,r): Tile}
-		game_map = {}
-		for col in self.tiles:
-			for tile in col:
-				game_map[(tile.q, tile.r)] = tile
+		## Convert self.tiles into flat game_map dict {(q,r): Tile}
+		#game_map = {}
+		#for col in self.tiles:
+			#for tile in col:
+				#game_map[(tile.q, tile.r)] = tile
 
-		start = (0, 1)
-		goal = (5, 5)
-		move_points_per_turn = 2
+		#start = (0, 1)
+		#goal = (5, 5)
+		#move_points_per_turn = 2
 
-		path = helper.a_star_path(start, goal, game_map, move_points_per_turn)
+		#path = helper.a_star_path(start, goal, game_map, move_points_per_turn)
 
 		self.turn = 1
 
@@ -88,7 +88,11 @@ class Engine:
 
 		self.selected_unit = None
 		self.selected_city = None
-
+		
+	def evaluate_result(self):
+		total_science = self.engine.currentplayer.total_science_accrued  # Accumulate this in your engine
+		total_pop = sum(city.population for city in self.engine.cities)
+		return total_science + 50 * total_pop
 
 	def record_action(self, turn, action_type, data):
 		if not self.is_replay:
@@ -178,7 +182,7 @@ class Engine:
 			return True
 		else:
 			print(f"Turn error: {message}")
-			game.show_message(message, 180)
+			self.show_message(message, 180)
 	
 			return False
 
@@ -213,6 +217,7 @@ class Engine:
 
 	def get_tile(self, q, r):
 		return self.tiles[q][r]
+
 
 	def get_state(self):
 		return {

@@ -1,4 +1,6 @@
 
+#how are we haction handling end turn?
+
 #essentials:
 #civil service, iron and horses, 
 #verify science system overflow,

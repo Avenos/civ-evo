@@ -1,12 +1,3 @@
-#possible actions:
-#move a unit to a tile
-#start production in a city
-#purchase a tile or unit or building
-#settle a city
-#choose a tech
-#choose social policy or pantheon
-#choose tiles worked by cities
-#perform a worker chop or improvment
 
 import random
 import json
