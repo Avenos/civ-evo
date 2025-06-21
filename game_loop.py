@@ -14,19 +14,20 @@ import player
 import core
 import systems
 import game_loop
-from action_handler import handle_action
+from action_handler import handle_action, start_new_replay_log
 from engine import Engine
 from constants import GRID_WIDTH, GRID_HEIGHT, HEX_RADIUS, WIDTH, HEIGHT, FPS, CITY_NAMES
 
 def run_manual_game(engine):
-	screen, clock, font, big_font, terrain_overlays, icon_images, unit_icons = helper.init_pygame_assets()
-
+	screen, clock, font, big_font, terrain_overlays, resource_icons, unit_icons = helper.init_pygame_assets()
+	
+	start_new_replay_log(engine)
 	hovered_tile_coords = None
 	hover_start_time = 0
 	HOVER_DELAY = 0.2  # seconds
 
 	running = True
-
+	
 	while running:
 		clock.tick(FPS)
 		if engine.message_timer > 0:
@@ -51,7 +52,7 @@ def run_manual_game(engine):
 				# Handle policy buttons
 				for btn in engine.ui_policy_buttons:
 					if btn["rect"].collidepoint(pos):
-						policy_name = btn["policy"].name
+						policy_name = btn["policy"]
 						success, message = handle_action(engine, "choose_policy", {"policy_name": policy_name})
 						engine.show_message(message if not success else f"Policy chosen: {policy_name}", 90)
 						break
@@ -134,7 +135,7 @@ def run_manual_game(engine):
 						project = btn["project"]
 						city_id = engine.selected_city.id if engine.selected_city else None
 						if city_id is not None:
-							success, message = handle_action(engine, "start_project", {
+							success, message = handle_action(engine, "choose_project", {
                                                         "city_id": city_id,
                                                     "project_name": project.name
                                                 })
@@ -154,11 +155,11 @@ def run_manual_game(engine):
 
 		screen.fill((255, 255, 255))
 		hex_mask = helper.create_hex_mask(HEX_RADIUS)
-		renderer.draw_grid(screen, engine, font, big_font, terrain_overlays, hex_mask, icon_images)
+		renderer.draw_grid(screen, engine, font, big_font, terrain_overlays, hex_mask, resource_icons)
 		renderer.draw_territory_shading(screen, engine, font, big_font)
 		renderer.draw_cities(screen, engine, font, big_font)
 		renderer.draw_units(screen, engine, font, big_font, unit_icons)
-		renderer.draw_ui(screen, engine, font, big_font)
+		renderer.draw_ui(screen, engine, font, big_font, resource_icons)
 		renderer.draw_message(screen, engine)
 
 		# --- Tile Hover Info UI ---

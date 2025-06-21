@@ -2,6 +2,14 @@
 import random
 import json
 
+#turn 121 to beat:
+#science +195, 6 turns till banking
+#crop yield 200, 10 cities total
+#86 hammers
+#27 culture per turn
+#900 + 97 gold per turn
+
+
 class EvolutionarySimulator:
 	def __init__(self, num_generations=100, population_size=50):
 		self.num_generations = num_generations

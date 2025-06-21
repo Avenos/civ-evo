@@ -125,7 +125,7 @@ class City:
 
 	@property
 	def food_per_turn(self):
-		if self.current_production_name == "Settler":
+		if self.current_project_name == "Settler":
 			return 0
 
 		positive = 0
@@ -263,22 +263,45 @@ class City:
 		return percentage_modifier * total
 
 	@property
-	def current_production_name(self):
+	def current_project_name(self):
 		if self.production_system.current_project:
 			return self.production_system.current_project.name
 		return None
 
-	def complete_building(self, building_name):
-		for b in self.production_system.building_projects:  # ONLY buildings here
-			if b.name == building_name:
-				b.completed = True
-				b.progress = b.production_cost
-				self.buildings.append(b)
-				return
-
-	def complete_unit(self, unit_name, q, r, engine):
-		engine.spawn_unit(player=self.owner, q=q, r=r, name=unit_name)
-		print(f"[DEBUG] Spawned unit '{unit_name}' at city ({self.q},{self.r}) for player '{self.owner.name}'.")
+	def buy_tile(self, tile, engine):
+		player = self.owner
+		q, r = tile.q, tile.r
+	
+		# Check if already owned
+		if tile.owner is not None:
+			return False, "Tile already owned by another player."
+	
+		# Check if tile is within 3 tiles of the city
+		from helper import hex_distance
+		if hex_distance(self.q, self.r, q, r) > 3:
+			return False, "Tile is too far from the city (must be within 3 tiles)."
+	
+		# Check if tile is adjacent to existing borders
+		is_adjacent = any(
+		    hex_distance(q, r, border_q, border_r) == 1
+		for border_q, border_r in self.border
+	    )
+		if not is_adjacent:
+			return False, "Tile must be adjacent to your city's borders."
+	
+		# Get cost
+		from helper import get_tile_purchase_cost
+		cost = get_tile_purchase_cost(self, tile)
+	
+		if player.gold < cost:
+			return False, f"Not enough gold to purchase tile (cost: {cost})."
+	
+		# Success — buy tile
+		player.gold -= cost
+		tile.owner = player
+		self.border.append((q, r))
+	
+		return True, f"Tile purchased for {cost}g!"
 
 
 	def update_worked_tiles(self, game):
@@ -316,7 +339,7 @@ class City:
 		self.worked_tiles = set(game.tiles[q][r] for q, r in chosen_coords)
 
 	def process_growth(self):
-		if self.current_production_name == "Settler":
+		if self.current_project_name == "Settler":
 			pass
 		elif self.food_per_turn >= 0:
 			self.food += self.food_per_turn
@@ -386,7 +409,7 @@ class City:
 
 
 		game.tiles[q][r].unit = new_unit
-		player.units.append(new_unit)  # or engine.units.append(new_unit)
+		player.units.append(new_unit)  # is this done already in the unit constructor?
 
 		return True, f"Purchased {name}."
 
@@ -453,16 +476,16 @@ class Unit:
 	def move_to(self, from_tile, to_tile):
 		# Validation first
 		if self.moves_left == 0:
-			return "No moves left!"
+			return False, "No moves left!"
 	
 		if helper.hex_distance(from_tile.q, from_tile.r, to_tile.q, to_tile.r) > 1:
-			return "Can only move to adjacent tiles."
+			return False, "Can only move to adjacent tiles."
 	
 		if not to_tile.passable:
-			return "Impassable tile."
+			return False, "Impassable tile."
 	
 		if to_tile.unit is not None:
-			return "Tile already occupied."
+			return False, "Tile already occupied."
 	
 		# Calculate movement cost
 		move_cost = 1
@@ -474,7 +497,7 @@ class Unit:
 				move_cost = max(move_cost, self.moves_left)  # Use up all moves on rough terrain
 	
 		if self.moves_left < move_cost:
-			return "Not enough movement points."
+			return False, "Not enough movement points."
 	
 		# Apply move
 		self.moves_left -= move_cost
@@ -488,7 +511,8 @@ class Unit:
 			ruin.trigger(self.player, to_tile)
 			print(f"Ancient Ruins triggered: {ruin.description}")
 	
-		return None  # success
+		return True, "Unit moved successfully."
+
 
 
 	def improve_tile(self, tile, new_improvement=None, game=None):

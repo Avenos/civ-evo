@@ -180,41 +180,65 @@ def draw_message(screen, engine):
 		screen.blit(background, (10, 10))
 		screen.blit(text_surface, (20, 15))
 
-def draw_ui(screen, engine, font, big_font):
-	# --- COLUMN 1: GLOBAL + CITY INFO ---
-	col1_x = 1000
-	y_offset = 20
+def draw_ui(screen, engine, font, big_font, resource_icons):
+	BLACK = (0, 0, 0)
+	bar_height = 30
+	bar_bg_color = (220, 220, 220)
+	padding = 10
+	icon_size = 20
+	screen_width = screen.get_width()
 
-	# Turn counter
-	turn_txt = big_font.render(f"Turn: {engine.turn}", True, BLACK)
-	screen.blit(turn_txt, (col1_x, y_offset))
-	y_offset += 40
-
-	# Global Resources
-	res_header = big_font.render("Resources", True, BLACK)
-	screen.blit(res_header, (col1_x, y_offset))
-	y_offset += 25
+	pygame.draw.rect(screen, bar_bg_color, (0, 0, screen_width, bar_height))
 
 	player = engine.current_player
+	resources = [
+            ("science", f"+{player.science_per_turn}"),
+        ("gold", f"{player.gold} +{player.gold_per_turn}"),
+        ("happiness", f"{player.happiness} {player.happiness_points}/{player.happiness_points_needed_for_golden_age}"),
+        ("culture", f"{player.culture}/{player.policy_cost} +{player.culture_per_turn}"),
+        ("faith", f"{player.faith} +{player.faith_per_turn}"),
+    ]
 
-	text = font.render(f"Science: +{player.science_per_turn}", True, BLACK)
-	screen.blit(text, (col1_x, y_offset))
-	y_offset += 20
+	if player.in_golden_age:
+		resources.append(("golden_age", f"In golden age! ({player.golden_age_turns_left} turns)"))
 
-	text = font.render(f"Gold: {player.gold} +{player.gold_per_turn}", True, BLACK)
-	screen.blit(text, (col1_x, y_offset))
-	y_offset += 20
+	x = padding
+	y = bar_height // 2
 
-	text = font.render(f"Culture: {player.culture}/{player.policy_cost} +{player.culture_per_turn}", True, BLACK)
-	screen.blit(text, (col1_x, y_offset))
-	y_offset += 20
+	for res_name, res_text in resources:
+		icon = resource_icons.get(res_name)
+		if icon:
+			icon_rect = icon.get_rect(midleft=(x + icon_size // 2, y))
+			screen.blit(icon, icon_rect)
+			x += icon_size  # move right past icon
 
-	text = font.render(f"Faith: {player.faith} +{player.faith_per_turn}", True, BLACK)
-	screen.blit(text, (col1_x, y_offset))
-	y_offset += 20        
+			# Special: Show unhappiness icon right after happiness icon & text if happiness < 0
+			if res_name == "happiness" and player.happiness < 0:
+				unhappiness_icon = resource_icons.get("unhappiness")
+				if unhappiness_icon:
+					unhappy_rect = unhappiness_icon.get_rect(midleft=(x + 10, y))  # 10 px gap after happiness icon
+					screen.blit(unhappiness_icon, unhappy_rect)
+					x += icon_size + 10  # move past unhappy icon + spacing
 
-	hap_txt = font.render(f"Happiness: {player.happiness} {player.happiness_points}/{player.happiness_points_needed_for_golden_age}", True, BLACK)
-	screen.blit(hap_txt, (col1_x, y_offset))
+			x += 20  # bigger gap between icon and text
+
+		text_surf = font.render(res_text, True, BLACK)
+		text_rect = text_surf.get_rect(midleft=(x, y))
+		screen.blit(text_surf, text_rect)
+		x += text_rect.width
+
+		x += padding  # normal small gap before next icon
+
+
+
+	# --- SHIFT EVERYTHING ELSE DOWN BELOW THE RESOURCE BAR ---
+	# So increase y_offset start position to below bar_height + some padding
+	col1_x = 1000
+	y_offset = bar_height + 10
+
+	# Turn counter (moved down)
+	turn_txt = big_font.render(f"Turn: {engine.turn}", True, BLACK)
+	screen.blit(turn_txt, (col1_x, y_offset))
 	y_offset += 40
 
 	if player.in_golden_age:

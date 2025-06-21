@@ -1,7 +1,9 @@
 
-#how are we haction handling end turn?
+#also i suppose that after evert game action, we have to see if our production proejct is still valid? say my city drops from 2 pop to 1, that settler is no longer eligible and should be blocked (progress kept though). same with national colelge needing libraries. if i lay a new city down... ill have to check
+#terrible unit spawning
 
 #essentials:
+#action API finalize!! how do we end turn?
 #civil service, iron and horses, 
 #verify science system overflow,
 #purchase system finalize #purhcased things landing on same tile... stacking system?
@@ -12,6 +14,7 @@
 #negative gold penalties check
 #make ui nice food decimal rounding? or floor?
 #settler cost situation, also prevents starving
+#sell buildings...
 #citizen tile assignment choice system, #if city grows auto update the next worked tile to highest production tile then by gold
 #program all building effects, stoneworks, stable, hanging gardens, lighthouse, aqeuduct, etc
 #tile purhcasing finalize
@@ -27,7 +30,7 @@
 #great person slots
 
 #EVOLUTIONARY ALGORITHM TO TURN 121!!!!!! simpler gamestate, fitness func, and actions are best. pathfinding? forced TOA or nat college to test different builds?
-##hover formulas? eh music selector? map importer? not just gandhi? standard map size? #reserarch agreements
+##hover formulas? eh music selector? map importer? not just gandhi? standard map size? reserarch agreements
 
 #figure out gpt formula:
 #1war and 1 worker =  1gpt
@@ -36,14 +39,6 @@
 #border growth algorithm and formula
 #15 for first, NW ccotton 
 #w/ tradition...
-
-#turn 121 to beat:
-#science 195, 6 turns till banking
-#crop yield 200, 10 cities total
-#86 hammers
-#27 culture per turn
-#900 + 97 gold per turn
-
 
 # Edge indices: clockwise from E = 0
 DIRECTION_TO_EDGE = {

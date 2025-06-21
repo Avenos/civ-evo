@@ -1,86 +1,128 @@
 #possible actions:
-#move a unit to a tile
-#start production in a city
+#move a unit to a tile dONE
+#start production in a city DONE
 #purchase a tile or unit or building
-#settle a city
-#choose a tech
-#choose social policy or pantheon
+#settle a city DONE
+#choose a tech DONE, limit to once per turn?
+#choose social policy DONE
+#choose a pantheon DONE
 #choose tiles worked by cities
 #perform a worker chop or improvment
 #assign a trade route
 
-def handle_action(engine, action_type, data):
+import json
+import os
+from datetime import datetime
+
+def handle_action(engine, action_type, data, log_actions=True):
     """
     Handles a single action applied to the engine.
     Returns (success: bool, error_msg: str or None)
     """
+    result = (False, "Unknown action type")
 
     if action_type == "move_unit":
         unit = engine.get_unit_by_id(data["unit_id"])
         to_q, to_r = data["to"]
         if not unit:
-            return False, "Unit not found"
-        from_tile = engine.tiles[unit.q][unit.r]
-        to_tile = engine.tiles[to_q][to_r]
-        result = unit.move_to(from_tile, to_tile)
-        if result is not True:
-            # result is an error message string if move failed
-            return False, result
-        return True, None
+            result = (False, "Unit not found")
+        else:
+            from_tile = engine.tiles[unit.q][unit.r]
+            to_tile = engine.tiles[to_q][to_r]
+            result = unit.move_to(from_tile, to_tile)
 
     elif action_type == "found_city":
         unit = engine.get_unit_by_id(data["unit_id"])
         if not unit:
-            return False, "Unit not found for founding city"
-        success, error = engine.current_player.found_city(unit, engine)
-        if not success:
-            return False, error
-        return True, None
+            result = (False, "Unit not found for founding city")
+        else:
+            result = engine.current_player.found_city(unit, engine)
 
-    elif action_type == "start_project":
+    elif action_type == "choose_project":
         city = engine.get_city_by_id(data["city_id"])
         if not city:
-            return False, "City not found for production choice"
+            result = (False, "City not found for production choice")
+        else:
+            result = city.production_system.choose_project(data["project_name"])
 
-        # Find the project object by name
-        project_name = data["project_name"]
-        project = next((p for p in city.production_system.projects if p.name == project_name), None)
-
-        if not project:
-            return False, f"Project '{project_name}' not found in city's project list"
-
-        success, error = city.production_system.start_project(project)
-        if not success:
-            return False, error
-
-        return True, None
-    
     elif action_type == "set_research":
-            success = engine.current_player.science_system.set_current_research(data["tech_name"])
-            if not success:
-                return False, f"Cannot research {data['tech_name']}"
-            return True, None
-        
+        result = engine.current_player.science_system.set_current_research(data["tech_name"])
 
-    elif action_type == "end_turn": #called here or up above?
-        success, error_msg = engine.end_turn()
-        if not success:
-            return False, error_msg
-        return True, None
+    elif action_type == "purchase_unit":
+        city = engine.get_city_by_id(data["city_id"])
+        result = city.purchase_unit(data["name"], engine.current_player) if city else (False, "City not found")
 
+    elif action_type == "purchase_building":
+        city = engine.get_city_by_id(data["city_id"])
+        result = city.purchase_building(data["name"], engine.current_player) if city else (False, "City not found")
+
+    elif action_type == "purchase_tile":
+        city = engine.get_city_by_id(data["city_id"])
+        result = city.purchase_tile() if city else (False, "City not found")
+
+    elif action_type == "choose_pantheon":
+        pantheon_name = data.get("pantheon_name")
+        result = engine.current_player.choose_pantheon(pantheon_name, engine.turn)
+
+    elif action_type == "choose_policy":
+        policy = data.get("policy_name")
+        result = engine.current_player.choose_policy(policy, engine)
+
+    elif action_type == "end_turn":
+        result = engine.end_turn()
+
+    if log_actions and result[0]:  # success == True
+        log_action(engine.turn, action_type, data, engine.replay_log_filepath)
+
+    # Print the action result
+    action_summary = {
+        "type": action_type,
+        "data": data
+    }
+
+    status = "VALID" if result[0] else f"INVALID ({result[1]})"
+    print(f"ACTION: {json.dumps(action_summary, separators=(',', ':'))} --> {status}")
+
+    return result
+# At the very start of your game session (once)
+
+def start_new_replay_log(engine, prefix="replay", folder="replays"):
+    os.makedirs(folder, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    filename = f"{prefix}_{timestamp}.json"
+    filepath = os.path.join(folder, filename)
+    engine.replay_log_filepath = filepath
+    # Create empty file to start
+    with open(filepath, "w") as f:
+        json.dump([], f)
+
+
+def log_action(turn, action_type, data, filepath="replays/replay.json"):
+    import os
+    import json  # Just to make sure it's included
+    os.makedirs("replays", exist_ok=True)
+    
+    # Load existing log if exists
+    if os.path.exists(filepath):
+        with open(filepath, "r") as f:
+            try:
+                log = json.load(f)
+            except json.JSONDecodeError:
+                log = []
     else:
-        return False, f"Unknown action type: {action_type}"
+        log = []
 
-    #elif action_type == "purchase_unit":
-        #city = engine.get_city_by_id(data["city_id"])
-        #if city:
-            #city.purchase_unit(data["name"], engine.current_player)
+    # Log the action
+    action = [turn, action_type, data]
+    log.append(action)
 
-    #elif action_type == "select_policy":
-        #policy = data["policy"]
-        #engine.current_player.choose_policy(policy, engine)
-
-    #elif action_type == "select_tech":
-        #tech_name = data["tech"]
-        #engine.current_player.science_system.set_current_research(tech_name)
-
+    # Write manually with one line per entry, compact per entry
+    with open(filepath, "w") as f:
+        f.write("[\n")
+        for i, entry in enumerate(log):
+            line = json.dumps(entry, separators=(',', ':'))
+            if i < len(log) - 1:
+                f.write(f"  {line},\n")
+            else:
+                f.write(f"  {line}\n")
+        f.write("]\n")

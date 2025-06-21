@@ -29,7 +29,7 @@ def init_pygame_assets():
 			image = pygame.image.load(os.path.join("assets", filename)).convert_alpha()
 			terrain_overlays[key] = image
 
-	yield_types = ["food", "production", "gold", "science", "culture", "faith"]
+	yield_types = ["food", "production", "gold", "science", "culture", "faith", "happiness", "unhappiness"]
 	icon_images = {}
 	for yield_type in yield_types:
 		icon_images[yield_type] = pygame.image.load(f"assets/icons/{yield_type}.png").convert_alpha()

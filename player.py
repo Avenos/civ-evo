@@ -29,9 +29,20 @@ class Player:
 		self.in_golden_age = False
 		self.golden_age_turns_left = 0
 
-	def can_choose_pantheon(self, current_turn):
+	def choose_pantheon(self, pantheon_name, current_turn):
 		required_faith = 20 + (current_turn // 10) * 5
-		return self.pantheon is None and self.faith >= required_faith
+	
+		if self.pantheon is not None:
+			return False, "You have already chosen a Pantheon."
+	
+		if self.faith < required_faith:
+			return False, f"Not enough Faith to choose a Pantheon. You need {required_faith}, but have {self.faith}."
+	
+		# Success: Deduct faith and assign pantheon
+		self.faith -= required_faith
+		self.pantheon = pantheon_name
+		return True, f"Pantheon '{pantheon_name}' chosen successfully!"
+
 
 	def start_golden_age(self):
 		self.in_golden_age = True
@@ -172,36 +183,32 @@ class Player:
 	def choose_policy(self, policy_name, game):
 		policy = game.all_policies.get(policy_name)
 		if not policy:
-			game.show_message("Invalid policy choice!", 120)
-			return False
-
+			return False, "Invalid policy choice."
+	
 		if policy.is_unlocked(self):
-			game.show_message("Policy already unlocked!", 120)
-			return False
-
+			return False, "Policy already unlocked."
+	
 		if not policy.can_unlock(self):
-			game.show_message("You don't meet the prerequisites for this policy!", 120)
-			return False
-
+			return False, "You don't meet the prerequisites for this policy."
+	
 		if self.culture < self.policy_cost:
-			game.show_message("Not enough culture to unlock this policy!", 120)
-			return False
-
+			return False, "Not enough culture to unlock this policy."
+	
 		self.culture -= self.policy_cost
 		self.unlocked_policies.append(policy.name)
-		game.show_message(f"Unlocked policy: {policy.name}!", 120)
-
+	
+		# Policy bonuses
 		if policy.name == "Collective Rule":
 			spawn_unit_near_capital(self, game, "Settler", "A free Settler has arrived!")
-
-		if policy.name == "Citizenship":
+	
+		elif policy.name == "Citizenship":
 			spawn_unit_near_capital(self, game, "Worker", "A free Worker has arrived!")
-
-		if policy.name == "Representation":
-			player.start_golden_age()
-
-		if policy.name == "Legalism":
-			# Monument (FREE) in first four cities if they don't already have a Monument
+	
+		elif policy.name == "Representation":
+			self.start_golden_age()
+	
+		elif policy.name == "Legalism":
+			# Monument (FREE) in first four cities if they don't already have one
 			for city in self.cities[:4]:
 				has_monument = any("Monument" in b.name for b in city.buildings)
 				if not has_monument:
@@ -210,10 +217,9 @@ class Player:
 					free_monument.production_cost = 0
 					free_monument.gold_cost = 0
 					city.buildings.append(free_monument)
-					game.show_message(f"{city.name} receives a free Monument!", 90)
+	
+		return True, f"Unlocked policy: {policy.name}!"
 
-
-		return True
 
 	def end_turn(self, game):
 		# Check for policy selection requirement

@@ -6,6 +6,7 @@ class ProductionSystem:
 	def __init__(self, city):
 		self.city = city
 
+		#is this available or all or what?
 		self.building_projects = [helper.create_building(name, data) for name, data in dictionary.BUILDINGS.items()]
 		self.unit_projects = [helper.create_unit(name, data) for name, data in dictionary.UNITS.items()]
 
@@ -13,73 +14,85 @@ class ProductionSystem:
 
 		self.current_project = None  # Can be building or unit (store as a dict/object)
 
-	def get_available_projects(self):
+	def can_choose_project(self, project):
 		from core import Unit
-
+	
 		player = self.city.owner
 		unlocked_techs = player.science_system.get_unlocked_names()
 		unlocked_policies = player.unlocked_policies
-
-		available = []
+	
+		project_name = project.name
+	
+		if project.completed:
+			return False, f"Project '{project_name}' is already completed."
+	
+		if project.production_cost <= 0:
+			return False, f"Project '{project_name}' cannot be produced."
+	
+		missing_tech = next((req for req in project.techs_required if req not in unlocked_techs), None)
+		if missing_tech:
+			return False, f"Tech requirement '{missing_tech}' not met for '{project_name}'."
+	
+		missing_policy = next((req for req in project.policies_required if req not in unlocked_policies), None)
+		if missing_policy:
+			return False, f"Policy requirement '{missing_policy}' not met for '{project_name}'."
+	
+		# Disallow building Monument if we have a monument (FREE) in the city
+		if project_name == "Monument":
+			has_monument = any("Monument" in b.name for b in self.city.buildings)
+			if has_monument:
+				return False, "A Monument is already present in the city."
+	
+		# Settler restriction
+		if isinstance(project, Unit) and project_name == "Settler" and self.city.population < 2:
+			return False, "Settler cannot be built unless city population is at least 2."
+	
+		return True, None
+	
+	
+	def get_available_projects(self):
 		seen = set()
-
-		# Check for Monument or Monument (FREE) already built
-		has_monument = any("Monument" in b.name for b in self.city.buildings)
-
+		available = []
+	
 		for proj in self.projects:
-			if proj.completed or proj.production_cost <= 0:
-				continue
-			if any(req not in unlocked_techs for req in proj.techs_required):
-				continue
-			if any(req not in unlocked_policies for req in proj.policies_required):
-				continue
 			if proj.name in seen:
 				continue
-
-			# Restriction: don't offer Monument if any Monument is already present
-			if proj.name == "Monument" and has_monument:
-				continue
-
-			# Settler restriction if unit
-			if isinstance(proj, Unit) and proj.name == "Settler" and self.city.population < 2:
-				continue
-
-			available.append(proj)
-			seen.add(proj.name)
-
+	
+			success, _ = self.can_choose_project(proj)
+			if success:
+				available.append(proj)
+				seen.add(proj.name)
+	
 		return available
 	
-	def start_project(self, project):
-		from core import Unit
-		available_projects = self.get_available_projects()
-		project_name = getattr(project, "name", None)
 	
-		if not any(proj.name == project_name for proj in available_projects):
-			return False, f"Project '{project_name}' is not available."
+	def choose_project(self, project_name):
+		from core import Unit
+		from helper import create_unit, create_building
+		import dictionary
 	
 		player = self.city.owner
-		unlocked_techs = player.science_system.get_unlocked_names()
-		unlocked_policies = player.unlocked_policies
 	
-		# Verify tech requirements
-		for req in project.techs_required:
-			if req not in unlocked_techs:
-				return False, f"Tech requirement '{req}' not met for project '{project_name}'."
-	
-		# Verify policy requirements
-		for req in project.policies_required:
-			if req not in unlocked_policies:
-				return False, f"Policy requirement '{req}' not met for project '{project_name}'."
-	
-		if isinstance(project, Unit):
-			# Add any extra unit-specific checks here if needed
-			pass
+		# Always create a fresh instance of the selected project
+		if project_name in dictionary.UNITS:
+			project_data = dictionary.UNITS[project_name]
+			project = create_unit(project_name, project_data)
+		elif project_name in dictionary.BUILDINGS:
+			project_data = dictionary.BUILDINGS[project_name]
+			project = create_building(project_name, project_data)
 		else:
-			if project.completed:
-				return False, f"Project '{project_name}' has already been completed."
+			return False, f"Project data for '{project_name}' not found."
 	
+		# Validate that project can be started now
+		success, message = self.can_choose_project(project)
+		if not success:
+			return False, message
+	
+		# ✅ Assign freshly created project
 		self.current_project = project
-		return True, ""
+		return True, f"Started {project_name}."
+
+
 
 
 	def apply_production(self, engine):
@@ -95,7 +108,7 @@ class ProductionSystem:
 			unit.progress += production
 
 			if unit.progress >= unit.production_cost:
-				self.city.complete_unit(unit.name, self.city.q, self.city.r, engine)
+				self.complete_unit(unit.name, self.city.q, self.city.r, engine)
 				self.current_project = None
 
 		else:
@@ -108,7 +121,7 @@ class ProductionSystem:
 			if building.progress >= building.production_cost:
 				building.completed = True
 				building.progress = building.production_cost
-				self.city.complete_building(building.name)
+				self.complete_building(building.name)
 				self.current_project = None
 
 	def get_progress(self, project_name=None):
@@ -129,6 +142,17 @@ class ProductionSystem:
 			else:
 				return self.current_project.progress
 		return 0
+
+	def complete_building(self, building_name):
+		for b in self.building_projects:  # ONLY buildings here
+			if b.name == building_name:
+				b.completed = True
+				b.progress = b.production_cost
+				self.city.buildings.append(b)
+				return
+	def complete_unit(self, unit_name, q, r, engine):
+		engine.spawn_unit(player=self.city.owner, q=q, r=r, name=unit_name)
+		print(f"[DEBUG] Spawned unit '{unit_name}' at city ({self.city.q},{self.city.r}) for player '{self.city.owner.name}'.")
 
 	def is_completed(self, project_name):
 		for b in self.building_projects:
@@ -175,9 +199,8 @@ class ScienceSystem:
 		self.techs = {tech.name: tech for tech in tech_list}
 		self.current_research = None
 		self.overflow = 0
-		self._accumulated_science = 0  # holds total science for the turn
+		self._accumulated_science = 0
 
-		# Unlock Agriculture immediately
 		agriculture = self.techs.get("Agriculture")
 		if agriculture:
 			agriculture.unlocked = True
@@ -220,17 +243,28 @@ class ScienceSystem:
 
 	def set_current_research(self, tech_name, player=None):
 		tech = self.techs.get(tech_name)
-		if tech and not tech.unlocked and tech.can_research(self.get_unlocked_names()):
-			self.current_research = tech_name
-
-			if player and self.overflow > 0:
-				tech.progress += self.overflow
-				if tech.progress >= tech.get_effective_cost(player):
-					tech.unlocked = True
-					self.overflow = tech.progress - tech.get_effective_cost(player)
-					self.current_research = None
-					return tech.name
-				self.overflow = 0  # Apply overflow only once
+	
+		if not tech:
+			return False, f"Tech '{tech_name}' not found."
+	
+		if tech.unlocked:
+			return False, f"{tech_name} is already unlocked."
+	
+		if not tech.can_research(self.get_unlocked_names()):
+			return False, f"Missing prerequisites for {tech_name}."
+	
+		self.current_research = tech_name
+	
+		if player and self.overflow > 0:
+			tech.progress += self.overflow
+			if tech.progress >= tech.get_effective_cost(player):
+				tech.unlocked = True
+				self.overflow = tech.progress - tech.get_effective_cost(player)
+				self.current_research = None
+				return True, None
+			self.overflow = 0  # Apply overflow only once
+	
+		return True, f"Selected tech: {tech_name}"
 
 	def get_unlocked_names(self):
 		return [name for name, tech in self.techs.items() if tech.unlocked]
@@ -245,8 +279,8 @@ class AncientRuins:
 	RINDS_EFFECTS = {
 		1: "Gain 75 gold",
 		2: "Gain 20 faith", #only possibly triggers AFTER turn 20
-	    3: "Gain 1 pop in nearest city",
-	    4: "Reveal nearby tiles (useless)",
+		3: "Gain 1 pop in nearest city",
+		4: "Reveal nearby tiles (useless)",
 		5: "Unit upgrades (useless)",
 		6: "Reveal barbarian camps (useless)",
 		7: "Free tech",
