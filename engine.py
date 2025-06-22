@@ -11,7 +11,7 @@ class Engine:
 	def __init__(self):
 		self.is_replay = False  # Set True during replay
 		self.recorded_actions = []  # Populated only during manual play		
-		
+
 		self.message = ""
 		self.message_timer = 0
 		self.action_log = {}
@@ -82,13 +82,13 @@ class Engine:
 		self.players = [Player()]
 		self.current_player = self.players[0]
 
-		self.spawn_unit(self.players[0], 6, 8, "Worker")
-		self.spawn_unit(self.players[0], 7, 8, "Settler")
-		self.spawn_unit(self.players[0], 8, 8, "Warrior")
+		self.spawn_unit(self.players[0], 8, 8, "Worker")
+		self.spawn_unit(self.players[0], 9, 8, "Settler")
+		self.spawn_unit(self.players[0], 10, 8, "Warrior")
 
 		self.selected_unit = None
 		self.selected_city = None
-		
+
 	def evaluate_result(self):
 		total_science = self.engine.currentplayer.total_science_accrued  # Accumulate this in your engine
 		total_pop = sum(city.population for city in self.engine.cities)
@@ -97,10 +97,10 @@ class Engine:
 	def record_action(self, turn, action_type, data):
 		if not self.is_replay:
 			engine.recorded_actions.append([turn, action_type, data])
-			
+
 	def get_legal_actions(self, player):
 		actions = []
-	
+
 		# Move units
 		for unit in player.units:
 			for dq, dr in directions:  # probably 6 hex directions
@@ -108,32 +108,32 @@ class Engine:
 				to_r = unit.r + dr
 				if self.can_move_unit(unit, to_q, to_r):  # <- YOUR check
 					actions.append({"action": "move_unit", "unit_id": unit.id, "to": [to_q, to_r]})
-	
+
 		# Found city
 		for unit in player.units:
 			if unit.name == "Settler" and self.can_found_city(unit):  # <- YOUR logic
 				actions.append({"action": "found_city", "unit_id": unit.id})
-	
+
 		# Policy selection
 		if player.can_choose_policy():
 			for policy in player.get_available_policies():
 				actions.append({"action": "select_policy", "policy": policy})
-	
+
 		# Tech selection
 		if player.science_system.needs_research():
 			for tech in player.science_system.get_available_techs():
 				actions.append({"action": "select_tech", "tech": tech})
-	
+
 		# City production
 		for city in player.cities:
 			if city.needs_production():
 				for buildable in city.get_buildable_things():
 					actions.append({"action": "set_production", "city_id": city.id, "name": buildable})
-	
+
 		# End turn (only if all required actions are taken)
 		if self.can_end_turn(player):
 			actions.append({"action": "end_turn"})
-	
+
 		return actions	
 
 	def show_message(self, text, duration=90):
@@ -171,7 +171,7 @@ class Engine:
 
 	def end_turn(self):
 		success, message = self.current_player.end_turn(self)
-	
+
 		if success:
 			self.turn += 1
 			self.selected_unit = None
@@ -183,7 +183,7 @@ class Engine:
 		else:
 			print(f"Turn error: {message}")
 			self.show_message(message, 180)
-	
+
 			return False
 
 	def spawn_worker_on_schedule(self, start_turn=20, interval=10, spawn_tile_q=0, spawn_tile_r=0):
@@ -222,29 +222,29 @@ class Engine:
 	def get_state(self):
 		return {
 			"turn": self.turn,
-		"player": {
-			    "name": self.name,
+			"player": {
+				"name": self.name,
 				"gold": self.gold,
-			    "culture": self.culture,
+				"culture": self.culture,
 				"science": self.science,
 				"faith": self.faith,
 				"unlocked_policies": list(self.unlocked_policies),
 				"current_research": self.science_system.current_research,
 				},
-		    "units": [
+			"units": [
 				{
 					"type": u.name,
-				    "q": u.q,
-				    "r": u.r,
+					"q": u.q,
+					"r": u.r,
 					"moves_left": u.moves_left,
 				}
 				for u in self.units
-			    ],
+				],
 			"cities": [
 				{
 					"name": c.name,
-				    "q": c.q,
-				    "r": c.r,
+					"q": c.q,
+					"r": c.r,
 					"population": c.population,
 					"food": c.food,
 					"production": c.production,
@@ -253,13 +253,13 @@ class Engine:
 					"build_progress": c.build_progress,
 				}
 				for c in self.cities
-			    ],
+				],
 			"tiles": [
 				[
 					{
-					    "q": t.q,
-					    "r": t.r,
-					    "terrain": t.terrain,
+						"q": t.q,
+						"r": t.r,
+						"terrain": t.terrain,
 						"elevation": t.elevation,
 						"trees": t.trees,
 						"resource": t.resource,
@@ -270,9 +270,9 @@ class Engine:
 						"improvement": t.improvement,
 						"unit": t.unit.name if t.unit else None,
 						"territory": t.territory,
-				    }
-				    for t in col
+					}
+					for t in col
 				]
 				for col in self.tiles
-			    ],
+				],
 		}

@@ -9,7 +9,6 @@ import json
 #27 culture per turn
 #900 + 97 gold per turn
 
-
 class EvolutionarySimulator:
 	def __init__(self, num_generations=100, population_size=50):
 		self.num_generations = num_generations
@@ -23,13 +22,13 @@ class EvolutionarySimulator:
 	def create_random_agent(self):
 		# This can be a random policy or neural net or rule set
 		return {
-	        "parameters": {
-	            "aggressiveness": random.uniform(0, 1),
-	        "expansion_rate": random.uniform(0, 1),
-	        "build_order": [random.choice(["Worker", "Scout", "Settler"]) for _ in range(5)]
-	        },
-	    "fitness": 0
-	}
+			"parameters": {
+				"aggressiveness": random.uniform(0, 1),
+				"expansion_rate": random.uniform(0, 1),
+				"build_order": [random.choice(["Worker", "Scout", "Settler"]) for _ in range(5)]
+				},
+			"fitness": 0
+		}
 
 	def evaluate(self, agent):
 		# TODO: Plug into your game simulation
@@ -59,12 +58,12 @@ class EvolutionarySimulator:
 		children = []
 		for agent in agents:
 			child = {
-	            "parameters": {
-	                key: max(0, min(1, val + random.uniform(-0.1, 0.1))) if isinstance(val, float) else val
-	            for key, val in agent["parameters"].items()
-	            },
-	        "fitness": 0
-	    }
+				"parameters": {
+					key: max(0, min(1, val + random.uniform(-0.1, 0.1))) if isinstance(val, float) else val
+					for key, val in agent["parameters"].items()
+					},
+				"fitness": 0
+			}
 			children.append(child)
 		return children
 

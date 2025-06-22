@@ -20,14 +20,14 @@ from constants import GRID_WIDTH, GRID_HEIGHT, HEX_RADIUS, WIDTH, HEIGHT, FPS, C
 
 def run_manual_game(engine):
 	screen, clock, font, big_font, terrain_overlays, resource_icons, unit_icons = helper.init_pygame_assets()
-	
+
 	start_new_replay_log(engine)
 	hovered_tile_coords = None
 	hover_start_time = 0
 	HOVER_DELAY = 0.2  # seconds
 
 	running = True
-	
+
 	while running:
 		clock.tick(FPS)
 		if engine.message_timer > 0:
@@ -121,9 +121,9 @@ def run_manual_game(engine):
 						if city_id is not None:
 							action_type = "purchase_building" if itype == "building" else "purchase_unit"
 							success, message = handle_action(engine, action_type, {
-                                                                "city_id": city_id,
-                                                                "name": name
-                                                        })
+								"city_id": city_id,
+								"name": name
+							})
 							engine.show_message(message if not success else f"Purchased {name}", 90)
 						else:
 							engine.show_message("No city selected.", 90)
@@ -136,9 +136,9 @@ def run_manual_game(engine):
 						city_id = engine.selected_city.id if engine.selected_city else None
 						if city_id is not None:
 							success, message = handle_action(engine, "choose_project", {
-                                                        "city_id": city_id,
-                                                    "project_name": project.name
-                                                })
+								"city_id": city_id,
+								"project_name": project.name
+							})
 							engine.show_message(message if not success else f"Started building {project.name}", 90)
 						else:
 							engine.show_message("No city selected.", 90)
@@ -179,12 +179,12 @@ def run_manual_game(engine):
 				terrain_name = dictionary.TERRAIN_TYPES[tile.terrain_type]["name"]
 
 				info_lines = [
-                                        f"Tile: ({q}, {r})",
-                                        f"Terrain: {terrain_name}",
-                        f"Improvement: {tile.improvement or 'None'}",
-                        f"Resource: {tile.resource or 'None'}",
-                        f"Yield - Food: {tile.food}, Prod: {tile.production}, Gold: {tile.gold}"
-                                ]
+					f"Tile: ({q}, {r})",
+					f"Terrain: {terrain_name}",
+					f"Improvement: {tile.improvement or 'None'}",
+					f"Resource: {tile.resource or 'None'}",
+					f"Yield - Food: {tile.food}, Prod: {tile.production}, Gold: {tile.gold}"
+				]
 
 				info_width = 220
 				info_height = 20 * len(info_lines)

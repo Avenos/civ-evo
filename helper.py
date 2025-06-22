@@ -7,11 +7,10 @@ import os
 import helper
 from collections import deque
 import heapq
-
 import pygame
 import os
 import helper
-from constants import WIDTH, HEIGHT
+from constants import WIDTH, HEIGHT, GRID_WIDTH, GRID_HEIGHT
 
 def init_pygame_assets():
 	pygame.display.init()
@@ -64,7 +63,6 @@ def a_star_path(start, goal, game_map, move_points_per_turn=2):
 			current_state = prev_state
 		path.reverse()
 
-		# Group steps by turn
 		grouped = []
 		current_turn = -1
 		turn_moves = []
@@ -101,25 +99,17 @@ def a_star_path(start, goal, game_map, move_points_per_turn=2):
 
 		if current_pos == goal:
 			grouped_path = reconstruct_path_grouped(came_from, current)
-			print(f"✅ Reached goal {goal} in {len(grouped_path)} turns.")
+			print(f"Reached goal {goal} in {len(grouped_path)} turns.")
 			for i, moves in enumerate(grouped_path, 1):
 				move_str = " → ".join(f"{step[0]}" for step in moves) + f" → {moves[-1][1]}"
 				print(f"Turn {i}: {move_str}")
 
-			# ✅ Print leftover movement points
 			remaining_mp = current[2]
 			if remaining_mp > 0:
-				print(f"🟡 Arrived at goal with {remaining_mp} movement points left.")
+				print(f"Arrived at goal with {remaining_mp} movement points left.")
 			else:
-				print("🟥 Arrived at goal with no movement remaining.")
+				print("Arrived at goal with no movement remaining.")
 			return [step[0] for moves in grouped_path for step in moves] + [goal]
-
-			## Optional: return only tile positions in order
-			#flat_path = [start]
-			#for turn in grouped_path:
-				#for _, to_pos in turn:
-					#flat_path.append(to_pos)
-			#return flat_path
 
 		for neighbor in hex_neighbors(*current_pos):
 			if neighbor not in game_map:
@@ -142,7 +132,6 @@ def a_star_path(start, goal, game_map, move_points_per_turn=2):
 				new_turns = turns_used
 				new_mp = mp_remaining - cost_to_enter
 
-			# If crossing a river, end turn after moving
 			if crossing_river:
 				new_mp = 0
 
@@ -155,7 +144,7 @@ def a_star_path(start, goal, game_map, move_points_per_turn=2):
 				heapq.heappush(open_set, (priority, new_state))
 				came_from[new_state] = current
 
-	print("❌ No path found.")
+	print("No path found.")
 	return None
 
 def hex_to_pixel(q, r):
@@ -216,25 +205,6 @@ def create_hex_mask(radius, inset=0):  # inset controls how much border to leave
 	pygame.draw.polygon(mask_surf, (255, 255, 255, 255), points)
 	return mask_surf
 
-def build_policy_objects(policy_dict):
-	from systems import Policy
-	return {name: Policy(name, **details) for name, details in policy_dict.items()}
-
-def build_tech_objects(tech_dict):
-	from systems import Tech
-
-	tech_list = []
-	for name, data in tech_dict.items():
-		tech = Tech(
-			name=name,
-			base_cost=data["base_cost"],
-			prerequisites=data.get("prerequisites", [])
-		)
-		tech.progress = data.get("progress", 0)
-		tech.unlocked = data.get("unlocked", False)
-		tech_list.append(tech)
-	return tech_list
-
 def has_river_between(tile1, tile2):
 	# First, compute the direction from tile1 to tile2
 	dq = tile2.q - tile1.q
@@ -264,7 +234,6 @@ def has_river_between(tile1, tile2):
 def add_river(tile, edge_index, tiles_map):
 	tile.rivers.add(edge_index)
 
-	# Find the direction name from the edge index
 	for direction, idx in dictionary.DIRECTION_TO_EDGE.items():
 		if idx == edge_index:
 			break
@@ -283,8 +252,37 @@ def add_river(tile, edge_index, tiles_map):
 		opposite_edge = dictionary.DIRECTION_TO_EDGE[dictionary.OPPOSITE_DIRECTION[direction]]
 		neighbor.rivers.add(opposite_edge)
 	except (IndexError, KeyError):
-		# It's OK if the neighbor is off-map
+		# Neighbor is off-map
 		pass
+
+def is_adjacent_to_owned_tile(tile, player, engine):
+	q, r = tile.q, tile.r
+	neighbors = []
+
+	print(f"Checking adjacency for tile ({q}, {r})")
+
+	if r % 2 == 0:
+		offsets = dictionary.EVEN_ROW_NEIGHBORS.values()
+	else:
+		offsets = dictionary.ODD_ROW_NEIGHBORS.values()
+
+	for dq, dr in offsets:
+		nq, nr = q + dq, r + dr
+		if 0 <= nq < GRID_WIDTH and 0 <= nr < GRID_HEIGHT:
+			neighbors.append((nq, nr))
+
+	print("Neighbors:", neighbors)
+
+	for nq, nr in neighbors:
+		neighbor_tile = engine.tiles[nq][nr]
+		owner = neighbor_tile.owner
+		print(f"Neighbor ({nq}, {nr}) owned by:", owner)
+		if owner == player:
+			print("Adjacent tile found!")
+			return True
+
+	print("No adjacent owned tiles found.")
+	return False
 
 def spawn_unit_near_capital(player, game, name, message):
 	if not player.cities:
@@ -308,7 +306,26 @@ def spawn_unit_near_capital(player, game, name, message):
 	game.show_message(f"No space near capital to place {name}!", 120)
 	return False
 
-def create_building(building_name, building_data):
+def build_policy_objects(policy_dict):
+	from systems import Policy
+	return {name: Policy(name, **details) for name, details in policy_dict.items()}
+
+def build_tech_objects(tech_dict):
+	from systems import Tech
+
+	tech_list = []
+	for name, data in tech_dict.items():
+		tech = Tech(
+			name=name,
+			base_cost=data["base_cost"],
+			prerequisites=data.get("prerequisites", [])
+		)
+		tech.progress = data.get("progress", 0)
+		tech.unlocked = data.get("unlocked", False)
+		tech_list.append(tech)
+	return tech_list
+
+def build_building_object(building_name, building_data):
 	from core import Building
 	return Building(
 		name=building_name,
@@ -318,20 +335,24 @@ def create_building(building_name, building_data):
 		science=building_data.get("science", 0),
 		culture=building_data.get("culture", 0),
 		happiness=building_data.get("happiness", 0),
-	    growth_percentage=building_data.get("growth_percentage", 0),
-	science_percentage=building_data.get("science_percentage", 0),
-	production_cost=building_data.get("production_cost", 0),
-	gold_cost=building_data.get("gold_cost", 0),
-	techs_required=building_data.get("techs_required", []),
-	policies_required=building_data.get("policies_required", [])
+		growth_percentage=building_data.get("growth_percentage", 0),
+		science_percentage=building_data.get("science_percentage", 0),
+		production_percentage=building_data.get("production_percentage", 0),
+		gold_percentage=building_data.get("gold_percentage", 0),
+
+		production_cost=building_data.get("production_cost", 0),
+		gold_cost=building_data.get("gold_cost", 0),
+		techs_required=building_data.get("techs_required", []),
+		policies_required=building_data.get("policies_required", []),
+		buildings_required=building_data.get("buildings_required", []),
 	)
 
-def create_unit(name, data):
+def build_unit_object(name, data):
 	from core import Unit
 	return Unit(
 		name=name,
-		player=None,  # Assign player later
-		q=None,       # Assign position later
+		player=None,  # Assign player later...
+		q=None,       # Assign position later...
 		r=None,
 		hp=data.get("hp", 100),
 		moves=data.get("moves", 2),
@@ -341,67 +362,7 @@ def create_unit(name, data):
 		policies_required=data.get("policies_required", [])
 	)
 
-
-def has_city_connection_to_capital(city, capital, all_tiles):
-	if city == capital:
-		return True
-
-	visited = set()
-	queue = deque()
-	queue.append(city.tile)
-	visited.add(city.tile)
-
-	while queue:
-		current_tile = queue.popleft()
-		neighbors = get_neighboring_tiles(current_tile)
-
-		for neighbor in neighbors:
-			if neighbor in visited:
-				continue
-
-			if neighbor.owner != city.owner:
-				continue
-
-			if not neighbor.improvement == "Road":
-				continue
-
-			visited.add(neighbor)
-			queue.append(neighbor)
-
-			# Check if this neighbor has the capital city
-			if neighbor.city == capital:
-				return True
-
-	return False
-
-def can_purchase_tile(city, tile, engine): #player not city?
-	from_tile = engine.tiles[city.q][city.r]
-	target_tile = tile
-	distance = hex_distance(from_tile.q, from_tile.r, target_tile.q, target_tile.r)
-
-	if tile.owner is not None:
-		return False
-	if distance > 3:
-		return False
-	if not is_adjacent_to_controlled_tile(city, tile, engine):
-		return False
-	return True
-
-def is_adjacent_to_controlled_tile(city, tile, engine): #player not city?
-	neighbors = hex_neighbors(tile.q, tile.r)
-	for nq, nr in neighbors:
-		if (0 <= nq < engine.map_width and 0 <= nr < engine.map_height):
-			neighbor_tile = engine.tiles[nq][nr]
-			if neighbor_tile.owner == city.owner and (nq, nr) in city.border:
-				return True
-	return False
-
-def get_tile_purchase_cost(city, tile): #player not city?
-	from_tile = (city.q, city.r)
-	to_tile = (tile.q, tile.r)
-	distance = helper.hex_distance(*from_tile, *to_tile)
-	return 30 + 5 * distance  # You can adjust the formula
-
+#is this expensive?
 def check_proximity_rewards(game, player):
 	for tile_coords in game.special_tiles:
 		q, r = tile_coords
@@ -418,12 +379,10 @@ def check_proximity_rewards(game, player):
 		for unit in player.units:
 			dist = helper.hex_distance(unit.q, unit.r, q, r)  # ✅ correct
 			if dist <= 3:
-				# Grant reward
 				player.gold += 30
 				player.faith += 8
 				game.show_message(f"{player.name} discovered a city-state! +30 gold, +8 faith", 120)
 
-				# Mark reward as claimed
 				game.tile_rewards_claimed[tile_coords].add(player.name)
 				break  # Only reward once per tile per player
 
@@ -433,30 +392,28 @@ def build_tile_image_key(tile, available_images):
 	elev = tile.elevation
 	trees = tile.trees
 
-	# Special case: terrain 'n' (none) + elevation 2 means mountain
 	if terrain_key == 'n' and elev == 2:
 		if "mountain" in available_images:
 			return "mountain"
 
-	# Special case: lake terrain should render as coast
 	if terrain_key == 'l':
 		if "coast" in available_images:
 			return "coast"
 
 	candidates = [
 		f"{terrain}_hill_jungle" if elev == 1 and trees == 2 else None,
-	    f"{terrain}_hill_forest" if elev == 1 and trees == 1 else None,
-	f"{terrain}_hill" if elev == 1 else None,
-	f"{terrain}_jungle" if trees == 2 else None,
-	f"{terrain}_forest" if trees == 1 else None,
-	terrain
+		f"{terrain}_hill_forest" if elev == 1 and trees == 1 else None,
+		f"{terrain}_hill" if elev == 1 else None,
+		f"{terrain}_jungle" if trees == 2 else None,
+		f"{terrain}_forest" if trees == 1 else None,
+		terrain
 	]
 
 	for key in candidates:
 		if key and key in available_images:
 			return key
 
-	return None  # fallback: no matching image found
+	return None
 
 def load_unit_icons(path="assets/units"):
 	icons = {}
@@ -467,3 +424,4 @@ def load_unit_icons(path="assets/units"):
 			icon = pygame.image.load(full_path).convert_alpha()
 			icons[unit_name] = icon
 	return icons
+

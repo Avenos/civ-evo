@@ -1,14 +1,15 @@
 
 import helper
 import dictionary
+from core import Building
 
 class ProductionSystem:
 	def __init__(self, city):
 		self.city = city
 
 		#is this available or all or what?
-		self.building_projects = [helper.create_building(name, data) for name, data in dictionary.BUILDINGS.items()]
-		self.unit_projects = [helper.create_unit(name, data) for name, data in dictionary.UNITS.items()]
+		self.building_projects = [helper.build_building_object(name, data) for name, data in dictionary.BUILDINGS.items()]
+		self.unit_projects = [helper.build_unit_object(name, data) for name, data in dictionary.UNITS.items()]
 
 		self.projects = self.building_projects + self.unit_projects
 
@@ -16,84 +17,123 @@ class ProductionSystem:
 
 	def can_choose_project(self, project):
 		from core import Unit
-	
+
 		player = self.city.owner
 		unlocked_techs = player.science_system.get_unlocked_names()
 		unlocked_policies = player.unlocked_policies
-	
+
 		project_name = project.name
-	
+
 		if project.completed:
 			return False, f"Project '{project_name}' is already completed."
-	
+
 		if project.production_cost <= 0:
 			return False, f"Project '{project_name}' cannot be produced."
-	
+
 		missing_tech = next((req for req in project.techs_required if req not in unlocked_techs), None)
 		if missing_tech:
 			return False, f"Tech requirement '{missing_tech}' not met for '{project_name}'."
-	
+
 		missing_policy = next((req for req in project.policies_required if req not in unlocked_policies), None)
 		if missing_policy:
 			return False, f"Policy requirement '{missing_policy}' not met for '{project_name}'."
-	
+
+		if isinstance(project, Building):
+			missing_building = next((req for req in project.buildings_required if req not in [b.name for b in self.city.buildings]), None)
+			if missing_building:
+				return False, f"Building requirement '{missing_building}' not met for '{project_name}'."
+
 		# Disallow building Monument if we have a monument (FREE) in the city
 		if project_name == "Monument":
 			has_monument = any("Monument" in b.name for b in self.city.buildings)
 			if has_monument:
 				return False, "A Monument is already present in the city."
-	
+
 		# Settler restriction
 		if isinstance(project, Unit) and project_name == "Settler" and self.city.population < 2:
 			return False, "Settler cannot be built unless city population is at least 2."
-	
+
+		if project_name == "National College":
+			for city in player.cities:
+				has_library = any("Library" in b.name for b in city.buildings)
+				if not has_library:
+					return False, "National College requires a completed Library in all cities."
+
+		if project_name == "Circus Maximus":
+			for city in player.cities:
+				has_colisseum = any("Colisseum" in b.name for b in city.buildings)
+				if not has_coliseum:
+					return False, "Circus Maximus requires a completed Colisseum in all cities."
+
+		if project_name == "Ironworks":
+			for city in player.cities:
+				has_workshop = any("Workshop" in b.name for b in city.buildings)
+				if not has_workshop:
+					return False, "Ironworks requires a completed Workshop in all cities."
+
+
+		if project_name == "Observatory":
+			city_q, city_r = self.city.q, self.city.r
+			if city_r % 2 == 0:
+				neighbor_offsets = dictionary.EVEN_ROW_NEIGHBORS
+			else:
+				neighbor_offsets = dictionary.ODD_ROW_NEIGHBORS
+
+			tiles = self.city.owner.game.tiles
+			adjacent_coords = [(city_q + dq, city_r + dr) for dq, dr in neighbor_offsets]
+
+			has_adjacent_hill = any(
+				0 <= q < len(tiles) and 0 <= r < len(tiles[0]) and tiles[q][r].elevation == 2
+				for q, r in adjacent_coords
+			)
+
+			if not has_adjacent_hill:
+				return False, "Observatory can only be built if the city is adjacent to a hill (elevation 2) tile."
+
+
 		return True, None
-	
-	
+
+
 	def get_available_projects(self):
 		seen = set()
 		available = []
-	
+
 		for proj in self.projects:
 			if proj.name in seen:
 				continue
-	
+
 			success, _ = self.can_choose_project(proj)
 			if success:
 				available.append(proj)
 				seen.add(proj.name)
-	
+
 		return available
-	
-	
+
 	def choose_project(self, project_name):
 		from core import Unit
-		from helper import create_unit, create_building
+		from helper import build_unit_object, build_building_object
 		import dictionary
-	
+
 		player = self.city.owner
-	
+
 		# Always create a fresh instance of the selected project
 		if project_name in dictionary.UNITS:
 			project_data = dictionary.UNITS[project_name]
-			project = create_unit(project_name, project_data)
+			project = build_unit_object(project_name, project_data)
 		elif project_name in dictionary.BUILDINGS:
 			project_data = dictionary.BUILDINGS[project_name]
-			project = create_building(project_name, project_data)
+			project = build_building_object(project_name, project_data)
 		else:
 			return False, f"Project data for '{project_name}' not found."
-	
+
 		# Validate that project can be started now
 		success, message = self.can_choose_project(project)
 		if not success:
 			return False, message
-	
+
 		# ✅ Assign freshly created project
 		self.current_project = project
 		return True, f"Started {project_name}."
-
-
-
 
 	def apply_production(self, engine):
 		from core import Unit
@@ -144,12 +184,20 @@ class ProductionSystem:
 		return 0
 
 	def complete_building(self, building_name):
-		for b in self.building_projects:  # ONLY buildings here
+		for b in self.building_projects:
 			if b.name == building_name:
 				b.completed = True
 				b.progress = b.production_cost
 				self.city.buildings.append(b)
+
+				if building_name == "Hanging Gardens":
+					garden_building = helper.create_building("Garden")
+					garden_building.completed = True
+					garden_building.progress = garden_building.production_cost
+					self.city.buildings.append(garden_building)
+
 				return
+
 	def complete_unit(self, unit_name, q, r, engine):
 		engine.spawn_unit(player=self.city.owner, q=q, r=r, name=unit_name)
 		print(f"[DEBUG] Spawned unit '{unit_name}' at city ({self.city.q},{self.city.r}) for player '{self.city.owner.name}'.")
@@ -243,18 +291,18 @@ class ScienceSystem:
 
 	def set_current_research(self, tech_name, player=None):
 		tech = self.techs.get(tech_name)
-	
+
 		if not tech:
 			return False, f"Tech '{tech_name}' not found."
-	
+
 		if tech.unlocked:
 			return False, f"{tech_name} is already unlocked."
-	
+
 		if not tech.can_research(self.get_unlocked_names()):
 			return False, f"Missing prerequisites for {tech_name}."
-	
+
 		self.current_research = tech_name
-	
+
 		if player and self.overflow > 0:
 			tech.progress += self.overflow
 			if tech.progress >= tech.get_effective_cost(player):
@@ -263,7 +311,7 @@ class ScienceSystem:
 				self.current_research = None
 				return True, None
 			self.overflow = 0  # Apply overflow only once
-	
+
 		return True, f"Selected tech: {tech_name}"
 
 	def get_unlocked_names(self):

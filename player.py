@@ -2,7 +2,7 @@
 import math
 import dictionary
 import helper
-from core import City
+from city import City
 from systems import ScienceSystem
 from collections import Counter
 from constants import GRID_WIDTH, GRID_HEIGHT
@@ -14,6 +14,10 @@ class Player:
 		self.cities = []
 		self.luxuries = []
 		self.improved_tiles = []
+
+		self.trade_routes = []
+		self.trade_deals = []
+
 		self.total_science_accrued = 0
 		self.culture = 0
 		self._gold = 1000
@@ -21,24 +25,30 @@ class Player:
 
 		self.science_system = ScienceSystem(self)
 		self.unlocked_policies = []
+		self.free_policies = [] #how to manage this for oracle and poland?
 		self.pantheon = None
 
-		# New golden age variables:
 		self.happiness_points = 470
 		self.happiness_points_needed_for_golden_age = 500
 		self.in_golden_age = False
 		self.golden_age_turns_left = 0
 
+	@property
+	def max_trade_routes(self):
+		techs = self.science_system.get_unlocked_names()
+		trade_techs = {"Compass", "Engineering", "Banking", "Animal Husbandry", "Sailing"}
+		return sum(1 for tech in trade_techs if tech in techs)
+
+
 	def choose_pantheon(self, pantheon_name, current_turn):
 		required_faith = 20 + (current_turn // 10) * 5
-	
+
 		if self.pantheon is not None:
 			return False, "You have already chosen a Pantheon."
-	
+
 		if self.faith < required_faith:
 			return False, f"Not enough Faith to choose a Pantheon. You need {required_faith}, but have {self.faith}."
-	
-		# Success: Deduct faith and assign pantheon
+
 		self.faith -= required_faith
 		self.pantheon = pantheon_name
 		return True, f"Pantheon '{pantheon_name}' chosen successfully!"
@@ -73,8 +83,8 @@ class Player:
 			"Sailing",
 			"Animal Husbandry",
 			"Engineering",
-		"Compass",
-		"Banking"
+			"Compass",
+			"Banking"
 		}
 		return sum(1 for tech in trade_route_techs if tech in self.science_system.unlocked_techs)
 
@@ -98,6 +108,10 @@ class Player:
 		if self.pantheon == "Goddess of Love":
 			happiness += sum(1 for city in self.cities if city.population >= 6)
 
+		#need owned ile list?
+		#if any(tile.resource == "kailash" for tile in self.owned_tiles):
+			#happiness += 2
+
 		# --- Unhappiness calculation ---
 		gandhi_city_modifier = 2
 		city_unhappiness = 1.8 * len(self.cities) * gandhi_city_modifier
@@ -105,7 +119,14 @@ class Player:
 		gandhi_citizen_modifier = 0.5
 		meritocracy_modifier = 0.95 if "Meritocracy" in self.unlocked_policies else 1.0
 
-		citizen_unhappiness = sum(city.population for city in self.cities) * (gandhi_citizen_modifier * meritocracy_modifier)
+		#expensive?
+		forbidden_palace_modifier = 1.0
+		for city in self.cities:
+			if any(b.name == "Forbidden Palace" and b.completed for b in city.buildings):
+				forbidden_palace_modifier = 0.9
+				break
+
+		citizen_unhappiness = sum(city.population for city in self.cities) * (gandhi_citizen_modifier * meritocracy_modifier * forbidden_palace_modifier)
 
 		unhappiness = city_unhappiness + citizen_unhappiness
 
@@ -184,63 +205,84 @@ class Player:
 		policy = game.all_policies.get(policy_name)
 		if not policy:
 			return False, "Invalid policy choice."
-	
+
 		if policy.is_unlocked(self):
 			return False, "Policy already unlocked."
-	
+
 		if not policy.can_unlock(self):
 			return False, "You don't meet the prerequisites for this policy."
-	
+
 		if self.culture < self.policy_cost:
 			return False, "Not enough culture to unlock this policy."
-	
+
 		self.culture -= self.policy_cost
 		self.unlocked_policies.append(policy.name)
-	
+
 		# Policy bonuses
 		if policy.name == "Collective Rule":
 			spawn_unit_near_capital(self, game, "Settler", "A free Settler has arrived!")
-	
+
 		elif policy.name == "Citizenship":
 			spawn_unit_near_capital(self, game, "Worker", "A free Worker has arrived!")
-	
+
 		elif policy.name == "Representation":
 			self.start_golden_age()
-	
+
 		elif policy.name == "Legalism":
 			# Monument (FREE) in first four cities if they don't already have one
 			for city in self.cities[:4]:
 				has_monument = any("Monument" in b.name for b in city.buildings)
 				if not has_monument:
 					monument_data = dictionary.BUILDINGS.get("Monument", {})
-					free_monument = helper.create_building("Monument (FREE)", monument_data)
+					free_monument = helper.build_building_object("Monument (FREE)", monument_data)
 					free_monument.production_cost = 0
 					free_monument.gold_cost = 0
 					city.buildings.append(free_monument)
-	
+
 		return True, f"Unlocked policy: {policy.name}!"
 
+
+	def check_tradition_finisher():
+		# --- New check for all policies unlocked ---
+		required_policies = [
+			"Tradition",
+			"Aristocracy",
+			"Oligarchy",
+			"Legalism",
+			"Landed Elite",
+			"Monarchy"
+		]
+		if all(req in self.unlocked_policies for req in required_policies):
+			# Add completed Aqueduct building to first four cities.... but should this be RETROactive?
+			for city in self.cities[:4]:
+				has_aqueduct = any("Aqueduct" in b.name for b in city.buildings)
+				if not has_aqueduct:
+					aqueduct_data = dictionary.BUILDINGS.get("Aqueduct", {})
+					aqueduct = helper.build_building_object("Aqueduct", aqueduct_data)
+					#progress = 100
+					aqueduct.completed = True
+					city.buildings.append(aqueduct)	
 
 	def end_turn(self, game):
 		# Check for policy selection requirement
 		if self.culture >= self.policy_cost and len(self.unlocked_policies) < len(game.all_policies):
 			return False, "You must select a social policy before ending your turn!"
-	
+
 		# Check tech research selection first (no progress yet)
 		if not self.science_system.current_research:
 			return False, "You must choose a technology to research before ending your turn!"
-	
+
 		# Check production projects in cities
 		for city in self.cities:
 			if not city.production_system.current_project:
 				return False, f"{city.name} needs a production project!"
-	
+
 		# Check Pantheon selection if faith threshold met
 		if self.pantheon is None:
 			required_faith = 20 + (game.turn // 10) * 5
 			if self.faith >= required_faith:
 				return False, "You must select a Pantheon before ending your turn!"
-	
+
 		# All checks passed, now apply turn-end effects:
 
 		# Apply science progress and notify if tech unlocked
@@ -258,7 +300,8 @@ class Player:
 		# Process city growth and tile updates
 		for city in self.cities:
 			city.process_growth()
-			city.update_worked_tiles(game)
+			city.update_worked_tiles(game) #?
+
 
 		# Reset units' turns
 		for u in self.units:
@@ -267,50 +310,53 @@ class Player:
 		# Update golden age state
 		self.update_golden_age()
 
+		#culture growth logic?
+
 		return True, "Turn ended successfully."
 
 	def found_city(self, unit, game):
 		q, r = unit.q, unit.r
-	
+
 		if unit.name != "Settler":
 			game.show_message("Only Settlers can found cities!", 90) #call showmessage higher up somewhere?
 			return False, "Only Settlers can found cities!"
-	
+
 		if unit.moves_left < 1:
 			game.show_message("Not enough movement to found a city!", 90)
 			return False, "Not enough movement to found a city!"
-	
+
 		for player in game.players:
 			for city in player.cities:
 				if helper.hex_distance(q, r, city.q, city.r) < 4:
 					game.show_message("Too close to another city!", 90)
 					return False, "Too close to another city!"
-	
+
 		city = City(q, r, game.current_player)
-	
+
 		from core import Building
-	
+
 		if len(self.cities) == 0:
 			palace_data = dictionary.BUILDINGS["Palace"]
 			palace = Building("Palace", **palace_data)
 			palace.completed = True  # ← This is crucial
 			city.buildings.append(palace)
 			city.is_capital = 1
-	
+
 		self.cities.append(city)
 		game.tiles[q][r].city = city
 		game.territory.add((q, r))
-	
+
 		for nq, nr in helper.hex_neighbors(q, r):
 			if 0 <= nq < GRID_WIDTH and 0 <= nr < GRID_HEIGHT:
 				game.territory.add((nq, nr))
 				game.tiles[nq][nr].territory = True
-	
+
 		game.tiles[q][r].territory = True
 		city.update_worked_tiles(game)
 		self.remove_unit(unit, game)
+		game.selected_unit = None
 		game.selected_city = city
-	
+
 		return True, None
 
 

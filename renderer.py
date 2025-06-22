@@ -13,6 +13,7 @@ GREEN = (0, 200, 0)
 BLUE = (0, 0, 255)
 BLACK = (0, 0, 0)
 RED = (255, 0, 0)
+CYAN = (0, 180, 200)
 YELLOW = (255, 255, 0)
 
 def blit_hex_overlay_clipped(screen, overlay_img, center_x, center_y, mask_surf):
@@ -72,12 +73,6 @@ def draw_grid(screen, engine, font, big_font, terrain_overlays, hex_mask, icon_i
 					points = [helper.get_hex_corner(x, y, i) for i in range(6)]
 					pygame.draw.polygon(screen, (0, 0, 0), points)
 
-			# Draw rivers
-			for edge_index in tile.rivers:
-				start = helper.get_hex_corner(x, y, edge_index)
-				end = helper.get_hex_corner(x, y, (edge_index + 1) % 6)
-				pygame.draw.line(screen, (0, 0, 255), start, end, 5)
-
 			# Draw ancient ruin
 			if tile.ancient_ruin:
 				ar_text = "AR"
@@ -106,6 +101,12 @@ def draw_grid(screen, engine, font, big_font, terrain_overlays, hex_mask, icon_i
 
 						# Draw hex border
 						draw_hex(screen, x, y, BLACK)
+
+						# Draw rivers
+						for edge_index in tile.rivers:
+							start = helper.get_hex_corner(x, y, edge_index)
+							end = helper.get_hex_corner(x, y, (edge_index + 1) % 6)
+							pygame.draw.line(screen, CYAN, start, end, 5)						
 
 
 def draw_territory_shading(screen, engine, font, big_font):
@@ -182,27 +183,34 @@ def draw_message(screen, engine):
 
 def draw_ui(screen, engine, font, big_font, resource_icons):
 	BLACK = (0, 0, 0)
+	WHITE = (255, 255, 255)
+	GREEN = (100, 220, 100)
+	GRAY = (180, 180, 180)
+	BLUE = (0, 0, 255)
+
 	bar_height = 30
 	bar_bg_color = (220, 220, 220)
 	padding = 10
 	icon_size = 20
 	screen_width = screen.get_width()
+	x_offset = 200  # shift everything right by 100 px
 
+	# Background bar (full width, so no x_offset here)
 	pygame.draw.rect(screen, bar_bg_color, (0, 0, screen_width, bar_height))
 
 	player = engine.current_player
 	resources = [
-            ("science", f"+{player.science_per_turn}"),
-        ("gold", f"{player.gold} +{player.gold_per_turn}"),
-        ("happiness", f"{player.happiness} {player.happiness_points}/{player.happiness_points_needed_for_golden_age}"),
-        ("culture", f"{player.culture}/{player.policy_cost} +{player.culture_per_turn}"),
-        ("faith", f"{player.faith} +{player.faith_per_turn}"),
-    ]
+		("science", f"+{player.science_per_turn}"),
+		("gold", f"{player.gold} +{player.gold_per_turn}"),
+		("happiness", f"{player.happiness} {player.happiness_points}/{player.happiness_points_needed_for_golden_age}"),
+		("culture", f"{player.culture}/{player.policy_cost} +{player.culture_per_turn}"),
+		("faith", f"{player.faith} +{player.faith_per_turn}"),
+	]
 
 	if player.in_golden_age:
 		resources.append(("golden_age", f"In golden age! ({player.golden_age_turns_left} turns)"))
 
-	x = padding
+	x = padding + x_offset
 	y = bar_height // 2
 
 	for res_name, res_text in resources:
@@ -229,11 +237,7 @@ def draw_ui(screen, engine, font, big_font, resource_icons):
 
 		x += padding  # normal small gap before next icon
 
-
-
-	# --- SHIFT EVERYTHING ELSE DOWN BELOW THE RESOURCE BAR ---
-	# So increase y_offset start position to below bar_height + some padding
-	col1_x = 1000
+	col1_x = 1000 + x_offset
 	y_offset = bar_height + 10
 
 	# Turn counter (moved down)
@@ -246,15 +250,13 @@ def draw_ui(screen, engine, font, big_font, resource_icons):
 		screen.blit(hap_txt, (col1_x, y_offset))
 		y_offset += 40
 
-
-	#found city
+	# found city button
 	if engine.selected_unit and engine.selected_unit.name == "Settler":
 		found_rect = pygame.Rect(col1_x, 450, 120, 40)
 		pygame.draw.rect(screen, BLACK, found_rect)
 		found_txt = big_font.render("Found City", True, WHITE)
 		screen.blit(found_txt, (found_rect.x + 10, found_rect.y + 10))
 		engine.ui_found_city_button = found_rect
-
 
 	# City info panel
 	if engine.selected_city:
@@ -277,9 +279,8 @@ def draw_ui(screen, engine, font, big_font, resource_icons):
 	screen.blit(txt, (next_turn_rect.x + 15, next_turn_rect.y + 10))
 	engine.ui_next_turn_button = next_turn_rect
 
-
 	# --- COLUMN 2: TECH PANEL ---
-	col2_x = 1170
+	col2_x = 1170 + x_offset
 	tech_y = 20
 	panel_width = 180
 
@@ -309,14 +310,14 @@ def draw_ui(screen, engine, font, big_font, resource_icons):
 		if unlocked:
 			screen.blit(font.render("✓", True, BLUE), (col2_x + panel_width - 25, y + 2))
 
-		engine.ui_tech_buttons.append({  # ← NEW: Store button rect and data
-						 "rect": pygame.Rect(col2_x + 10, y, panel_width - 20, button_height),
-						 "tech_name": tech_name,
-						 "tech": tech
-						 })
+		engine.ui_tech_buttons.append({
+			"rect": pygame.Rect(col2_x + 10, y, panel_width - 20, button_height),
+			"tech_name": tech_name,
+			"tech": tech
+		})
 
 	# --- COLUMN 3: CULTURE PANEL ---
-	col3_x = 1370
+	col3_x = 1370 + x_offset
 	policy_y = 20
 	policy_width = 200
 	policy_height = 500
@@ -355,13 +356,13 @@ def draw_ui(screen, engine, font, big_font, resource_icons):
 			"can_afford": can_afford
 		})
 
-
 	from core import Building
-		# --- COLUMN 4: PURCHASE PANEL ---
+
+	# --- COLUMN 4: PURCHASE PANEL ---
 	if engine.selected_city:
 		city = engine.selected_city
 
-		col4_x = 1610      # place it right of col3 (col3_x=1120 + width=200 + some gap)
+		col4_x = 1610 + x_offset  # shifted right by 100
 		col4_y = 20
 		col4_width = 220
 		col4_height = 500
@@ -369,7 +370,7 @@ def draw_ui(screen, engine, font, big_font, resource_icons):
 		max_items_visible = col4_height // line_height
 
 		pygame.draw.rect(screen, (210, 210, 210), (col4_x, col4_y, col4_width, col4_height))
-		screen.blit(big_font.render("Buy Units / Buildings", True, (0,0,0)), (col4_x + 10, col4_y + 5))
+		screen.blit(big_font.render("Buy Units / Buildings", True, (0, 0, 0)), (col4_x + 10, col4_y + 5))
 
 		# Build purchasables list (filter if needed)
 		purchasables = []
@@ -403,10 +404,10 @@ def draw_ui(screen, engine, font, big_font, resource_icons):
 				"cost": cost
 			})
 
-		# Fifth column: Production Projects
+		# --- Fifth column: Production Projects ---
 		city = engine.selected_city
 
-		col5_x = 1860  # adjust position as needed
+		col5_x = 1860 + x_offset  # shifted right by 100
 		col5_y = 20
 		col5_width = 220
 		col5_height = 500
@@ -416,8 +417,8 @@ def draw_ui(screen, engine, font, big_font, resource_icons):
 		pygame.draw.rect(screen, (200, 200, 200), (col5_x, col5_y, col5_width, col5_height))
 		screen.blit(big_font.render("Production Projects", True, (0, 0, 0)), (col5_x + 10, col5_y + 5))
 
-		available_projects = city.production_system.get_available_projects()  # now returns dicts with "type"
-		current_project = city.production_system.current_project  # can be building obj or unit dict
+		available_projects = city.production_system.get_available_projects()
+		current_project = city.production_system.current_project
 
 		start_y = col5_y + 35
 		engine.ui_production_buttons = []
@@ -456,10 +457,10 @@ def draw_ui(screen, engine, font, big_font, resource_icons):
 
 			engine.ui_production_buttons.append({
 				"rect": btn_rect,
-				"type": proj_type,  # now either 'building' or 'unit'
+				"type": proj_type,
 				"name": name,
-			    "cost": cost,
-			"project": project,
+				"cost": cost,
+				"project": project,
 			})
 
 
@@ -468,7 +469,7 @@ def draw_ui(screen, engine, font, big_font, resource_icons):
 	if engine.current_player.pantheon is None:
 		required_faith = 20 + (engine.turn // 10) * 5
 		if engine.current_player.faith >= required_faith:
-			col6_x = 2130
+			col6_x = 2130 + x_offset  # shifted right by 100
 			col6_y = 20
 			col6_width = 240
 			col6_height = 500
@@ -479,15 +480,14 @@ def draw_ui(screen, engine, font, big_font, resource_icons):
 			screen.blit(big_font.render("Choose a Pantheon", True, (0, 0, 0)), (col6_x + 10, col6_y + 5))
 
 			start_y = col6_y + 35
-			pantheons_list = list(engine.all_pantheons.items())  # list of (name, data) tuples
+			pantheons_list = list(engine.all_pantheons.items())
 			for i, (name, data) in enumerate(pantheons_list[:max_items_visible]):
-				effect = data.get("desc", "")  # safe dict lookup for description
+				effect = data.get("desc", "")
 				rect = pygame.Rect(col6_x + 10, start_y + i * line_height, col6_width - 20, line_height - 6)
 
 				pygame.draw.rect(screen, (180, 180, 180), rect)
 				screen.blit(font.render(name, True, (0, 0, 0)), (rect.x + 5, rect.y + 4))
 
-				# Store pantheon info for click detection - pass (name, data) tuple or just name
 				engine.ui_pantheon_buttons.append({
 					"rect": rect,
 					"pantheon_name": name,
