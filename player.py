@@ -39,21 +39,6 @@ class Player:
 		trade_techs = {"Compass", "Engineering", "Banking", "Animal Husbandry", "Sailing"}
 		return sum(1 for tech in trade_techs if tech in techs)
 
-
-	def choose_pantheon(self, pantheon_name, current_turn):
-		required_faith = 20 + (current_turn // 10) * 5
-
-		if self.pantheon is not None:
-			return False, "You have already chosen a Pantheon."
-
-		if self.faith < required_faith:
-			return False, f"Not enough Faith to choose a Pantheon. You need {required_faith}, but have {self.faith}."
-
-		self.faith -= required_faith
-		self.pantheon = pantheon_name
-		return True, f"Pantheon '{pantheon_name}' chosen successfully!"
-
-
 	def start_golden_age(self):
 		self.in_golden_age = True
 		self.golden_age_turns_left += 10
@@ -185,7 +170,7 @@ class Player:
 
 	@property
 	def policy_cost(self):
-		k = len(self.unlocked_policies)
+		k = len(self.unlocked_policies) - len(self.free_policies) #free MUST be a subset of unlocked
 		n = max(1, len(self.cities))
 
 		cost_per_unlocked_policy = 25 + (6 * k) ** 1.7
@@ -200,58 +185,52 @@ class Player:
 		base = cost_per_unlocked_policy * penalty_multiplier
 		return int(math.ceil(base / 5.0) * 5)
 
-
-	def choose_policy(self, policy_name, game):
+	def can_choose_policy(self, policy_name, game):
 		policy = game.all_policies.get(policy_name)
 		if not policy:
 			return False, "Invalid policy choice."
-
+	
 		if policy.is_unlocked(self):
 			return False, "Policy already unlocked."
-
+	
 		if not policy.can_unlock(self):
 			return False, "You don't meet the prerequisites for this policy."
-
+	
 		if self.culture < self.policy_cost:
-			return False, "Not enough culture to unlock this policy."
+			return False, "Not enough culture accrued to unlock this policy."
+	
+		return True, "Policy can be chosen."
 
+	def choose_policy(self, policy_name, game):
+		success, message = self.can_choose_policy(policy_name, game)
+		if not success:
+			return False, message
+	
+		policy = game.all_policies[policy_name]
 		self.culture -= self.policy_cost
 		self.unlocked_policies.append(policy.name)
-
-		# Policy bonuses
+	
+		# Apply immediate policy bonuses
 		if policy.name == "Collective Rule":
 			spawn_unit_near_capital(self, game, "Settler", "A free Settler has arrived!")
-
+	
 		elif policy.name == "Citizenship":
 			spawn_unit_near_capital(self, game, "Worker", "A free Worker has arrived!")
-
+	
 		elif policy.name == "Representation":
 			self.start_golden_age()
-
+	
 		elif policy.name == "Legalism":
-			# Monument (FREE) in first four cities if they don't already have one
 			for city in self.cities[:4]:
-				has_monument = any("Monument" in b.name for b in city.buildings)
+				has_monument = any(b.name == "Monument" for b in city.buildings)
 				if not has_monument:
 					monument_data = dictionary.BUILDINGS.get("Monument", {})
 					free_monument = helper.build_building_object("Monument (FREE)", monument_data)
 					free_monument.production_cost = 0
 					free_monument.gold_cost = 0
 					city.buildings.append(free_monument)
-
-		return True, f"Unlocked policy: {policy.name}!"
-
-
-	def check_tradition_finisher():
-		# --- New check for all policies unlocked ---
-		required_policies = [
-			"Tradition",
-			"Aristocracy",
-			"Oligarchy",
-			"Legalism",
-			"Landed Elite",
-			"Monarchy"
-		]
+	
+		required_policies = ["Tradition", "Aristocracy", "Oligarchy", "Legalism", "Landed Elite", "Monarchy"]
 		if all(req in self.unlocked_policies for req in required_policies):
 			# Add completed Aqueduct building to first four cities.... but should this be RETROactive?
 			for city in self.cities[:4]:
@@ -261,7 +240,31 @@ class Player:
 					aqueduct = helper.build_building_object("Aqueduct", aqueduct_data)
 					#progress = 100
 					aqueduct.completed = True
-					city.buildings.append(aqueduct)	
+					city.buildings.append(aqueduct)
+	
+		return True, f"Unlocked policy: {policy.name}!"
+	
+	@property
+	def pantheon_threshold(self):
+		return 15 #+ 5 * (self.turn // 10)  # Assuming self.turn is updated	
+	
+	def can_choose_pantheon(self):
+		if self.pantheon:
+			return False, "Pantheon already chosen."
+		if self.faith < self.pantheon_threshold:
+			return False, "Not enough faith to found a Pantheon."
+		return True, "Pantheon can be chosen."	
+
+	def choose_pantheon(self, pantheon_name):
+		success, msg = can_choose_pantheon()
+			
+		if not success:
+			return False, message
+
+		self.faith -= required_faith
+		self.pantheon = pantheon_name
+		return True, f"Pantheon '{pantheon_name}' chosen successfully!"
+
 
 	def end_turn(self, game):
 		# Check for policy selection requirement
@@ -278,10 +281,9 @@ class Player:
 				return False, f"{city.name} needs a production project!"
 
 		# Check Pantheon selection if faith threshold met
-		if self.pantheon is None:
-			required_faith = 20 + (game.turn // 10) * 5
-			if self.faith >= required_faith:
-				return False, "You must select a Pantheon before ending your turn!"
+		success, reason = self.can_choose_pantheon()
+		if success:
+			return False, "You must select a Pantheon before ending your turn!"
 
 		# All checks passed, now apply turn-end effects:
 
@@ -314,50 +316,52 @@ class Player:
 
 		return True, "Turn ended successfully."
 
-	def found_city(self, unit, game):
+	def can_found_city(self, unit, game):
 		q, r = unit.q, unit.r
-
+	
 		if unit.name != "Settler":
-			game.show_message("Only Settlers can found cities!", 90) #call showmessage higher up somewhere?
 			return False, "Only Settlers can found cities!"
-
+	
 		if unit.moves_left < 1:
-			game.show_message("Not enough movement to found a city!", 90)
 			return False, "Not enough movement to found a city!"
-
+	
 		for player in game.players:
 			for city in player.cities:
 				if helper.hex_distance(q, r, city.q, city.r) < 4:
-					game.show_message("Too close to another city!", 90)
 					return False, "Too close to another city!"
+		return True, "City founding allowed."
+	
+	def found_city(self, unit, game):
+		q, r = unit.q, unit.r
 
-		city = City(q, r, game.current_player)
-
-		from core import Building
-
-		if len(self.cities) == 0:
-			palace_data = dictionary.BUILDINGS["Palace"]
-			palace = Building("Palace", **palace_data)
-			palace.completed = True  # ← This is crucial
-			city.buildings.append(palace)
-			city.is_capital = 1
-
-		self.cities.append(city)
-		game.tiles[q][r].city = city
-		game.territory.add((q, r))
-
-		for nq, nr in helper.hex_neighbors(q, r):
-			if 0 <= nq < GRID_WIDTH and 0 <= nr < GRID_HEIGHT:
-				game.territory.add((nq, nr))
-				game.tiles[nq][nr].territory = True
-
-		game.tiles[q][r].territory = True
-		city.update_worked_tiles(game)
-		self.remove_unit(unit, game)
-		game.selected_unit = None
-		game.selected_city = city
-
-		return True, None
+		allowed, message = self.can_found_city(unit, game)
+		if not allowed:
+			return False, message
+		else:
+			city = City(q, r, game.current_player)
+	
+			from core import Building
+	
+			if len(self.cities) == 0:
+				palace_data = dictionary.BUILDINGS["Palace"]
+				palace = Building("Palace", **palace_data)
+				palace.completed = True  # ← This is crucial
+				city.buildings.append(palace)
+				city.is_capital = 1
+	
+			self.cities.append(city)
+			game.tiles[q][r].city = city
+			
+			game.tiles[q][r].owner = self
+			for nq, nr in helper.hex_neighbors(q, r):
+				game.tiles[nq][nr].owner = self
+	
+			city.update_worked_tiles(game)
+			self.remove_unit(unit, game)
+			game.selected_unit = None
+			game.selected_city = city
+	
+			return True, None
 
 
 	def remove_unit(self, unit, game):

@@ -3,12 +3,14 @@ import dictionary
 import helper
 import math
 import heapq
+from itertools import combinations
 from collections import deque, defaultdict
 from systems import ProductionSystem
 from constants import CITY_NAMES
 
 class City:
 	_id_counter = 0  # class-level variable for unique ID assignment
+	PURCHASE_COST = 55
 
 	def __init__(self, q, r, player):
 		self.id = City._id_counter
@@ -307,97 +309,134 @@ class City:
 			return self.production_system.current_project.name
 		return None
 
-	def purchase_tile(self, tile, engine):
+	def can_buy_tile(self, tile, engine):
 		player = self.owner
 		q, r = tile.q, tile.r
 
-		# Check if already owned
 		if tile.owner is not None:
 			return False, "Tile already owned by another player."
 
-		# Check if tile is within 3 tiles of the city
-		from helper import hex_distance
+		from helper import hex_distance, is_adjacent_to_owned_tile
+
 		if hex_distance(self.q, self.r, q, r) > 3:
 			return False, "Tile is too far from the city (must be within 3 tiles)."
 
-		# Check adjacency to any tile owned by player
-		if not helper.is_adjacent_to_owned_tile(tile, player, engine):
+		if not is_adjacent_to_owned_tile(tile, player, engine):
 			return False, "Tile must be adjacent to your city's borders."
 
-		cost = 55
+		if player.gold < self.PURCHASE_COST:
+			return False, f"Not enough gold to purchase tile (cost: {self.PURCHASE_COST})."
 
-		if player.gold < cost:
-			return False, f"Not enough gold to purchase tile (cost: {cost})."
+		return True, None
 
-		# Success — buy tile
-		player.gold -= cost
+	def purchase_tile(self, tile, engine):
+		can_buy, msg = self.can_buy_tile(tile, engine)
+		if not can_buy:
+			return False, msg
+
+		player = self.owner
+		player.gold -= self.PURCHASE_COST
 		tile.owner = player
 
-		return True, f"Tile purchased for {cost}g!"
+		return True, f"Tile purchased for {self.PURCHASE_COST}g!"
+
+	def get_purchasable_tiles(self, engine):
+		from helper import hex_distance
+
+		buyable_tiles = []
+		for dq in range(-3, 4):
+			for dr in range(-3, 4):
+				q = self.q + dq
+				r = self.r + dr
+				# Check map bounds here (assuming engine.tiles is a 2D list)
+				if 0 <= q < len(engine.tiles) and 0 <= r < len(engine.tiles[0]):
+					tile = engine.tiles[q][r]
+					can_buy, _ = self.can_buy_tile(tile, engine)
+					if can_buy:
+						buyable_tiles.append(tile)
+
+		return buyable_tiles
 
 
 	def update_worked_tiles(self, game):
-		city_tile_coords = (self.q, self.r)
-
-		# All tiles within 3 hexes (including city tile)
-		territory_tiles = [
-			t for t in game.territory
-			if helper.hex_distance(self.q, self.r, *t) <= 3
-		]
-
+		city_tile = game.tiles[self.q][self.r]
+		city_coords = (self.q, self.r)
+	
+		# Collect all tiles within 3 hexes whose owner is the same as the city owner (player)
+		owned_tiles = []
+		for row in game.tiles:
+			for tile in row:
+				if tile.owner == self.owner:
+					if helper.hex_distance(self.q, self.r, tile.q, tile.r) <= 3:
+						owned_tiles.append(tile)
+	
 		# Gather tiles worked by other cities (all players)
 		other_worked_tiles = set()
 		for player in game.players:
 			for city in player.cities:
 				if city is not self:
 					other_worked_tiles.update(city.worked_tiles)
-
+	
 		# Exclude tiles worked by others, except city tile which is always yours
-		available_tiles = [t for t in territory_tiles if t not in other_worked_tiles and t != city_tile_coords]
-
-		# Sort available tiles by combined food + production descending
-		available_tiles.sort(
-			key=lambda coords: game.tiles[coords[0]][coords[1]].food + game.tiles[coords[0]][coords[1]].production,
-			reverse=True
-		)
-
+		available_tiles = [t for t in owned_tiles if t not in other_worked_tiles and (t.q, t.r) != city_coords]
+	
+		# Sort by food + production
+		available_tiles.sort(key=lambda t: t.food + t.production, reverse=True)
+	
 		# Start with city tile (always worked)
-		chosen_coords = [city_tile_coords]
-
-		# Add tiles up to population count (not including city tile)
-		chosen_coords.extend(available_tiles[:self.population])
-
-		# Convert coords to tile objects
-		self.worked_tiles = set(game.tiles[q][r] for q, r in chosen_coords)
-
-		# Mark tiles as being worked by this city
+		chosen_tiles = [city_tile]
+	
+		# Add up to pop more tiles
+		chosen_tiles.extend(available_tiles[:self.population])
+	
+		# Update city worked tiles
+		self.worked_tiles = set(chosen_tiles)
+	
+		# Mark tiles as worked by this city
 		for tile in self.worked_tiles:
 			tile.worked_by = self
 
 	def get_workable_tiles(self, game):
-		"""Tiles within 3 hexes, not worked by others, or the city tile itself."""
+		"""Tiles within 3 hexes, owned by this player, and not worked by others (excluding city tile)."""
 		city_coords = (self.q, self.r)
-
+	
+		# Get all tiles within 3 hexes that are owned by the same player, excluding the city tile
 		territory_tiles = [
-			game.tiles[q][r]
-			for q, r in game.territory
-			if helper.hex_distance(self.q, self.r, q, r) <= 3
-		]
-
+		    tile for row in game.tiles for tile in row
+		if tile.owner == self.owner and
+		(tile.q, tile.r) != city_coords and
+		   helper.hex_distance(self.q, self.r, tile.q, tile.r) <= 3
+	    ]
+	
 		# Tiles worked by other cities
 		other_worked_tiles = set()
 		for player in game.players:
 			for city in player.cities:
 				if city is not self:
 					other_worked_tiles.update(city.worked_tiles)
-
+	
+		# Filter out tiles already worked by others
 		workable = {
-			tile for tile in territory_tiles
-			if tile not in other_worked_tiles or (tile.q, tile.r) == city_coords
-		}
-
+		    tile for tile in territory_tiles if tile not in other_worked_tiles
+	    }
+	
 		return workable
 
+	
+	def get_valid_worked_tile_combinations(self, game):
+		# Number of tiles the city can work — typically population + 1 (including city center)
+		max_tiles = self.population + 1
+	
+		# Get all eligible tiles
+		workable_tiles = list(self.get_workable_tiles(game))
+	
+		# Generate all valid combinations of workable tiles (up to max_tiles)
+		all_combos = []
+		for n in range(1, max_tiles + 1):
+			for combo in combinations(workable_tiles, n):
+				all_combos.append(combo)
+	
+		return all_combos	
 
 	def set_worked_tiles(self, tiles, game):
 		"""EA/manual tile override. Returns (success: bool, message: str)"""

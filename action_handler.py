@@ -134,6 +134,12 @@ def handle_action(engine, action_type, data, log_actions=True):
 	status = "VALID" if result[0] else f"INVALID ({result[1]})"
 	print(f"ACTION: {json.dumps(action_summary, separators=(',', ':'))} --> {status}")
 
+	legal_actions = engine.get_legal_actions(engine.current_player)
+	print("\nLegal actions:")
+	for action in legal_actions:
+		print(f" - {action['action']} | { {k: v for k, v in action.items() if k != 'action'} }")
+
+
 	return result
 
 def start_new_replay_log(engine, prefix="replay", folder="replays"):

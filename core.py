@@ -16,12 +16,14 @@ class Tile:
 		self.resource = resource
 		self.city = None
 		self.owner = None
+		
 		self.improvement = None
 		self.improvement_progress = 0  # turns worked on improvement
 		self.road = 0
 		self.road_progress = 0
 		self.unit = None  # or maybe a list if you support stacking in the future
 		self.rivers = set()  # Set of edge indices (0 through 5) with rivers
+		self.fresh_water = False
 		self.ancient_ruin = None
 		self.worked_by = None #needs to be set in update tiles?
 
@@ -40,7 +42,6 @@ class Tile:
 		else:
 			self.movement_cost = 1
 			self.passable = 1
-
 	@property
 	def food(self):
 		# Snow overrides everything
@@ -157,7 +158,7 @@ class Tile:
 
 
 class Building:
-	def __init__(self, name, food=0, production=0, gold=0, maintenance=0, science=0, culture=0, faith =0, happiness=0, growth_percentage=0, production_percentage=0, science_percentage=0, gold_percentage = 0, production_cost=0, gold_cost=0, techs_required=None, policies_required=None, buildings_required=None):
+	def __init__(self, name, food=0, production=0, gold=0, maintenance=0, science=0, culture=0, faith =0, happiness=0, growth_percentage=0, production_percentage=0, science_percentage=0, gold_percentage = 0, production_cost=0, gold_cost=0, techs_required=None, policies_required=None, buildings_required=None, wonder=False, national_wonder=False):
 		self.name = name
 		self.type = "building"
 		self.food = food
@@ -182,8 +183,10 @@ class Building:
 		self.policies_required = policies_required or []
 		self.buildings_required = buildings_required or []
 
-		self.progress = 0
-		self.completed = False
+		self.wonder = wonder
+		self.national_wonder = national_wonder
+		self.progress = 0 #pass in for free stuff?
+		self.completed = False #pass in for free stuff?
 
 	def reset_progress(self):
 		self.progress = 0
@@ -216,19 +219,32 @@ class Unit:
 		if player and q is not None and r is not None:
 			player.units.append(self)
 
-	def move_to(self, from_tile, to_tile):
-		# Validation first
+	def can_move_to(self, from_tile, to_tile):
+		if from_tile is None or to_tile is None:
+			return False, "Invalid tile (tile does not exist)."
+	
+		if not helper.in_bounds(to_tile.q, to_tile.r):
+			return False, "Target tile is out of bounds."
+		
 		if self.moves_left == 0:
 			return False, "No moves left!"
-
+	
 		if helper.hex_distance(from_tile.q, from_tile.r, to_tile.q, to_tile.r) > 1:
 			return False, "Can only move to adjacent tiles."
-
+	
 		if not to_tile.passable:
 			return False, "Impassable tile."
-
+	
 		if to_tile.unit is not None:
 			return False, "Tile already occupied."
+	
+		return True, "Valid move."
+
+
+	def move_to(self, from_tile, to_tile):
+		success, message = self.can_move_to(from_tile, to_tile)
+		if not success:
+			return False, message
 
 		# Calculate movement cost
 		move_cost = 1
@@ -238,9 +254,6 @@ class Unit:
 				move_cost = max(move_cost, 1)
 			if to_tile.elevation == 1 or to_tile.trees:
 				move_cost = max(move_cost, self.moves_left)  # Use up all moves on rough terrain
-
-		if self.moves_left < move_cost:
-			return False, "Not enough movement points."
 
 		# Apply move
 		self.moves_left -= move_cost
@@ -255,8 +268,6 @@ class Unit:
 			print(f"Ancient Ruins triggered: {ruin.description}")
 
 		return True, "Unit moved successfully."
-
-
 
 	def improve_tile(self, tile, new_improvement=None, game=None):
 		if self.name != "Worker":

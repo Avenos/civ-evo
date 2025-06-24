@@ -70,6 +70,40 @@ class EvolutionarySimulator:
 	def save_replay(self, action_log, filename):
 		with open(filename, "w") as f:
 			json.dump(action_log, f)
+			
+	def run_random_agent_simulation():
+		engine = Engine()
+		engine.setup_game(num_players=1, ai_only=True)
+		player = engine.current_player
+	
+		action_log = []
+	
+		while not engine.is_game_over():
+			state = player.get_state()
+			legal_actions = get_legal_actions(engine, player)
+	
+			if not legal_actions:
+				engine.end_turn()
+				continue
+	
+			chosen_action = random.choice(legal_actions)
+			success, message = handle_action(engine, chosen_action["type"], chosen_action.get("data", {}))
+			action_log.append({
+			"turn": engine.turn,
+		    "action": chosen_action,
+		    "success": success,
+		    "message": message
+		})
+	
+			engine.end_turn()
+	
+		fitness = evaluate_fitness(engine, player)
+	
+		return {
+		    "fitness": fitness,
+		"actions": action_log
+	    }
+
 
 class SingleGameSimulator:
 	def __init__(self, agent, record=False):

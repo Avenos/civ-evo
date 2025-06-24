@@ -43,7 +43,6 @@ def blit_hex_overlay_clipped(screen, overlay_img, center_x, center_y, mask_surf)
 	# 7. Blit the masked surface onto screen
 	screen.blit(temp_surf, (top_left_x, top_left_y))
 
-
 def draw_hex(surface, x, y, color, width=2):
 	points = []
 	for i in range(6):
@@ -69,9 +68,8 @@ def draw_grid(screen, engine, font, big_font, terrain_overlays, hex_mask, icon_i
 				if base_img:
 					blit_hex_overlay_clipped(screen, base_img, x, y, hex_mask)
 				else:
-					# Draw black hex polygon fallback
 					points = [helper.get_hex_corner(x, y, i) for i in range(6)]
-					pygame.draw.polygon(screen, (0, 0, 0), points)
+					pygame.draw.polygon(screen, BLACK, points)
 
 			# Draw ancient ruin
 			if tile.ancient_ruin:
@@ -110,22 +108,25 @@ def draw_grid(screen, engine, font, big_font, terrain_overlays, hex_mask, icon_i
 
 
 def draw_territory_shading(screen, engine, font, big_font):
-	# Create a transparent surface same size as screen
 	territory_surf = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
 
-	faint_green = (0, 255, 0, 50)  # RGBA, last number is alpha for transparency
+	for row in engine.tiles:
+		for tile in row:
+			if tile.owner:
+				player_index = engine.players.index(tile.owner)
+				color = dictionary.PLAYER_COLORS[player_index % len(dictionary.PLAYER_COLORS)]
 
-	for q, r in engine.territory:
-		x, y = helper.hex_to_pixel(q, r)
-		points = []
-		for i in range(6):
-			angle = math.radians(60 * i - 30)  # pointy top adjustment if you switched!
-			px = x + HEX_RADIUS * math.cos(angle)
-			py = y + HEX_RADIUS * math.sin(angle)
-			points.append((px, py))
-		pygame.draw.polygon(territory_surf, faint_green, points)
+				x, y = helper.hex_to_pixel(tile.q, tile.r)
+				points = []
+				for i in range(6):
+					angle = math.radians(60 * i - 30)
+					px = x + HEX_RADIUS * math.cos(angle)
+					py = y + HEX_RADIUS * math.sin(angle)
+					points.append((px, py))
+				pygame.draw.polygon(territory_surf, color, points)
 
-	screen.blit(territory_surf, (0, 0))  
+	screen.blit(territory_surf, (0, 0))
+
 
 def draw_cities(screen, engine, font, big_font):
 	GOLD_DARK_GREEN = (34, 139, 34)
@@ -170,24 +171,17 @@ def draw_units(screen, engine, font, big_font, unit_icons):
 			label_rect = label.get_rect(center=(x, y))
 			screen.blit(label, label_rect)
 
-
 def draw_message(screen, engine):
 	if engine.message_timer > 0 and engine.message:
 		font = pygame.font.SysFont("arial", 18)
 		text_surface = font.render(engine.message, True, (255, 255, 255))
 		background = pygame.Surface((text_surface.get_width() + 20, text_surface.get_height() + 10))
 		background.set_alpha(180)
-		background.fill((0, 0, 0))
+		background.fill(BLACK)
 		screen.blit(background, (10, 10))
 		screen.blit(text_surface, (20, 15))
 
 def draw_ui(screen, engine, font, big_font, resource_icons):
-	BLACK = (0, 0, 0)
-	WHITE = (255, 255, 255)
-	GREEN = (100, 220, 100)
-	GRAY = (180, 180, 180)
-	BLUE = (0, 0, 255)
-
 	bar_height = 30
 	bar_bg_color = (220, 220, 220)
 	padding = 10
@@ -370,7 +364,7 @@ def draw_ui(screen, engine, font, big_font, resource_icons):
 		max_items_visible = col4_height // line_height
 
 		pygame.draw.rect(screen, (210, 210, 210), (col4_x, col4_y, col4_width, col4_height))
-		screen.blit(big_font.render("Buy Units / Buildings", True, (0, 0, 0)), (col4_x + 10, col4_y + 5))
+		screen.blit(big_font.render("Buy Units / Buildings", True, BLACK), (col4_x + 10, col4_y + 5))
 
 		# Build purchasables list (filter if needed)
 		purchasables = []
@@ -394,7 +388,7 @@ def draw_ui(screen, engine, font, big_font, resource_icons):
 				color = (180, 180, 180)  # default gray
 
 			pygame.draw.rect(screen, color, btn_rect)
-			text = font.render(f"{name} - {cost}g", True, (0, 0, 0))
+			text = font.render(f"{name} - {cost}g", True, BLACK)
 			screen.blit(text, (btn_rect.x + 5, btn_rect.y + 5))
 
 			engine.ui_purchase_buttons.append({
@@ -415,7 +409,7 @@ def draw_ui(screen, engine, font, big_font, resource_icons):
 		max_items_visible = col5_height // line_height
 
 		pygame.draw.rect(screen, (200, 200, 200), (col5_x, col5_y, col5_width, col5_height))
-		screen.blit(big_font.render("Production Projects", True, (0, 0, 0)), (col5_x + 10, col5_y + 5))
+		screen.blit(big_font.render("Production Projects", True, BLACK), (col5_x + 10, col5_y + 5))
 
 		available_projects = city.production_system.get_available_projects()
 		current_project = city.production_system.current_project
@@ -444,7 +438,7 @@ def draw_ui(screen, engine, font, big_font, resource_icons):
 			# Label: add icon or tag if desired
 			display_name = name
 
-			screen.blit(font.render(f"{display_name} - {cost} prod", True, (0, 0, 0)), (btn_rect.x + 5, btn_rect.y + 4))
+			screen.blit(font.render(f"{display_name} - {cost} prod", True, BLACK), (btn_rect.x + 5, btn_rect.y + 4))
 
 			# Show progress if currently building this project
 			if is_current:
@@ -453,7 +447,7 @@ def draw_ui(screen, engine, font, big_font, resource_icons):
 				else:
 					progress = current_project.progress
 				progress_text = f"Progress: {progress}/{cost}"
-				screen.blit(font.render(progress_text, True, (0, 0, 0)), (btn_rect.x + 5, btn_rect.y + 18))
+				screen.blit(font.render(progress_text, True, BLACK), (btn_rect.x + 5, btn_rect.y + 18))
 
 			engine.ui_production_buttons.append({
 				"rect": btn_rect,
@@ -477,7 +471,7 @@ def draw_ui(screen, engine, font, big_font, resource_icons):
 			max_items_visible = col6_height // line_height
 
 			pygame.draw.rect(screen, (220, 220, 200), (col6_x, col6_y, col6_width, col6_height))
-			screen.blit(big_font.render("Choose a Pantheon", True, (0, 0, 0)), (col6_x + 10, col6_y + 5))
+			screen.blit(big_font.render("Choose a Pantheon", True, BLACK), (col6_x + 10, col6_y + 5))
 
 			start_y = col6_y + 35
 			pantheons_list = list(engine.all_pantheons.items())
@@ -486,7 +480,7 @@ def draw_ui(screen, engine, font, big_font, resource_icons):
 				rect = pygame.Rect(col6_x + 10, start_y + i * line_height, col6_width - 20, line_height - 6)
 
 				pygame.draw.rect(screen, (180, 180, 180), rect)
-				screen.blit(font.render(name, True, (0, 0, 0)), (rect.x + 5, rect.y + 4))
+				screen.blit(font.render(name, True, BLACK), (rect.x + 5, rect.y + 4))
 
 				engine.ui_pantheon_buttons.append({
 					"rect": rect,

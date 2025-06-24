@@ -4,13 +4,10 @@ import pygame
 import constants
 import math
 import os
-import helper
-from collections import deque
 import heapq
-import pygame
-import os
-import helper
+from collections import deque
 from constants import WIDTH, HEIGHT, GRID_WIDTH, GRID_HEIGHT
+from dictionary import EVEN_ROW_NEIGHBORS, ODD_ROW_NEIGHBORS
 
 def init_pygame_assets():
 	pygame.display.init()
@@ -33,10 +30,15 @@ def init_pygame_assets():
 	for yield_type in yield_types:
 		icon_images[yield_type] = pygame.image.load(f"assets/icons/{yield_type}.png").convert_alpha()
 
-	unit_icons = helper.load_unit_icons()
-
+	unit_icons = {}
+	for filename in os.listdir("assets/units"):
+		if filename.lower().endswith(".png"):
+			unit_name = os.path.splitext(filename)[0].lower()  # filename without extension
+			full_path = os.path.join("assets/units", filename)
+			unit_icon = pygame.image.load(full_path).convert_alpha()
+			unit_icons[unit_name] = unit_icon
+			
 	return screen, clock, font, big_font, terrain_overlays, icon_images, unit_icons
-
 
 def a_star_path(start, goal, game_map, move_points_per_turn=2):
 	"""
@@ -166,14 +168,17 @@ def hex_distance(q1, r1, q2, r2):
 	c2 = oddr_to_cube(q2, r2)
 	return cube_distance(c1, c2)
 
+def in_bounds(q, r):
+	return 0 <= q < GRID_WIDTH and 0 <= r < GRID_HEIGHT
+
 def hex_neighbors(q, r):
 	if r % 2 == 0:
-		directions = [(+1, 0), (0, -1), (-1, -1),
-			      (-1, 0), (-1, +1), (0, +1)]
+		directions = EVEN_ROW_NEIGHBORS.values()
 	else:
-		directions = [(+1, 0), (+1, -1), (0, -1),
-			      (-1, 0), (0, +1), (+1, +1)]
-	return [(q + dq, r + dr) for dq, dr in directions]
+		directions = ODD_ROW_NEIGHBORS.values()
+
+	neighbors = [(q + dq, r + dr) for dq, dr in directions]
+	return [(nq, nr) for nq, nr in neighbors if in_bounds(nq, nr)]
 
 def get_hex_at_pixel(x, y):
 	for q in range(constants.GRID_WIDTH):
@@ -204,6 +209,27 @@ def create_hex_mask(radius, inset=0):  # inset controls how much border to leave
 
 	pygame.draw.polygon(mask_surf, (255, 255, 255, 255), points)
 	return mask_surf
+
+def assign_fresh_water_flags(game):
+	for row in game.tiles:
+		for tile in row:
+			tile.fresh_water = has_fresh_water(tile, game)
+
+def has_fresh_water(tile, game):
+	if tile.rivers or tile.terrain_type == "lake" or tile.resource == "oasis":
+		return True
+
+	for q2, r2 in hex_neighbors(tile.q, tile.r):
+		neighbor = game.tiles[q2][r2]
+		if neighbor.terrain_type == "lake" or neighbor.resource == "oasis":
+			return True
+	return False
+
+def generate_flood_plains(game):
+	for row in game.tiles:
+		for tile in row:
+			if tile.terrain_type == "desert" and tile.rivers:
+				tile.terrain_type = "flood plains"
 
 def has_river_between(tile1, tile2):
 	# First, compute the direction from tile1 to tile2
@@ -345,6 +371,9 @@ def build_building_object(building_name, building_data):
 		techs_required=building_data.get("techs_required", []),
 		policies_required=building_data.get("policies_required", []),
 		buildings_required=building_data.get("buildings_required", []),
+		
+		wonder=building_data.get("wonder", False),
+		national_wonder=building_data.get("national_wonder", False),
 	)
 
 def build_unit_object(name, data):
@@ -377,7 +406,7 @@ def check_proximity_rewards(game, player):
 
 		# Check if any of the player's units are within range
 		for unit in player.units:
-			dist = helper.hex_distance(unit.q, unit.r, q, r)  # ✅ correct
+			dist = hex_distance(unit.q, unit.r, q, r)  # ✅ correct
 			if dist <= 3:
 				player.gold += 30
 				player.faith += 8
@@ -414,14 +443,3 @@ def build_tile_image_key(tile, available_images):
 			return key
 
 	return None
-
-def load_unit_icons(path="assets/units"):
-	icons = {}
-	for filename in os.listdir(path):
-		if filename.lower().endswith(".png"):
-			unit_name = os.path.splitext(filename)[0].lower()  # filename without extension
-			full_path = os.path.join(path, filename)
-			icon = pygame.image.load(full_path).convert_alpha()
-			icons[unit_name] = icon
-	return icons
-

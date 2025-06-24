@@ -1,19 +1,9 @@
 
 import pygame
-import random
-import json
-import math
 import time
-import renderer
-import os
-import sys
-import dictionary
-import copy
 import helper
-import player
-import core
-import systems
-import game_loop
+import renderer
+from dictionary import TERRAIN_TYPES
 from action_handler import handle_action, start_new_replay_log
 from engine import Engine
 from constants import GRID_WIDTH, GRID_HEIGHT, HEX_RADIUS, WIDTH, HEIGHT, FPS, CITY_NAMES
@@ -176,13 +166,14 @@ def run_manual_game(engine):
 			if time.time() - hover_start_time >= HOVER_DELAY:
 				tile = engine.tiles[q][r]
 
-				terrain_name = dictionary.TERRAIN_TYPES[tile.terrain_type]["name"]
+				terrain_name = TERRAIN_TYPES[tile.terrain_type]["name"]
 
 				info_lines = [
 					f"Tile: ({q}, {r})",
 					f"Terrain: {terrain_name}",
 					f"Improvement: {tile.improvement or 'None'}",
 					f"Resource: {tile.resource or 'None'}",
+					f"Fresh water: {tile.fresh_water or 'None'}",
 					f"Yield - Food: {tile.food}, Prod: {tile.production}, Gold: {tile.gold}"
 				]
 

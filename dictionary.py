@@ -1,28 +1,29 @@
 
-#tile improvement system #add dict improvement values, also adjacency bonuses for different tile types? flood plains? marsh?
-#refactor territory
-
-#program all building effects, stoneworks, stable, lighthouse, verify aqeuduct, etc
-#tile purhcasing finalize
-#checking after every relevant action whether projects arew still valid in city?
-#terrible unit spawning code
-#city itself tile yield values?s ettling on luxes also city roads? 
-#citizen tile assignment choice system, #if city grows auto update the next worked tile to highest production tile then by gold
+#list of legal actions for EA
+#tile improvement system, add dict improvement values, also adjacency bonuses for different tile types? flood plains? marsh?
+#citizen tile assignment choice system, #if city grows auto update the next worked tile to highest production tile then by gold 
+#purchase system finalize, purhcased things landing on same tile... stacking system? terrible unit spawning code
+#verify forests at top part of minimap #define all rivers, add columns
+#make ui nice food decimal rounding? or floor?
+#border growth algorithm and formula 15 25 40 north cotton then dyes them cotton
+#speef monitoring and efficiency
+#terrain stuff lower case? why?
+#tile purchasing cost
+#does pop growth help expand borders? ancient ruins?
+#do we let the AI CHOOSE between pop and culture and free tech? yeah. whatever it wants.
 #action API finalize!! how do we end turn?
 #verify science system overflow, display?
-#purchase system finalize #purhcased things landing on same tile... stacking system?
+#DE-select production projects each turn if they are no longer valid after all relevant actions. production applied at BEGINNING of turn. 1 turn left on NC and buiilt a city? it doesnt complete. right?
 #policies effects! finalize
 #pantheon system finalize impllement do NEW cities not auto get pantheons or do they?
 #verify starvation...
 #city connections verify
-#verify forests at top part of minimap #define all rivers, add columns
+#program all building effects, stoneworks, stable, lighthouse, verify aqeuduct, etc
+#city itself tile yield values?s ettling on luxes also city roads? 
 #negative gold penalties check
 #trade routes caravans ability
-#make ui nice food decimal rounding? or floor?
-#settler cost situation
 #roads? machinery? bridges over rivers?
 #figure out gpt formula: 1war and 1 worker =  1gpt
-#border growth algorithm and formula 15 25 40 north cotton then dyes them cotton
 #golden age verify tile gold also point req func, stacking?
 #happiness, gold and culture are ints?
 
@@ -33,7 +34,18 @@
 #great person slots
 
 #EVOLUTIONARY ALGORITHM TO TURN 121!!!!!! simpler gamestate, fitness func, and actions are best. pathfinding? forced TOA or nat college to test different builds?
-##hover formulas? music selector? map importer? standard map size? reserarch agreements? sell buildings? FREE policies pretend we are poland?
+##hover formulas? map importer? standard map size? reserarch agreements? sell buildings? FREE policies pretend we are poland?
+
+PLAYER_COLORS = [
+    (0, 255, 0, 50),       # Player 0 — Green
+    (0, 0, 255, 50),       # Player 1 — Blue
+    (255, 0, 0, 50),       # Player 2 — Red
+    (255, 255, 0, 50),     # Player 3 — Yellow
+    (255, 165, 0, 50),     # Player 4 — Orange
+    (128, 0, 128, 50),     # Player 5 — Purple
+    (0, 255, 255, 50),     # Player 6 — Cyan
+    (255, 192, 203, 50),   # Player 7 — Pink
+]
 
 
 # Edge indices: clockwise from E = 0
@@ -48,19 +60,19 @@ DIRECTION_TO_EDGE = {
 
 # Neighbor offsets for odd-r horizontal layout
 EVEN_ROW_NEIGHBORS = {
-        "E":  (1, 0),
+        "E": (1, 0),
         "NE": (0, -1),
         "NW": (-1, -1),
-        "W":  (-1, 0),
+        "W": (-1, 0),
         "SW": (-1, 1),
         "SE": (0, 1),
 }
 
 ODD_ROW_NEIGHBORS = {
-        "E":  (1, 0),
+        "E": (1, 0),
         "NE": (1, -1),
         "NW": (0, -1),
-        "W":  (-1, 0),
+        "W": (-1, 0),
         "SW": (0, 1),
         "SE": (1, 1),
 }
@@ -97,60 +109,60 @@ MULTIPLIERS = {
 }
 
 TERRAIN_TYPES =  {
-        "p":    {"name": "plains", "food": 1, "production": 1},
-        "g":    {"name": "grassland", "food": 2},
-        "d":    {"name": "desert"},
-        "t":    {"name": "tundra", "food": 1},
-        "s":    {"name": "snow"},
-        "c":     {"name": "coast", "food": 1},
-        "o":     {"name": "ocean", "food": 1},
-        "n":     {"name": "none"},
-        "l":    {"name": "lake", "food": 2},
+        "p": {"name": "plains", "food": 1, "production": 1},
+        "g": {"name": "grassland", "food": 2},
+        "d": {"name": "desert"},
+        "t": {"name": "tundra", "food": 1},
+        "s": {"name": "snow"},
+        "c": {"name": "coast", "food": 1},
+        "o": {"name": "ocean", "food": 1},
+        "n": {"name": "none"},
+        "l": {"name": "lake", "food": 2},
 }
 
 UNITS = {
-        "Settler":    {"moves": 2, "hp": 100, "production_cost": 106, "gold_cost": 500},
-        "Worker":    {"moves": 2, "production_cost": 70, "hp": 100, "gold_cost": 220},
-        "Scout":    {"moves": 2, "production_cost": 25, "hp": 100, "gold_cost": 140},
-        "Warrior":    {"moves": 2,  "production_cost": 40,"hp": 100, "gold_cost": 200},
-        "Caravan":    {"moves": 0, "hp": 100, "techs_required": ["Animal Husbandry"], "production_cost": 75, "gold_cost": 390},
-        "Great Scientist":    {"moves": 2, "hp": 100},
-        "Great Engineer":    {"moves": 2, "hp": 100},
+        "Settler": {"moves": 2, "hp": 100, "production_cost": 106, "gold_cost": 500},
+        "Worker": {"moves": 2, "production_cost": 70, "hp": 100, "gold_cost": 220},
+        "Scout": {"moves": 2, "production_cost": 25, "hp": 100, "gold_cost": 140},
+        "Warrior": {"moves": 2,  "production_cost": 40,"hp": 100, "gold_cost": 200},
+        "Caravan": {"moves": 0, "hp": 100, "techs_required": ["Animal Husbandry"], "production_cost": 75, "gold_cost": 390},
+        "Great Scientist": {"moves": 2, "hp": 100},
+        "Great Engineer": {"moves": 2, "hp": 100},
 }
 
 BUILDINGS = {
-        "Palace":    {"science": 3, "production": 3, "gold": 3, "culture": 1}, #Implemented
-        "Library":    {"maintenance": 1, "production_cost": 75, "techs_required": ["Writing"], "gold_cost": 400}, #Implemented
-        "Shrine":    {"maintenance": 1, "faith": 1, "production_cost": 40, "techs_required": ["Pottery"], "gold_cost": 250}, #Implemented
-        "Monument":    {"maintenance": 1,  "culture": 2, "production_cost": 40, "gold_cost": 280}, #Implemented
-        "Monument (Free)":    {"culture": 2}, #Implemented
-        "Granary":    {"maintenance": 1, "food": 2, "growth_percentage": 0.1, "production_cost": 60, "techs_required": ["Pottery"], "gold_cost": 340}, #Implemented
-        "Water Mill":    {"maintenance": 2, "food": 2, "production": 1, "production_cost": 75, "techs_required": ["The Wheel"], "gold_cost": 400}, #Implemented
-        "Temple of Artemis":    {"culture": 1, "production_cost": 185, "techs_required": ["Archery"]}, #Implemented except GE point and ranged bonus
-        "Stone Works":    {"maintenance": 1, "production_cost": 75, "techs_required": ["Calendar"], "gold_cost": 320}, #city must have a quarry
-        "Forge":    {},
-        "Lighthouse":    {},
-        "Stable":    {"maintenance": 1, "production_cost": 100, "techs_required": ["Horseback Riding"], "gold_cost": 500},
-        "Pyramids":    {"production_cost": 185, "techs_required": ["Masonry"], "policies_required": ["Liberty"]},
-        "National College":    {"science": 3, "science_percentage": 0.5, "production_cost": 125, "techs_required": ["Philosophy"]}, #production_cost depends on cities...
-        "Oracle":    {"culture": 3, "production_cost": 250, "techs_required": ["Philosophy"]}, #gs point
-        "Hanging Gardens":    {"food": 6, "culture": 1, "production_cost": 250, "techs_required": ["Mathematics"], "policies_required": ["Tradition"]}, #Implemented
-        "Circus":    {"happiness": 2, "production_cost": 75, "techs_required": ["Trapping"], "gold_cost": 400}, #must have upgraded horses or ivory
-        "Circus Maximus":    {"happiness": 5, "culture": 1, "production_cost": 125, "techs_required": ["Horseback Riding"]}, #Implemented
-        "Lighthouse":    {"maintenance": 1, "production_cost": 75, "techs_required": ["Optics"], "gold_cost": 400},
-        "Aqueduct":    {"maintenance": 1, "production_cost": 100, "techs_required": ["Engineering"], "gold_cost": 400}, #Implemented should probably test
-        "Colosseum":    {"maintenance": 1, "happiness": 2, "production_cost": 100, "techs_required": ["Construction"], "gold_cost": 500}, #Implemented
-        "University":    {"maintenance": 2, "science_percentage": 0.33, "production_cost": 160, "techs_required": ["Education"], "buildings_required": ["Library"], "gold_cost": 660}, #GS slots
-        "Market":    {"gold": 1, "production_cost": 100, "techs_required": ["Currency"], "gold_cost": 500},
-        "Mint":    {"production_cost": 100, "techs_required": ["Currency"], "gold_cost": 500}, #Implemented
-        "Artists' Guild":    {"maintenance": 1, "production_cost": 150, "techs_required": ["Guilds"]},
-        "Writers' Guild":    {"maintenance": 1, "production_cost": 100, "techs_required": ["Drama and Poetry"]},
-        "Workshop":    {"production": 2, "production_percentage": 0.1, "maintenance": 2, "production_cost": 120, "techs_required": ["Metal Casting"], "gold_cost": 580}, #allow production trade routes, GE point
-        "Ironworks":    {"production": 8, "culture": 1, "production_cost": 125, "techs_required": ["Machinery"]}, #production_cost depends on cities...
-        "Observatory":    {"science_percentage": 0.5, "production_cost": 200, "techs_required": ["Astronomy"], "gold_cost": 780}, #Implemented
-        "Garden":    {"maintenance": 1, "production_cost": 120, "techs_required": ["Theology"], "gold_cost": 580}, #City must border a source of fresh water
-        "Forbidden Palace": {"culture": 1, "production_cost": 500, "techs_required": ["Banking"], "policies_required": ["Patronage"]}, #Implemented
-        "Notre Dame": {"happiness": 10, "faith": 4, "culture": 1, "production_cost": 400, "techs_required": ["Physics"]} #Implemented except GM point, 1 culture?
+        "Palace": {"science": 3, "production": 3, "gold": 3, "culture": 1}, #Implemented
+        "Library": {"maintenance": 1, "production_cost": 75, "techs_required": ["Writing"], "gold_cost": 400}, #Implemented
+        "Shrine": {"maintenance": 1, "faith": 1, "production_cost": 40, "techs_required": ["Pottery"], "gold_cost": 250}, #Implemented
+        "Monument": {"maintenance": 1,  "culture": 2, "production_cost": 40, "gold_cost": 280}, #Implemented
+        "Monument (Free)": {"culture": 2}, #Implemented
+        "Granary": {"maintenance": 1, "food": 2, "growth_percentage": 0.1, "production_cost": 60, "techs_required": ["Pottery"], "gold_cost": 340}, #Implemented
+        "Water Mill": {"maintenance": 2, "food": 2, "production": 1, "production_cost": 75, "techs_required": ["The Wheel"], "gold_cost": 400}, #Implemented
+        "Temple of Artemis": {"culture": 1, "production_cost": 185, "techs_required": ["Archery"], "wonder": True}, #Implemented except GE point and ranged bonus
+        "Stone Works": {"maintenance": 1, "production_cost": 75, "techs_required": ["Calendar"], "gold_cost": 320}, #city must have a quarry
+        "Forge": {},
+        "Lighthouse": {},
+        "Stable": {"maintenance": 1, "production_cost": 100, "techs_required": ["Horseback Riding"], "gold_cost": 500},
+        "Pyramids": {"production_cost": 185, "techs_required": ["Masonry"], "policies_required": ["Liberty"], "wonder": True},
+        "National College": {"science": 3, "science_percentage": 0.5, "production_cost": 125, "techs_required": ["Philosophy"], "national_wonder": True}, #production_cost depends on cities...
+        "Oracle": {"culture": 3, "production_cost": 250, "techs_required": ["Philosophy"], "wonder": True}, #gs point
+        "Hanging Gardens": {"food": 6, "culture": 1, "production_cost": 250, "techs_required": ["Mathematics"], "policies_required": ["Tradition"], "wonder": True}, #Implemented
+        "Circus": {"happiness": 2, "production_cost": 75, "techs_required": ["Trapping"], "gold_cost": 400}, #must have upgraded horses or ivory
+        "Circus Maximus": {"happiness": 5, "culture": 1, "production_cost": 125, "techs_required": ["Horseback Riding"], "national_wonder": True}, #Implemented
+        "Lighthouse": {"maintenance": 1, "production_cost": 75, "techs_required": ["Optics"], "gold_cost": 400},
+        "Aqueduct": {"maintenance": 1, "production_cost": 100, "techs_required": ["Engineering"], "gold_cost": 400}, #Implemented should probably test
+        "Colosseum": {"maintenance": 1, "happiness": 2, "production_cost": 100, "techs_required": ["Construction"], "gold_cost": 500}, #Implemented
+        "University": {"maintenance": 2, "science_percentage": 0.33, "production_cost": 160, "techs_required": ["Education"], "buildings_required": ["Library"], "gold_cost": 660}, #GS slots
+        "Market": {"gold": 1, "production_cost": 100, "techs_required": ["Currency"], "gold_cost": 500},
+        "Mint": {"production_cost": 100, "techs_required": ["Currency"], "gold_cost": 500}, #Implemented
+        "Artists' Guild": {"maintenance": 1, "production_cost": 150, "techs_required": ["Guilds"], "national_wonder": True},
+        "Writers' Guild": {"maintenance": 1, "production_cost": 100, "techs_required": ["Drama and Poetry"], "national_wonder": True},
+        "Workshop": {"production": 2, "production_percentage": 0.1, "maintenance": 2, "production_cost": 120, "techs_required": ["Metal Casting"], "gold_cost": 580}, #allow production trade routes, GE point
+        "Ironworks": {"production": 8, "culture": 1, "production_cost": 125, "techs_required": ["Machinery"], "national_wonder": True}, #production_cost depends on cities...
+        "Observatory": {"science_percentage": 0.5, "production_cost": 200, "techs_required": ["Astronomy"], "gold_cost": 780}, #Implemented
+        "Garden": {"maintenance": 1, "production_cost": 120, "techs_required": ["Theology"], "gold_cost": 580}, #City must border a source of fresh water
+        "Forbidden Palace": {"culture": 1, "production_cost": 500, "techs_required": ["Banking"], "policies_required": ["Patronage"], "wonder": True}, #Implemented
+        "Notre Dame": {"happiness": 10, "faith": 4, "culture": 1, "production_cost": 400, "techs_required": ["Physics"], "wonder": True} #Implemented except GM point, 1 culture?
 }
 
 RESOURCES = {
@@ -236,9 +248,9 @@ TECHS = {
         "Steel": {"base_cost": 485, "prerequisites": ["Metal Casting"]},
 
         "Astronomy": {"base_cost": 780, "prerequisites": ["Compass", "Education"]}, #observatory
-        "Acoustics": {"base_cost": 780, "prerequisites": ["Education"]}, #sistine chapel
+        "Acoustics": {"base_cost": 780, "prerequisites": ["Education"]}, #sistine chapel*
         "Banking": {"base_cost": 780, "prerequisites": ["Education", "Chivalry"]}, #bank, forbidden palace, trade route
-        "Printing Press": {"base_cost": 780, "prerequisites": ["Chivalry", "Machinery", "Physics"]}, #zoo, leaning tower
+        "Printing Press": {"base_cost": 780, "prerequisites": ["Chivalry", "Machinery", "Physics"]}, #zoo, leaning tower*
         "Gunpowder": {"base_cost": 780, "prerequisites": ["Physics", "Steel"]}
 }
 
