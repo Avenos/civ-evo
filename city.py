@@ -27,16 +27,15 @@ class City:
 		self.is_capital = 0
 		self.owner = player
 		self.population = 1
-		self.food = 0 # accrued food basket
+		self.food = 0  # accrued food basket
 		self.production_system = ProductionSystem(self)
 		self.local_happiness = 0
 		self.buildings = []
 		self.stored_culture = 0
 		self.border_expansions = 0
-		self.worked_tiles = set()  # tiles worked (Tile objects)
+		self.worked_tiles = set()
 		self.aqueduct_basket = 0
 
-	# Influence distance calculator
 	def compute_influence_distance(city, game, max_range=5):
 		visited = set()
 		distances = {}
@@ -47,20 +46,22 @@ class City:
 			dist, (q, r) = heapq.heappop(heap)
 			if (q, r) in visited:
 				continue
+
 			visited.add((q, r))
 			if helper.hex_distance(city.q, city.r, q, r) > max_range:
 				continue
+
 			tile = game.tiles[q][r]
 			cost = INFLUENCE_COST.get(tile.terrain_type, 1)
 			mod_cost = max(1, min(3, cost))  # Clamp between 1 and 3
 			total = dist + mod_cost
 			distances[(q, r)] = total
+
 			for nq, nr in helper.hex_neighbors(q, r):
 				if (nq, nr) not in visited:
 					heapq.heappush(heap, (total, (nq, nr)))
 		return distances
 
-	# Influence priority calculator
 	def compute_tile_priority(tile, dist, game, city):
 		priority = dist * MULTIPLIERS["DISTANCE"]
 
@@ -108,15 +109,12 @@ class City:
 
 	@property
 	def border_growth_threshold(self):
-		# Base cost increments by +15 each time
 		base_threshold = 15 * (self.border_expansions + 1)
 
-		# Apply modifiers (e.g., Tradition policy halves cost)
 		if "Tradition" in self.owner.social_policies:
-			return base_threshold // 2
+			return base_threshold // 2 #probabl =y not accurate
 
 		return base_threshold
-
 
 	#do we really need to call this constantly... is that what properties do?
 	@property
@@ -161,7 +159,6 @@ class City:
 		for tile in self.worked_tiles:
 			positive += tile.food
 
-		# Add food from buildings
 		positive += sum(b.food for b in self.buildings)
 
 		if "Landed Elite" in self.owner.unlocked_policies and self.is_capital:
@@ -207,7 +204,40 @@ class City:
 	@property
 	def food_needed_for_growth(self):
 		n = self.population
-		return 15 + 8 * (n - 1) + (n - 1) ** 1.5
+		return 15 + 8 * (n - 1) + (n - 1) ** 1.5 #floored?
+
+	def process_growth(self):
+		if self.current_project_name == "Settler":
+			pass
+
+		elif self.food_per_turn >= 0:
+			self.food += self.food_per_turn
+			if any("Aqueduct" in b.name for b in self.buildings):
+				self.aqueduct_basket += self.food_per_turn
+				if self.aqueduct_basket > self.food_needed_for_growth * 0.4:
+					self.aqueduct_basket = self.food_needed_for_growth * 0.4 #for THIS growth or NEXT growth?
+
+			# Check for population growth, if instead of while?
+			while self.food >= self.food_needed_for_growth:
+				self.food -= self.food_needed_for_growth
+				self.population += 1
+
+				if any("Aqueduct" in b.name for b in self.buildings):
+					self.food += self.aqueduct_basket
+					self.aqueduct_basket = 0
+
+		else:
+			# Starvation
+			if self.food + self.food_per_turn < 0:
+				if self.population > 1:
+					self.population -= 1
+					self.food = 0
+					self.aqueduct_basket = 0
+				else:
+					self.food = 0
+					self.aqueduct_basket = 0
+			else:
+				self.food += self.food_per_turn	
 
 	@property
 	def culture(self):
@@ -216,15 +246,13 @@ class City:
 		if "Liberty" in self.owner.unlocked_policies:
 			culture += 1
 
-		# Check if the city has a building named "Palace"
-		if "Tradition" in self.owner.unlocked_policies and any(b.name == "Palace" for b in self.buildings):
+		if "Tradition" in self.owner.unlocked_policies and self.is_capital:
 			culture += 3
 
-		if self.owner.pantheon == "God-King" and self.is_capital == True:
+		if self.owner.pantheon == "God-King" and self.is_capital:
 			culture += 1
 
 		return culture
-
 
 	@property
 	def science(self):
@@ -247,7 +275,7 @@ class City:
 	def faith(self):
 		faith = sum(b.faith for b in self.buildings)
 
-		if self.owner.pantheon == "God-King" and self.is_capital == True:
+		if self.owner.pantheon == "God-King" and self.is_capital:
 			faith += 1				
 
 		return faith
@@ -257,26 +285,26 @@ class City:
 		from_tiles = sum(tile.gold for tile in self.worked_tiles)
 		from_buildings = sum(b.gold for b in self.buildings)
 
-		golden_age_bonus = 0
-		if self.owner.in_golden_age:
-			golden_age_bonus = sum(1 for tile in self.worked_tiles if tile.gold >= 1)
+		total_gold = from_tiles + from_buildings
 
-		total_gold = from_tiles + from_buildings + golden_age_bonus
 		if self.owner.pantheon == "God-King" and self.is_capital:
 			total_gold += 1
 
-		percentage_modifier = 1.0
+		percent_modifier = 1
+		percent_modifier += sum(b.gold_percentage for b in self.buildings)
+
 		if "Commerce" in self.owner.unlocked_policies:
-			percentage_modifier += 0.25
+			percent_modifier += 0.25
 
-		return percentage_modifier * total_gold
+		#add trade route gold here?
 
+		return percent_modifier * total_gold
 
 	@property
 	def production_per_turn(self):
 		worked_production = sum(tile.production for tile in self.worked_tiles)
 		unassigned_workers = self.population - len(self.worked_tiles)
-		bonus_from_unemployed = max(0, unassigned_workers) * 1  # +1 per idle pop
+		bonus_from_unemployed = max(0, unassigned_workers) * 1
 		from_buildings = sum(b.production for b in self.buildings if b.completed)
 
 		total = worked_production + bonus_from_unemployed + from_buildings
@@ -290,18 +318,18 @@ class City:
 		if self.owner.pantheon == "God of Craftsmen" and self.population >= 3:
 			total += 1			
 
-		percentage_modifier = 1
+		percent_modifier = 1
 
 		if "Republic" in self.owner.unlocked_policies and isinstance(self.production_system.current_production, Building):
-			percentage_modifier += 0.05
+			percent_modifier += 0.05
 
 		if self.owner.in_golden_age:
-			percentage_modifier += 0.2
+			percent_modifier += 0.2
 
 		if self.owner.happiness < 0:
-			percentage_modifier += 0.02 * self.owner.happiness		
+			percent_modifier -= 0.02 * self.owner.happiness		
 
-		return percentage_modifier * total
+		return percent_modifier * total
 
 	@property
 	def current_project_name(self):
@@ -361,7 +389,7 @@ class City:
 	def update_worked_tiles(self, game):
 		city_tile = game.tiles[self.q][self.r]
 		city_coords = (self.q, self.r)
-	
+
 		# Collect all tiles within 3 hexes whose owner is the same as the city owner (player)
 		owned_tiles = []
 		for row in game.tiles:
@@ -369,29 +397,29 @@ class City:
 				if tile.owner == self.owner:
 					if helper.hex_distance(self.q, self.r, tile.q, tile.r) <= 3:
 						owned_tiles.append(tile)
-	
+
 		# Gather tiles worked by other cities (all players)
 		other_worked_tiles = set()
 		for player in game.players:
 			for city in player.cities:
 				if city is not self:
 					other_worked_tiles.update(city.worked_tiles)
-	
+
 		# Exclude tiles worked by others, except city tile which is always yours
 		available_tiles = [t for t in owned_tiles if t not in other_worked_tiles and (t.q, t.r) != city_coords]
-	
+
 		# Sort by food + production
 		available_tiles.sort(key=lambda t: t.food + t.production, reverse=True)
-	
+
 		# Start with city tile (always worked)
 		chosen_tiles = [city_tile]
-	
+
 		# Add up to pop more tiles
 		chosen_tiles.extend(available_tiles[:self.population])
-	
+
 		# Update city worked tiles
 		self.worked_tiles = set(chosen_tiles)
-	
+
 		# Mark tiles as worked by this city
 		for tile in self.worked_tiles:
 			tile.worked_by = self
@@ -399,47 +427,45 @@ class City:
 	def get_workable_tiles(self, game):
 		"""Tiles within 3 hexes, owned by this player, and not worked by others (excluding city tile)."""
 		city_coords = (self.q, self.r)
-	
+
 		# Get all tiles within 3 hexes that are owned by the same player, excluding the city tile
 		territory_tiles = [
-		    tile for row in game.tiles for tile in row
-		if tile.owner == self.owner and
-		(tile.q, tile.r) != city_coords and
-		   helper.hex_distance(self.q, self.r, tile.q, tile.r) <= 3
-	    ]
-	
+			tile for row in game.tiles for tile in row
+			if tile.owner == self.owner and
+			(tile.q, tile.r) != city_coords and
+			helper.hex_distance(self.q, self.r, tile.q, tile.r) <= 3
+		]
+
 		# Tiles worked by other cities
 		other_worked_tiles = set()
 		for player in game.players:
 			for city in player.cities:
 				if city is not self:
 					other_worked_tiles.update(city.worked_tiles)
-	
+
 		# Filter out tiles already worked by others
 		workable = {
-		    tile for tile in territory_tiles if tile not in other_worked_tiles
-	    }
-	
+			tile for tile in territory_tiles if tile not in other_worked_tiles
+		}
+
 		return workable
 
-	
+	#this is probably too much...
 	def get_valid_worked_tile_combinations(self, game):
-		# Number of tiles the city can work — typically population + 1 (including city center)
-		max_tiles = self.population + 1
-	
+		max_tiles = self.population  # +1?
+
 		# Get all eligible tiles
 		workable_tiles = list(self.get_workable_tiles(game))
-	
+
 		# Generate all valid combinations of workable tiles (up to max_tiles)
 		all_combos = []
 		for n in range(1, max_tiles + 1):
 			for combo in combinations(workable_tiles, n):
 				all_combos.append(combo)
-	
+
 		return all_combos	
 
 	def set_worked_tiles(self, tiles, game):
-		"""EA/manual tile override. Returns (success: bool, message: str)"""
 		if len(tiles) > self.population:
 			return False, f"Too many tiles assigned: max is {self.population}"
 
@@ -451,63 +477,31 @@ class City:
 		self.worked_tiles = set(tiles)
 		return True, "Worked tiles updated successfully"
 
+	def can_unassign_tile(self, tile):
+		if tile in self.worked_tiles:
+			return True, f"Tile can be unassigned"
+		return False, f"Tile at ({tile.q},{tile.r}) was not worked"		
 
 	def unassign_tile(self, tile):
-		"""Drop a tile from being worked (manual or as reaction to another city's takeover)."""
-		if tile in self.worked_tiles:
-			self.worked_tiles.remove(tile)
-			return True, f"Tile at ({tile.q},{tile.r}) unassigned"
-		return False, f"Tile at ({tile.q},{tile.r}) was not worked"
+		success, message = can_unassign_tile()
 
+		if success:
+			self.worked_tiles.remove(tile)
+		else:
+			return success, message
+
+	def can_assign_tile(self, tile):
+		pass
 
 	def assign_tile(self, tile, game):
-		"""Try to add a tile to this city's worked tiles."""
 		if len(self.worked_tiles) >= self.population:
 			return False, "All citizens are already assigned"
 
-		if tile not in self.get_workable_tiles(game):
+		if tile not in self.get_workable_tiles(game): #move this logic up!
 			return False, f"Tile at ({tile.q},{tile.r}) is not valid to assign"
 
 		self.worked_tiles.add(tile)
 		return True, f"Tile at ({tile.q},{tile.r}) assigned"
-
-
-	def process_growth(self):
-		if self.current_project_name == "Settler":
-			pass  # No growth while building settler
-
-		elif self.food_per_turn >= 0:
-			self.food += self.food_per_turn
-
-			# Apply stored aqueduct basket food
-			if self.aqueduct_basket > 0:
-				self.food += self.aqueduct_basket
-				self.aqueduct_basket = 0  # Consumed
-
-			# Check for population growth
-			while self.food >= self.food_needed_for_growth:
-				self.food -= self.food_needed_for_growth
-				self.population += 1
-
-				# Handle aqueduct overflow capture if city has one
-				if any("Aqueduct" in b.name for b in self.buildings):
-					# Save up to 40% of food needed for next pop
-					next_food_needed = self.food_needed_for_growth
-					self.aqueduct_basket = min(int(next_food_needed * 0.4), self.food)
-					self.food -= self.aqueduct_basket
-
-		else:
-			# Starvation check: if basket can't cover deficit, lose pop
-			if self.food + self.food_per_turn < 0:
-				if self.population > 1:
-					self.population -= 1
-					self.food = 0
-					self.aqueduct_basket = 0  # Reset on starvation
-				else:
-					self.food = 0  # Cannot go below 1 pop
-			else:
-				self.food += self.food_per_turn  # Lose food, but not enough to starve
-
 
 	def purchase_building(self, building_name, player):
 		building_data = dictionary.BUILDINGS.get(building_name)
@@ -530,10 +524,8 @@ class City:
 		if player.gold < gold_cost:
 			return False, "Not enough gold."
 
-		# Deduct gold
 		player.gold -= gold_cost
 
-		# Use helper
 		building_obj = helper.build_building_object(building_name, building_data)
 		self.buildings.append(building_obj)
 
@@ -541,9 +533,7 @@ class City:
 
 		return True, f"Purchased {building_name}."
 
-
 	def purchase_unit(self, name, player):
-		# Check if unit exists in your dictionary
 		unit_data = dictionary.UNITS.get(name)
 		if not unit_data:
 			return False, "Unit not found."
@@ -552,17 +542,15 @@ class City:
 		if player.gold < gold_cost:
 			return False, "Not enough gold."
 
-		# Deduct gold from player
 		player.gold -= gold_cost
 
 		# Create and add the new unit at the city location
 		new_unit = Unit(name, player, self.q + 1, self.r + 1)
 
-
 		game.tiles[q][r].unit = new_unit
-		player.units.append(new_unit)  # is this done already in the unit constructor?
+		player.units.append(new_unit)  # is this done already in the unit constructor? i dont like
 
 		return True, f"Purchased {name}."
 
 	def has_building(self, name):
-		return any(b.name == name for b in self.buildings)        
+		return any(b.name == name for b in self.buildings)

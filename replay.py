@@ -40,9 +40,9 @@ def play_replay(replay_filename, engine, speed=1.0):
 
 			time.sleep(0.05 / speed)
 
-		success = engine.end_turn() #or call it as an action?
+		success = engine.end_turn() #or call it as an action? hmmmm
 
-		if not success: #hmmmm
+		if not success: #hmmmm, required? how do we know?
 			print(f"Replay error: Could not end turn {turn} — required choices missing")
 			break
 

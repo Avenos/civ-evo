@@ -4,14 +4,13 @@ import time
 import helper
 import renderer
 from dictionary import TERRAIN_TYPES
-from action_handler import handle_action, start_new_replay_log
+from action_handler import handle_action, start_new_log
 from engine import Engine
 from constants import GRID_WIDTH, GRID_HEIGHT, HEX_RADIUS, WIDTH, HEIGHT, FPS, CITY_NAMES
 
 def run_manual_game(engine):
 	screen, clock, font, big_font, terrain_overlays, resource_icons, unit_icons = helper.init_pygame_assets()
-
-	start_new_replay_log(engine)
+	start_new_log(engine)
 	hovered_tile_coords = None
 	hover_start_time = 0
 	HOVER_DELAY = 0.2  # seconds
@@ -31,7 +30,6 @@ def run_manual_game(engine):
 				mx, my = pygame.mouse.get_pos()
 				pos = (mx, my)
 
-				# Handle tech buttons
 				for btn in engine.ui_tech_buttons:
 					if btn["rect"].collidepoint(pos):
 						tech_name = btn["tech_name"]
@@ -39,7 +37,6 @@ def run_manual_game(engine):
 						engine.show_message(message if not success else f"Selected tech: {tech_name}", 90)
 						break
 
-				# Handle policy buttons
 				for btn in engine.ui_policy_buttons:
 					if btn["rect"].collidepoint(pos):
 						policy_name = btn["policy"]
@@ -54,7 +51,6 @@ def run_manual_game(engine):
 						engine.show_message(message if not success else "City founded!", 90)
 						break
 
-				# Handle End Turn button
 				if engine.ui_next_turn_button and engine.ui_next_turn_button.collidepoint(pos):
 					engine.end_turn()
 
@@ -74,7 +70,8 @@ def run_manual_game(engine):
 						else:
 							engine.selected_unit = None
 							engine.selected_city = None
-					elif event.button == 3:  # Right click
+
+					elif event.button == 3:  # Right click to buy tile
 						hex_coords = helper.get_hex_at_pixel(mx, my)
 						if hex_coords:
 							q, r = hex_coords
@@ -88,7 +85,7 @@ def run_manual_game(engine):
 									if not success:
 										engine.show_message(message, 90)
 									else:
-										helper.check_proximity_rewards(engine, engine.current_player)
+										helper.check_city_state_proximity(engine, engine.current_player)
 
 								elif engine.selected_city:
 									city_id = engine.selected_city.id
@@ -100,8 +97,6 @@ def run_manual_game(engine):
 						else:
 							engine.show_message("Invalid tile.", 90)
 
-
-				# Handle purchase buttons (units/buildings)
 				for btn in engine.ui_purchase_buttons:
 					if btn["rect"].collidepoint(pos):
 						itype = btn["type"]
@@ -117,8 +112,7 @@ def run_manual_game(engine):
 							engine.show_message(message if not success else f"Purchased {name}", 90)
 						else:
 							engine.show_message("No city selected.", 90)
-
-						break  # Stop checking other buttons once one clicked
+						break
 
 				for btn in engine.ui_production_buttons:
 					if btn["rect"].collidepoint(pos):
@@ -134,7 +128,6 @@ def run_manual_game(engine):
 							engine.show_message("No city selected.", 90)
 						break
 
-				# Handle Pantheon buttons
 				for btn in engine.ui_pantheon_buttons:
 					if btn["rect"].collidepoint(pos):
 						pantheon_name = btn["pantheon_name"]
@@ -152,7 +145,7 @@ def run_manual_game(engine):
 		renderer.draw_ui(screen, engine, font, big_font, resource_icons)
 		renderer.draw_message(screen, engine)
 
-		# --- Tile Hover Info UI ---
+		#Tile hover info
 		mx, my = pygame.mouse.get_pos()
 		hex_coords = helper.get_hex_at_pixel(mx, my)
 
@@ -162,19 +155,24 @@ def run_manual_game(engine):
 				hovered_tile_coords = (q, r)
 				hover_start_time = time.time()
 
-			# Only show info if hovered for more than 0.5s
 			if time.time() - hover_start_time >= HOVER_DELAY:
 				tile = engine.tiles[q][r]
 
-				terrain_name = TERRAIN_TYPES[tile.terrain_type]["name"]
-
+				#only display this stuff if it isn't zero?
 				info_lines = [
 					f"Tile: ({q}, {r})",
-					f"Terrain: {terrain_name}",
+					f"Terrain: {tile.terrain_type}",
+					f"Trees: {tile.trees}",
 					f"Improvement: {tile.improvement or 'None'}",
 					f"Resource: {tile.resource or 'None'}",
 					f"Fresh water: {tile.fresh_water or 'None'}",
-					f"Yield - Food: {tile.food}, Prod: {tile.production}, Gold: {tile.gold}"
+					#rivers?
+					f"Food: {tile.food}",
+					f"Production: {tile.production}",
+					f"Science: {tile.science}",
+					f"Gold: {tile.gold}",
+					f"Culture: {tile.culture}",
+					f"Faith: {tile.faith}",
 				]
 
 				info_width = 220

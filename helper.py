@@ -37,7 +37,7 @@ def init_pygame_assets():
 			full_path = os.path.join("assets/units", filename)
 			unit_icon = pygame.image.load(full_path).convert_alpha()
 			unit_icons[unit_name] = unit_icon
-			
+
 	return screen, clock, font, big_font, terrain_overlays, icon_images, unit_icons
 
 def a_star_path(start, goal, game_map, move_points_per_turn=2):
@@ -371,7 +371,7 @@ def build_building_object(building_name, building_data):
 		techs_required=building_data.get("techs_required", []),
 		policies_required=building_data.get("policies_required", []),
 		buildings_required=building_data.get("buildings_required", []),
-		
+
 		wonder=building_data.get("wonder", False),
 		national_wonder=building_data.get("national_wonder", False),
 	)
@@ -392,16 +392,16 @@ def build_unit_object(name, data):
 	)
 
 #is this expensive?
-def check_proximity_rewards(game, player):
-	for tile_coords in game.special_tiles:
+def check_city_state_proximity(game, player):
+	for tile_coords in game.city_states:
 		q, r = tile_coords
 
 		# Initialize reward tracking if missing
-		if tile_coords not in game.tile_rewards_claimed:
-			game.tile_rewards_claimed[tile_coords] = set()
+		if tile_coords not in game.city_states_met:
+			game.city_states_met[tile_coords] = set()
 
 		# Skip if player already claimed reward for this tile
-		if player.name in game.tile_rewards_claimed[tile_coords]:
+		if player.name in game.city_states_met[tile_coords]:
 			continue
 
 		# Check if any of the player's units are within range
@@ -412,7 +412,7 @@ def check_proximity_rewards(game, player):
 				player.faith += 8
 				game.show_message(f"{player.name} discovered a city-state! +30 gold, +8 faith", 120)
 
-				game.tile_rewards_claimed[tile_coords].add(player.name)
+				game.city_states_met[tile_coords].add(player.name)
 				break  # Only reward once per tile per player
 
 def build_tile_image_key(tile, available_images):

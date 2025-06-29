@@ -14,7 +14,7 @@ class Player:
 		self.cities = []
 		self.luxuries = []
 		self.improved_tiles = []
-
+		self.owned_tiles = []
 		self.trade_routes = []
 		self.trade_deals = []
 
@@ -28,10 +28,10 @@ class Player:
 		self.free_policies = [] #how to manage this for oracle and poland?
 		self.pantheon = None
 
-		self.happiness_points = 470
+		self.happiness_points = 400
 		self.happiness_points_needed_for_golden_age = 500
 		self.in_golden_age = False
-		self.golden_age_turns_left = 0
+		self.golden_age_turns_left = 0 #can this be merged with above?
 
 	@property
 	def max_trade_routes(self):
@@ -49,7 +49,7 @@ class Player:
 		self.golden_age_turns_left = 0
 
 	def update_golden_age(self):
-		# Call this every game turn
+		# Call this every game turn?
 		if self.in_golden_age:
 			self.golden_age_turns_left -= 1
 			if self.golden_age_turns_left <= 0:
@@ -93,7 +93,7 @@ class Player:
 		if self.pantheon == "Goddess of Love":
 			happiness += sum(1 for city in self.cities if city.population >= 6)
 
-		#need owned ile list?
+		#need owned tile list?
 		#if any(tile.resource == "kailash" for tile in self.owned_tiles):
 			#happiness += 2
 
@@ -105,7 +105,7 @@ class Player:
 		meritocracy_modifier = 0.95 if "Meritocracy" in self.unlocked_policies else 1.0
 
 		#expensive?
-		forbidden_palace_modifier = 1.0
+		forbidden_palace_modifier = 1.0 #defining as 1 here feels wierd
 		for city in self.cities:
 			if any(b.name == "Forbidden Palace" and b.completed for b in city.buildings):
 				forbidden_palace_modifier = 0.9
@@ -115,9 +115,7 @@ class Player:
 
 		unhappiness = city_unhappiness + citizen_unhappiness
 
-		# Final happiness score (floored to match game mechanics)
 		return math.floor(happiness - unhappiness)
-
 
 	@property
 	def science_per_turn(self):
@@ -153,8 +151,9 @@ class Player:
 
 	@property
 	def gold_per_turn(self):
-		income = 20 + sum(city.gold for city in self.cities)
+		income = sum(city.gold for city in self.cities)
 
+		#wierd next function?
 		capital = next((c for c in self.cities if c.is_capital), None)
 		if "Monarchy" in self.unlocked_policies and capital:
 			income += capital.population // 2
@@ -164,7 +163,7 @@ class Player:
 
 		expenses = len(self.improved_tiles) #that are in territory?
 		expenses += 2 * len(self.units)
-		# building_maintenance_cost = sum(city.building_maintenance_cost for city in self.cities)
+		#building maintenance cost is the sum of all maintenance on all buildings in all cities? i dont think its local...
 
 		return income - expenses
 
@@ -178,7 +177,7 @@ class Player:
 		city_penalty = 0.15 * (n - 1)
 
 		if "Representation" in self.unlocked_policies:
-			city_penalty *= 0.67  # reduce penalty by 33%
+			city_penalty *= 0.67
 
 		penalty_multiplier = 1 + city_penalty
 
@@ -189,37 +188,37 @@ class Player:
 		policy = game.all_policies.get(policy_name)
 		if not policy:
 			return False, "Invalid policy choice."
-	
+
 		if policy.is_unlocked(self):
 			return False, "Policy already unlocked."
-	
+
 		if not policy.can_unlock(self):
 			return False, "You don't meet the prerequisites for this policy."
-	
+
 		if self.culture < self.policy_cost:
 			return False, "Not enough culture accrued to unlock this policy."
-	
+
 		return True, "Policy can be chosen."
 
 	def choose_policy(self, policy_name, game):
 		success, message = self.can_choose_policy(policy_name, game)
 		if not success:
 			return False, message
-	
+
 		policy = game.all_policies[policy_name]
 		self.culture -= self.policy_cost
 		self.unlocked_policies.append(policy.name)
-	
+
 		# Apply immediate policy bonuses
 		if policy.name == "Collective Rule":
 			spawn_unit_near_capital(self, game, "Settler", "A free Settler has arrived!")
-	
+
 		elif policy.name == "Citizenship":
 			spawn_unit_near_capital(self, game, "Worker", "A free Worker has arrived!")
-	
+
 		elif policy.name == "Representation":
 			self.start_golden_age()
-	
+
 		elif policy.name == "Legalism":
 			for city in self.cities[:4]:
 				has_monument = any(b.name == "Monument" for b in city.buildings)
@@ -229,7 +228,7 @@ class Player:
 					free_monument.production_cost = 0
 					free_monument.gold_cost = 0
 					city.buildings.append(free_monument)
-	
+
 		required_policies = ["Tradition", "Aristocracy", "Oligarchy", "Legalism", "Landed Elite", "Monarchy"]
 		if all(req in self.unlocked_policies for req in required_policies):
 			# Add completed Aqueduct building to first four cities.... but should this be RETROactive?
@@ -241,13 +240,13 @@ class Player:
 					#progress = 100
 					aqueduct.completed = True
 					city.buildings.append(aqueduct)
-	
+
 		return True, f"Unlocked policy: {policy.name}!"
-	
+
 	@property
 	def pantheon_threshold(self):
 		return 15 #+ 5 * (self.turn // 10)  # Assuming self.turn is updated	
-	
+
 	def can_choose_pantheon(self):
 		if self.pantheon:
 			return False, "Pantheon already chosen."
@@ -257,7 +256,7 @@ class Player:
 
 	def choose_pantheon(self, pantheon_name):
 		success, msg = can_choose_pantheon()
-			
+
 		if not success:
 			return False, message
 
@@ -307,7 +306,7 @@ class Player:
 
 		# Reset units' turns
 		for u in self.units:
-			u.reset_turn()
+			u.reset_movement()
 
 		# Update golden age state
 		self.update_golden_age()
@@ -318,19 +317,19 @@ class Player:
 
 	def can_found_city(self, unit, game):
 		q, r = unit.q, unit.r
-	
+
 		if unit.name != "Settler":
 			return False, "Only Settlers can found cities!"
-	
+
 		if unit.moves_left < 1:
 			return False, "Not enough movement to found a city!"
-	
+
 		for player in game.players:
 			for city in player.cities:
 				if helper.hex_distance(q, r, city.q, city.r) < 4:
 					return False, "Too close to another city!"
 		return True, "City founding allowed."
-	
+
 	def found_city(self, unit, game):
 		q, r = unit.q, unit.r
 
@@ -339,30 +338,29 @@ class Player:
 			return False, message
 		else:
 			city = City(q, r, game.current_player)
-	
+
 			from core import Building
-	
+
 			if len(self.cities) == 0:
 				palace_data = dictionary.BUILDINGS["Palace"]
 				palace = Building("Palace", **palace_data)
 				palace.completed = True  # ← This is crucial
 				city.buildings.append(palace)
 				city.is_capital = 1
-	
+
 			self.cities.append(city)
 			game.tiles[q][r].city = city
-			
+
 			game.tiles[q][r].owner = self
 			for nq, nr in helper.hex_neighbors(q, r):
 				game.tiles[nq][nr].owner = self
-	
+
 			city.update_worked_tiles(game)
 			self.remove_unit(unit, game)
 			game.selected_unit = None
 			game.selected_city = city
-	
-			return True, None
 
+			return True, None
 
 	def remove_unit(self, unit, game):
 		q, r = unit.q, unit.r

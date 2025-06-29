@@ -106,7 +106,6 @@ def draw_grid(screen, engine, font, big_font, terrain_overlays, hex_mask, icon_i
 							end = helper.get_hex_corner(x, y, (edge_index + 1) % 6)
 							pygame.draw.line(screen, CYAN, start, end, 5)						
 
-
 def draw_territory_shading(screen, engine, font, big_font):
 	territory_surf = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
 
@@ -126,7 +125,6 @@ def draw_territory_shading(screen, engine, font, big_font):
 				pygame.draw.polygon(territory_surf, color, points)
 
 	screen.blit(territory_surf, (0, 0))
-
 
 def draw_cities(screen, engine, font, big_font):
 	GOLD_DARK_GREEN = (34, 139, 34)
@@ -456,7 +454,6 @@ def draw_ui(screen, engine, font, big_font, resource_icons):
 				"cost": cost,
 				"project": project,
 			})
-
 
 	# --- COLUMN 6: PANTHEON SELECTION ---
 	engine.ui_pantheon_buttons = []

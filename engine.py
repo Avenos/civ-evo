@@ -9,42 +9,29 @@ from constants import GRID_HEIGHT, GRID_WIDTH
 
 class Engine:
 	def __init__(self):
-		self.is_replay = False  # Set True during replay
-		self.recorded_actions = []  # Populated only during manual play		
+		self.is_replay = False
+		self.recorded_actions = []
 
 		self.message = ""
 		self.message_timer = 0
 		self.action_log = {}
 
-		with open("map.json") as f:
-			map_layout = json.load(f)
-
+		self.turn = 1
 		self.tiles = []
 		self.units = []
 
-		transposed_layout = list(zip(*map_layout))  # transpose rows/cols
+		with open("maps//indianSubcontinent.json") as f:
+			map_layout = json.load(f)
 
-		for q, col in enumerate(transposed_layout):  # q = vertical (cols)
+		transposed_layout = list(zip(*map_layout))
+
+		for q, col in enumerate(transposed_layout):  # q = columns
 			tile_col = []
-			for r, tile_data in enumerate(col):       # r = horizontal (rows)
+			for r, tile_data in enumerate(col):  # r = rows
 				terrain, elevation, trees, resource = tile_data
 				tile = Tile(q, r, terrain, elevation, trees, resource)
 				tile_col.append(tile)
 			self.tiles.append(tile_col)
-
-		helper.add_river(self.tiles[2][2], 0, self.tiles)
-		helper.add_river(self.tiles[3][3], 0, self.tiles)
-		helper.add_river(self.tiles[4][4], 0, self.tiles)
-		helper.add_river(self.tiles[5][5], 0, self.tiles)
-		helper.add_river(self.tiles[3][4], 1, self.tiles)
-		helper.add_river(self.tiles[3][4], 0, self.tiles)
-		helper.add_river(self.tiles[2][5], 0, self.tiles)
-
-		for q in range(GRID_WIDTH):
-			for r in range(GRID_HEIGHT):
-				if self.tiles[q][r].rivers:
-					print(f"Tile ({q},{r}) rivers: {sorted(self.tiles[q][r].rivers)}")
-
 
 		# --- A* TEST BLOCK --- #
 		#print("\nRunning pathfinding test...")
@@ -61,8 +48,6 @@ class Engine:
 
 		#path = helper.a_star_path(start, goal, game_map, move_points_per_turn)
 
-		self.turn = 1
-
 		self.ui_found_city_button = None
 		self.ui_next_turn_button = None		
 		self.all_policies = helper.build_policy_objects(dictionary.POLICIES)
@@ -73,12 +58,8 @@ class Engine:
 		self.taken_pantheons = []
 		self.all_pantheons = dictionary.PANTHEONS
 
-		#city state reward
-		self.special_tiles = [(15, 3)]  # Replace with your actual tile coordinates
-		self.tile_rewards_claimed = {}  # key: (q, r), value: set of player IDs who already claimed it		
-
-		self.territory = set()
-
+		self.city_states = [(15, 3)]
+		self.city_states_met = {}  # key: (q, r), value: set of player IDs who already claimed it
 		self.players = [Player()]
 		self.current_player = self.players[0]
 
@@ -89,11 +70,6 @@ class Engine:
 		self.selected_unit = None
 		self.selected_city = None
 
-	def evaluate_result(self):
-		total_science = self.engine.currentplayer.total_science_accrued  # Accumulate this in your engine
-		total_pop = sum(city.population for city in self.engine.cities)
-		return total_science + 50 * total_pop
-
 	def record_action(self, turn, action_type, data):
 		if not self.is_replay:
 			engine.recorded_actions.append([turn, action_type, data])
@@ -103,16 +79,22 @@ class Engine:
 
 		# Move units
 		for unit in player.units:
-			for dq, dr in directions:  # probably 6 hex directions
+			for dq, dr in helper.hex_neighbors(unit.q, unit.r):
 				to_q = unit.q + dq
 				to_r = unit.r + dr
-				if self.can_move_unit(unit, to_q, to_r):  # <- YOUR check
+				if unit.can_move_unit(unit, to_q, to_r):
 					actions.append({"action": "move_unit", "unit_id": unit.id, "to": [to_q, to_r]})
 
-		# Found city
+		# Found city, improve tiles, assign trade route
 		for unit in player.units:
-			if unit.name == "Settler" and self.can_found_city(unit):  # <- YOUR logic
+			if unit.name == "Settler" and self.can_found_city(unit):
 				actions.append({"action": "found_city", "unit_id": unit.id})
+			if unit.name == "Worker" and self.can_improve_tile(unit):
+				actions.append({"action": "improve_tile", "unit_id": unit.id})				
+			if unit.name == "Caravan":
+				for city in player.cities:
+					if self.can_assign_trade_route(unit, city): #check for granary and distance
+						actions.append({"action": "assign trade route", "unit_id": unit.id, "city_id": city.id})				
 
 		# Policy selection
 		if player.can_choose_policy():
@@ -124,13 +106,32 @@ class Engine:
 			for tech in player.science_system.get_available_techs():
 				actions.append({"action": "select_tech", "tech": tech})
 
+		# Pantheon selection
+		if player.can_choose_pantheon():
+			for pantheon in player.available_panethonds():
+				actions.append({"action": "select_pantheon", "pantheon": pantheon})
+
 		# City production
 		for city in player.cities:
-			if city.needs_production():
+			if city.needs_production(): #restrict production swapping or no?
 				for buildable in city.get_buildable_things():
 					actions.append({"action": "set_production", "city_id": city.id, "name": buildable})
 
-		# End turn (only if all required actions are taken)
+		# City purchasing
+		for city in player.cities:
+			if city.needs_production(): #restrict production swapping or no?
+				for buildable in city.get_buildable_things():
+					actions.append({"action": "set_production", "city_id": city.id, "name": buildable})
+
+		# Tile purchasing
+		#for city in player.cities:
+			#for every tile in the cities radius, check if can_buy_tile, if so add it to the list
+
+		# Assign worked tile
+
+		# Unassign worked tile
+
+		# End turn (this should probably be an action yeah?)
 		if self.can_end_turn(player):
 			actions.append({"action": "end_turn"})
 
@@ -140,6 +141,7 @@ class Engine:
 		self.message = text
 		self.message_timer = duration
 
+	#should this be in helper.py?
 	def spawn_unit(self, player, q, r, name):
 		unit = Unit(name, player=player, q=q, r=r)
 		self.units.append(unit)
@@ -165,6 +167,7 @@ class Engine:
 	def get_city_at(self, q, r):
 		return self.tiles[q][r].city
 
+	# For events processed at the START of a turn
 	def start_turn(self):
 		for city in self.current_player.cities:
 			city.production_system.apply_production(self)
@@ -176,9 +179,7 @@ class Engine:
 			self.turn += 1
 			self.selected_unit = None
 			self.spawn_worker_on_schedule()
-			self.start_turn()
-			with open("replayX.json", "w") as f:
-				json.dump(self.action_log, f, indent=2)			
+			self.start_turn()		
 			return True
 		else:
 			print(f"Turn error: {message}")
@@ -186,6 +187,7 @@ class Engine:
 
 			return False
 
+	#helper method?
 	def spawn_worker_on_schedule(self, start_turn=20, interval=10, spawn_tile_q=0, spawn_tile_r=0):
 		if self.turn >= start_turn and (self.turn - start_turn) % interval == 0:
 			tiles_map = self.tiles
@@ -218,22 +220,29 @@ class Engine:
 	def get_tile(self, q, r):
 		return self.tiles[q][r]
 
-
 	def get_state(self):
 		return {
 			"turn": self.turn,
 			"player": {
-				"name": self.name,
-				"gold": self.gold,
-				"culture": self.culture,
-				"science": self.science,
-				"faith": self.faith,
-				"unlocked_policies": list(self.unlocked_policies),
-				"current_research": self.science_system.current_research,
+				"name": self.current_player.name,
+				"gold": self.current_player.gold,
+				"gold_per_turn": self.current_player.gold_per_turn,
+				"culture": self.current_player.culture,
+				"culture_per_turn": self.current_player.culture_per_turn,
+				"science": self.current_player.science,
+				"science_per_turn": self.current_player.science_per_turn,
+				"faith": self.current_player.faith,
+				"faith_per_turn": self.current_player.faith_per_turn,
+				"pantheon": self.current_player.pantheon,
+				"luxuries": self.current_player.luxuries,
+				"unlocked_policies": self.unlocked_policies,
+				"unlocked_techs": self.current_player.science_system.unlocked_techs,
+				"current_research": self.current_player.science_system.current_research,
+				"current_research_progress": self.current_player.current_research.progress
 				},
 			"units": [
 				{
-					"type": u.name,
+					"name": u.name,
 					"q": u.q,
 					"r": u.r,
 					"moves_left": u.moves_left,
@@ -248,9 +257,12 @@ class Engine:
 					"population": c.population,
 					"food": c.food,
 					"production": c.production,
-					"worked_tiles": list(c.worked_tiles),
-					"build_queue": c.build_queue[:],  # if applicable
-					"build_progress": c.build_progress,
+					"science": c.science,
+					"culture": c.culture,
+					"faith": c.faith,
+					"worked_tiles": c.worked_tiles,
+					"current_production": c.production_system.current_project,
+					"current_production_progress": c.production_system.current_project.progress,
 				}
 				for c in self.cities
 				],
@@ -265,11 +277,14 @@ class Engine:
 						"resource": t.resource,
 						"food": t.food,
 						"production": t.production,
+						"science": t.science,
 						"gold": t.gold,
-						"city": t.city.name if t.city else None,
+						"culture": t.culture,						
+						"faith": t.faith,			
 						"improvement": t.improvement,
+						"city": t.city.name if t.city else None,
 						"unit": t.unit.name if t.unit else None,
-						"territory": t.territory,
+						"owner": t.owner,
 					}
 					for t in col
 				]

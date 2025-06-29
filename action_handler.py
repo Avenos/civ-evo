@@ -1,5 +1,5 @@
-#possible actions:
-#move a unit to a tile dONE
+#possible actions: (also replicate in all legal actions in engine)
+#move a unit to a tile SONE
 #start production in a city DONE
 #purchase a tile or unit or building
 #settle a city DONE
@@ -7,9 +7,8 @@
 #choose social policy DONE
 #choose a pantheon DONE
 #choose tiles worked by cities
-#perform a worker chop or improvment
 #assign a trade route
-#sell a building
+#sell a building eh...
 
 import json
 import os
@@ -142,7 +141,7 @@ def handle_action(engine, action_type, data, log_actions=True):
 
 	return result
 
-def start_new_replay_log(engine, prefix="replay", folder="replays"):
+def start_new_log(engine, prefix="replay", folder="replays"):
 	os.makedirs(folder, exist_ok=True)
 	timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 	filename = f"{prefix}_{timestamp}.json"

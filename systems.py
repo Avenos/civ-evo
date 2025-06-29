@@ -59,31 +59,30 @@ class ProductionSystem:
 					has_library = any("Library" in b.name for b in city.buildings)
 					if not has_library:
 						return False, "National College requires a completed Library in all cities."
-	
+
 			if project_name == "Circus Maximus":
 				for city in player.cities:
 					has_colisseum = any("Colisseum" in b.name for b in city.buildings)
 					if not has_coliseum:
 						return False, "Circus Maximus requires a completed Colisseum in all cities."
-	
+
 			if project_name == "Ironworks":
 				for city in player.cities:
 					has_workshop = any("Workshop" in b.name for b in city.buildings)
 					if not has_workshop:
 						return False, "Ironworks requires a completed Workshop in all cities."
-	
+
 			if project_name == "Observatory":
 				city_q, city_r = self.city.q, self.city.r
 				tiles = self.city.owner.game.tiles
-			
+
 				adjacent_coords = helper.hex_neighbors(city_q, city_r)
-			
+
 				has_adjacent_hill = any(tiles[q][r].elevation == 2 for q, r in adjacent_coords)
-			
+
 				if not has_adjacent_hill:
 					return False, "Observatory can only be built if the city is adjacent to a hill (elevation 2) tile."
 
-		# Settler restriction
 		if isinstance(project, Unit) and project_name == "Settler" and self.city.population < 2:
 			return False, "Settler cannot be built unless city population is at least 2."
 
@@ -97,7 +96,7 @@ class ProductionSystem:
 			if proj.name in seen:
 				continue
 
-			success, _ = self.can_choose_project(proj)
+			success, message = self.can_choose_project(proj)
 			if success:
 				available.append(proj)
 				seen.add(proj.name)
@@ -126,7 +125,7 @@ class ProductionSystem:
 		if not success:
 			return False, message
 
-		# ✅ Assign freshly created project
+		# Assign freshly created project
 		self.current_project = project
 		return True, f"Started {project_name}."
 
@@ -218,6 +217,7 @@ class Policy:
 	def is_unlocked(self, player):
 		return self.name in player.unlocked_policies
 
+	#not a huge fan of this
 	def can_unlock(self, player):
 		return all(prereq in player.unlocked_policies for prereq in self.prerequisites)
 class Tech:
@@ -283,7 +283,8 @@ class ScienceSystem:
 	@property
 	def unlocked_techs(self):
 		return {name for name, tech in self.techs.items() if tech.unlocked}        
-	
+
+	#should we return a list of objects not names?
 	def get_unlocked_names(self): #objects or names?
 		return [name for name, tech in self.techs.items() if tech.unlocked]	
 
@@ -322,7 +323,7 @@ class ScienceSystem:
 		return available
 
 class AncientRuins:
-	RINDS_EFFECTS = {
+	RUINS_EFFECTS = {
 		1: "Gain 75 gold",
 		2: "Gain 20 culture", #only possibly triggers AFTER turn 20
 		3: "Gain 1 pop in nearest city",
@@ -332,22 +333,22 @@ class AncientRuins:
 
 	def __init__(self, effect_id):
 		self.effect_id = effect_id
-		self.description = self.RINDS_EFFECTS.get(effect_id, "Unknown effect")
+		self.description = self.RUINS_EFFECTS.get(effect_id, "Unknown effect")
 
 	def trigger(self, player, tile, chosen_effect_id=None, chosen_tech=None):
 		effect_id = chosen_effect_id if chosen_effect_id is not None else self.effect_id
-	
+
 		valid_effects = {1,2,3,4,5}
-		
+
 		if effect_id not in valid_effects:
 			raise ValueError(f"Invalid chosen effect ID: {effect_id}")
-	
+
 		if effect_id == 1:
 			player.gold += 75
-	
+
 		elif effect_id == 2:
 			player.culture += 20
-	
+
 		elif effect_id == 3:
 			if not player.cities:
 				return
@@ -355,17 +356,17 @@ class AncientRuins:
 			cities_with_dist.sort(key=lambda x: x[0])
 			min_dist = cities_with_dist[0][0]
 			closest_cities = [c for d, c in cities_with_dist if d == min_dist]
-	
+
 			city_to_grow = None
 			for city in player.cities:
 				if city in closest_cities:
 					city_to_grow = city
 					break
-	
+
 			if city_to_grow:
 				city_to_grow.population += 1
 				city_to_grow.update_worked_tiles(player.game)
-	
+
 		elif effect_id == 4:
 			unlocked_techs = player.science_system.get_unlocked_names()
 			eligible_techs = []
@@ -373,22 +374,20 @@ class AncientRuins:
 				tech = player.science_system.techs[tech_name]
 				if tech_name not in unlocked_techs and tech.can_research(unlocked_techs):
 					eligible_techs.append(tech_name)
-	
+
 			if not eligible_techs:
-				# No techs available to complete
 				return
-	
-			# If player didn't specify a tech, pick first eligible by default
+
+			# If player didn't specify a tech, pick first eligible by default? or MUST they choose?
 			tech_to_complete = chosen_tech if chosen_tech in eligible_techs else eligible_techs[0]
-	
+
 			player.science_system.complete_tech(tech_to_complete)
 			player.science_system.set_current_research(None)
 			player.game.show_message(f"Ancient Ruins completed tech: {tech_to_complete}", 90)
-			
-		#pantheon after t20?
-		
-		tile.ancient_ruin = None
 
+		#pantheon after t20?
+
+		tile.ancient_ruin = None
 
 class Pantheon:
 	def __init__(self, name, effect_text):

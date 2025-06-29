@@ -18,23 +18,20 @@ class Tile:
 		self.owner = None
 		
 		self.improvement = None
-		self.improvement_progress = 0  # turns worked on improvement
+		self.improvement_progress = 0  # turns worked on improvement...
 		self.road = 0
 		self.road_progress = 0
 		self.unit = None  # or maybe a list if you support stacking in the future
 		self.rivers = set()  # Set of edge indices (0 through 5) with rivers
 		self.fresh_water = False
 		self.ancient_ruin = None
-		self.worked_by = None #needs to be set in update tiles?
+		self.worked_by = None # needs to be set in update tiles?
 
-		#base yields
+		#why is this here?
 		self.terrain_data = dictionary.TERRAIN_TYPES[terrain_type]
-
-		#bonus from resources
-		#resource_data = dictionary.RESOURCES.get(resource, dictionary.RESOURCES["n"])
-
-		if self.elevation == 2 or self.terrain_type in ("ocean", "coast"):
-			self.movement_cost = 0
+		
+		if self.elevation == 2 or self.terrain_type in ("ocean", "coast", "lake"):
+			self.movement_cost = 2
 			self.passable = 0
 		elif self.elevation == 1 or self.trees in (1, 2):
 			self.movement_cost = 2
@@ -42,37 +39,33 @@ class Tile:
 		else:
 			self.movement_cost = 1
 			self.passable = 1
+			
 	@property
 	def food(self):
-		# Snow overrides everything
 		if self.terrain_type == "snow":
 			base_food = 0
-		elif self.trees == 2:  # Jungle
+		elif self.trees == 2: # Jungle
 			base_food = 2
-		elif self.trees == 1:  # Forest
+		elif self.trees == 1: # Forest
 			base_food = 1
-		elif self.elevation == 1:  # Hill with no trees
+		elif self.elevation == 1: # Hill with no trees
 			base_food = 0
 		else:
 			base_food = self.terrain_data.get("food", 0)
 
-		# Resource bonus
+		# hmmmm
 		resource_food = dictionary.RESOURCES.get(self.resource, {}).get("food", 0)
 
-		# Granary and Pantheon bonuses
 		if self.worked_by: #this is actually needed otherwise granary bonus applies to all cities
-			# Granary bonus
 			if any("Granary" in b.name for b in self.worked_by.buildings):
 				if self.resource in {"wheat", "deer", "bananas"}:
 					resource_food += 1
 
 		if self.owner:
-			# Sun God pantheon
 			if self.owner.pantheon == "Sun God":
 				if self.resource in {"wheat", "citrus", "bananas"}:
 					resource_food += 1
 
-			# Goddess of the Hunt pantheon
 			if self.improvement == "Camp" and self.owner.pantheon == "Goddess of the Hunt":
 				resource_food += 1
 
@@ -85,19 +78,17 @@ class Tile:
 	def production(self):
 		player = self.owner
 
-		# Snow overrides everything
 		if self.terrain_type == "s":
 			base_production = 0
-		elif self.trees == 2:  # Jungle
+		elif self.trees == 2: # Jungle
 			base_production = 0
-		elif self.trees == 1:  # Forest
+		elif self.trees == 1: # Forest
 			base_production = 1
-		elif self.elevation == 1:  # Hill with no trees
+		elif self.elevation == 1: # Hill with no trees
 			base_production = 2
 		else:
 			base_production = self.terrain_data.get("production", 0)
-
-		# Conditional resource bonus
+			
 		resource_production = 0
 		if self.resource == "horses":
 			if player and "Animal Husbandry" in player.science_system.get_unlocked_names():
@@ -106,7 +97,7 @@ class Tile:
 			if player and "Iron Working" in player.science_system.get_unlocked_names():
 				resource_production = 1
 		else:
-			# Other resources (like stone or deer) may always provide bonus
+			# Other resources (like stone or deer) may always provide bonus.... what?
 			resource_production = dictionary.RESOURCES.get(self.resource, {}).get("production", 0)
 
 		if self.improvement == "pasture" and (self.resource == "horses" or elf.resource == "cattle" ):
@@ -121,7 +112,6 @@ class Tile:
 		if self.resource:
 			gold += dictionary.RESOURCES.get(self.resource, {}).get("gold", 0)
 
-		# Mint bonus: +2 gold on gold/silver tiles worked by a city with a Mint
 		if self.worked_by and self.resource in {"gold", "silver"}:
 			if any("Mint" in b.name for b in self.worked_by.buildings):
 				gold += 2
@@ -140,7 +130,6 @@ class Tile:
 	def culture(self):
 		culture = self.terrain_data.get("culture", 0)
 
-		# Bonus from Oral Tradition policy
 		if self.improvement == "Plantation" and self.owner:
 			player = self.owner
 			if "Oral Tradition" in player.unlocked_policies:
@@ -150,12 +139,12 @@ class Tile:
 
 	@property
 	def faith(self):
+		#what about desert folklore?
 		if self.resource == "kailash":
 			if self.owner.pantheon == "One with Nature":
 				return 10
 			return 6
 		return 0
-
 
 class Building:
 	def __init__(self, name, food=0, production=0, gold=0, maintenance=0, science=0, culture=0, faith =0, happiness=0, growth_percentage=0, production_percentage=0, science_percentage=0, gold_percentage = 0, production_cost=0, gold_cost=0, techs_required=None, policies_required=None, buildings_required=None, wonder=False, national_wonder=False):
@@ -175,7 +164,7 @@ class Building:
 		self.gold_percentage = gold_percentage
 
 		self.production_cost = production_cost
-		self.producable = gold_cost > 0
+		self.producable = production_cost > 0
 		self.gold_cost = gold_cost
 		self.purchasable = gold_cost > 0
 
@@ -186,11 +175,7 @@ class Building:
 		self.wonder = wonder
 		self.national_wonder = national_wonder
 		self.progress = 0 #pass in for free stuff?
-		self.completed = False #pass in for free stuff?
-
-	def reset_progress(self):
-		self.progress = 0
-		self.completed = False                
+		self.completed = False #pass in for free stuff? merge with above 100?
 
 class Unit:
 	_id_counter = 0  # class-level variable for unique ID assignment
@@ -240,7 +225,6 @@ class Unit:
 	
 		return True, "Valid move."
 
-
 	def move_to(self, from_tile, to_tile):
 		success, message = self.can_move_to(from_tile, to_tile)
 		if not success:
@@ -269,13 +253,19 @@ class Unit:
 
 		return True, "Unit moved successfully."
 
-	def improve_tile(self, tile, new_improvement=None, game=None):
+	def can_improve_tile(self, tile, new_improvement, game):
 		if self.name != "Worker":
-			return "Only Workers can improve tiles."
+			return True, "Only Workers can improve tiles."
 
 		if self.moves_left < 1:
-			return "Not enough movement points to improve."
+			return False, "Not enough movement points to improve."
 
+	def improve_tile(self, tile, improvement, game):
+		success, message = can_improve_tile(self, tile, improvement, game)
+		
+		if not success:
+			return success, message
+		
 		# If a new improvement is requested (overwrite existing one)
 		if new_improvement:
 			imp_data = dictionary.IMPROVEMENTS.get(new_improvement)
@@ -319,6 +309,5 @@ class Unit:
 
 		return False  # still working
 
-
-	def reset_turn(self):
-		self.moves_left = 2
+	def reset_movement(self):
+		self.moves_left = self.moves
