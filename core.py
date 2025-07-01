@@ -204,8 +204,8 @@ class Unit:
 		if player and q is not None and r is not None:
 			player.units.append(self)
 
-	def can_move_to(self, from_tile, to_tile):
-		if from_tile is None or to_tile is None:
+	def can_move_to(self, to_tile):
+		if to_tile is None:
 			return False, "Invalid tile (tile does not exist)."
 	
 		if not helper.in_bounds(to_tile.q, to_tile.r):
@@ -214,7 +214,8 @@ class Unit:
 		if self.moves_left == 0:
 			return False, "No moves left!"
 	
-		if helper.hex_distance(from_tile.q, from_tile.r, to_tile.q, to_tile.r) > 1:
+		#this could use the neighbors method?
+		if helper.hex_distance(self.q, self.r, to_tile.q, to_tile.r) > 1:
 			return False, "Can only move to adjacent tiles."
 	
 		if not to_tile.passable:
@@ -226,7 +227,7 @@ class Unit:
 		return True, "Valid move."
 
 	def move_to(self, from_tile, to_tile):
-		success, message = self.can_move_to(from_tile, to_tile)
+		success, message = self.can_move_to(to_tile)
 		if not success:
 			return False, message
 

@@ -371,7 +371,7 @@ class City:
 	def get_purchasable_tiles(self, engine):
 		from helper import hex_distance
 
-		buyable_tiles = []
+		purchasable_tiles = []
 		for dq in range(-3, 4):
 			for dr in range(-3, 4):
 				q = self.q + dq
@@ -381,10 +381,9 @@ class City:
 					tile = engine.tiles[q][r]
 					can_buy, _ = self.can_buy_tile(tile, engine)
 					if can_buy:
-						buyable_tiles.append(tile)
+						purchasable_tiles.append(tile)
 
-		return buyable_tiles
-
+		return purchasable_tiles
 
 	def update_worked_tiles(self, game):
 		city_tile = game.tiles[self.q][self.r]

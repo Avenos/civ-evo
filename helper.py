@@ -12,7 +12,7 @@ from dictionary import EVEN_ROW_NEIGHBORS, ODD_ROW_NEIGHBORS
 def init_pygame_assets():
 	pygame.display.init()
 	pygame.font.init()
-	screen = pygame.display.set_mode((WIDTH, HEIGHT))  # adjust size as needed
+	screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.RESIZABLE)
 	pygame.display.set_caption("Civ V Build Order Optimizer Replay")
 	clock = pygame.time.Clock()
 	font = pygame.font.SysFont(None, 20)

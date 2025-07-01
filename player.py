@@ -191,12 +191,14 @@ class Player:
 
 		if policy.is_unlocked(self):
 			return False, "Policy already unlocked."
+		
+		if self.culture < self.policy_cost:
+			return False, "Not enough culture accrued to unlock this policy."	
 
+		#no like
 		if not policy.can_unlock(self):
 			return False, "You don't meet the prerequisites for this policy."
 
-		if self.culture < self.policy_cost:
-			return False, "Not enough culture accrued to unlock this policy."
 
 		return True, "Policy can be chosen."
 
@@ -245,14 +247,14 @@ class Player:
 
 	@property
 	def pantheon_threshold(self):
-		return 15 #+ 5 * (self.turn // 10)  # Assuming self.turn is updated	
+		return 100 #+ 5 * (self.turn // 10)  # Assuming self.turn is updated	
 
 	def can_choose_pantheon(self):
 		if self.pantheon:
 			return False, "Pantheon already chosen."
 		if self.faith < self.pantheon_threshold:
 			return False, "Not enough faith to found a Pantheon."
-		return True, "Pantheon can be chosen."	
+		return True, "Pantheon can be chosen."
 
 	def choose_pantheon(self, pantheon_name):
 		success, msg = can_choose_pantheon()

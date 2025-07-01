@@ -80,60 +80,54 @@ class Engine:
 		# Move units
 		for unit in player.units:
 			for dq, dr in helper.hex_neighbors(unit.q, unit.r):
-				to_q = unit.q + dq
-				to_r = unit.r + dr
-				if unit.can_move_unit(unit, to_q, to_r):
-					actions.append({"action": "move_unit", "unit_id": unit.id, "to": [to_q, to_r]})
+				to_tile = self.get_tile(dq, dr)
+				
+				if unit.can_move_to(to_tile)[0]:
+					actions.append({"action": "move_unit", "unit_id": unit.id, "to": [dq, dr]})
 
 		# Found city, improve tiles, assign trade route
 		for unit in player.units:
-			if unit.name == "Settler" and self.can_found_city(unit):
+			if player.can_found_city(unit, self)[0]:
 				actions.append({"action": "found_city", "unit_id": unit.id})
-			if unit.name == "Worker" and self.can_improve_tile(unit):
-				actions.append({"action": "improve_tile", "unit_id": unit.id})				
-			if unit.name == "Caravan":
-				for city in player.cities:
-					if self.can_assign_trade_route(unit, city): #check for granary and distance
-						actions.append({"action": "assign trade route", "unit_id": unit.id, "city_id": city.id})				
+			#if unit.name == "Worker" and self.can_improve_tile(unit):
+				#actions.append({"action": "improve_tile", "unit_id": unit.id})				
+			#if unit.name == "Caravan":
+				#for city in player.cities:
+					#if self.can_assign_trade_route(unit, city): #check for granary and distance
+						#actions.append({"action": "assign trade route", "unit_id": unit.id, "city_id": city.id})				
 
-		# Policy selection
-		if player.can_choose_policy():
-			for policy in player.get_available_policies():
-				actions.append({"action": "select_policy", "policy": policy})
+		# Policy selection, slow? wrong check order
+		for policy_name in self.all_policies:
+			if player.can_choose_policy(policy_name, self)[0]: 
+				actions.append({"action": "select_policy", "policy": policy_name})
 
 		# Tech selection
-		if player.science_system.needs_research():
+		if player.science_system.current_research == None:
 			for tech in player.science_system.get_available_techs():
 				actions.append({"action": "select_tech", "tech": tech})
 
 		# Pantheon selection
-		if player.can_choose_pantheon():
-			for pantheon in player.available_panethonds():
+		if player.can_choose_pantheon()[0]:
+			for pantheon in self.all_pantheons:
 				actions.append({"action": "select_pantheon", "pantheon": pantheon})
-
+				
 		# City production
 		for city in player.cities:
-			if city.needs_production(): #restrict production swapping or no?
-				for buildable in city.get_buildable_things():
-					actions.append({"action": "set_production", "city_id": city.id, "name": buildable})
-
-		# City purchasing
-		for city in player.cities:
-			if city.needs_production(): #restrict production swapping or no?
-				for buildable in city.get_buildable_things():
-					actions.append({"action": "set_production", "city_id": city.id, "name": buildable})
-
+			for project in city.production_system.get_available_projects():
+				actions.append({"action": "set_production", "city_id": city.id, "name": project.name})
+				
 		# Tile purchasing
-		#for city in player.cities:
-			#for every tile in the cities radius, check if can_buy_tile, if so add it to the list
-
+		for city in player.cities:
+			for tile in city.get_purchasable_tiles(self): #are tiles bought in the scope of a city or empire?
+				actions.append({"action": "buy_tile", "city_id": city.id, "tile_q": tile.q, "tile_r": tile.r})
+					
 		# Assign worked tile
 
 		# Unassign worked tile
 
 		# End turn (this should probably be an action yeah?)
-		if self.can_end_turn(player):
-			actions.append({"action": "end_turn"})
+		#if self.end_turn(player):
+			#actions.append({"action": "end_turn"})
 
 		return actions	
 
