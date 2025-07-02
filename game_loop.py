@@ -8,15 +8,6 @@ from action_handler import handle_action, start_new_log
 from engine import Engine
 from constants import GRID_WIDTH, GRID_HEIGHT, HEX_RADIUS, WIDTH, HEIGHT, FPS, CITY_NAMES
 
-import pygame
-import time
-import helper
-import renderer
-from dictionary import TERRAIN_TYPES
-from action_handler import handle_action, start_new_log
-from engine import Engine
-from constants import GRID_WIDTH, GRID_HEIGHT, HEX_RADIUS, WIDTH, HEIGHT, FPS, CITY_NAMES
-
 def run_manual_game(engine):
 	screen, clock, font, big_font, terrain_overlays, resource_icons, unit_icons = helper.init_pygame_assets()
 
@@ -36,6 +27,7 @@ def run_manual_game(engine):
 			engine.message_timer -= 1
 
 		window_width, window_height = pygame.display.get_surface().get_size()
+		
 		scale = min(window_width / BASE_WIDTH, window_height / BASE_HEIGHT)
 		scaled_width = int(BASE_WIDTH * scale)
 		scaled_height = int(BASE_HEIGHT * scale)
@@ -88,7 +80,9 @@ def run_manual_game(engine):
 					logical_click_handled = True
 
 				elif not logical_click_handled and engine.ui_next_turn_button and engine.ui_next_turn_button.collidepoint(pos):
-					engine.end_turn()
+					success, message = handle_action(engine, "end_turn", {"player": "placeholder"} )
+					engine.show_message(message if not success else f"Turn ended", 90)
+					
 					logical_click_handled = True
 
 				if not logical_click_handled:

@@ -4,11 +4,16 @@ import helper
 import constants
 import dictionary
 from core import Tile, Unit
+from city import City
 from player import Player
 from constants import GRID_HEIGHT, GRID_WIDTH
 
 class Engine:
 	def __init__(self):
+		
+		Unit._id_counter = 0
+		City._id_counter = 0
+		
 		self.is_replay = False
 		self.recorded_actions = []
 
@@ -63,9 +68,9 @@ class Engine:
 		self.players = [Player()]
 		self.current_player = self.players[0]
 
-		self.spawn_unit(self.players[0], 8, 8, "Worker")
-		self.spawn_unit(self.players[0], 9, 8, "Settler")
-		self.spawn_unit(self.players[0], 10, 8, "Warrior")
+		self.spawn_unit(self.players[0], "Worker", 8, 8)
+		self.spawn_unit(self.players[0], "Settler", 9, 8)
+		self.spawn_unit(self.players[0], "Warrior", 10, 8)
 
 		self.selected_unit = None
 		self.selected_city = None
@@ -83,12 +88,12 @@ class Engine:
 				to_tile = self.get_tile(dq, dr)
 				
 				if unit.can_move_to(to_tile)[0]:
-					actions.append({"action": "move_unit", "unit_id": unit.id, "to": [dq, dr]})
+					actions.append({"action": "move_unit", "data": {"unit_id": unit.id, "to": [dq, dr]}})
 
 		# Found city, improve tiles, assign trade route
 		for unit in player.units:
 			if player.can_found_city(unit, self)[0]:
-				actions.append({"action": "found_city", "unit_id": unit.id})
+				actions.append({"action": "found_city", "data": {"unit_id": unit.id}})
 			#if unit.name == "Worker" and self.can_improve_tile(unit):
 				#actions.append({"action": "improve_tile", "unit_id": unit.id})				
 			#if unit.name == "Caravan":
@@ -99,35 +104,35 @@ class Engine:
 		# Policy selection, slow? wrong check order
 		for policy_name in self.all_policies:
 			if player.can_choose_policy(policy_name, self)[0]: 
-				actions.append({"action": "select_policy", "policy": policy_name})
+				actions.append({"action": "choose_policy", "data": {"policy_name": policy_name}})
 
 		# Tech selection
-		if player.science_system.current_research == None:
+		if not player.science_system.current_research:
 			for tech in player.science_system.get_available_techs():
-				actions.append({"action": "select_tech", "tech": tech})
+				actions.append({"action": "set_research", "data": {"tech_name": tech}})
 
 		# Pantheon selection
 		if player.can_choose_pantheon()[0]:
 			for pantheon in self.all_pantheons:
-				actions.append({"action": "select_pantheon", "pantheon": pantheon})
+				actions.append({"action": "choose_pantheon", "data": {"pantheon": pantheon}})
 				
 		# City production
 		for city in player.cities:
-			for project in city.production_system.get_available_projects():
-				actions.append({"action": "set_production", "city_id": city.id, "name": project.name})
-				
+			if not city.production_system.current_project:
+				for project in city.production_system.get_available_projects():
+					actions.append({"action": "choose_project", "data": {"city_id": city.id, "project_name": project.name}})
+					
 		# Tile purchasing
 		for city in player.cities:
 			for tile in city.get_purchasable_tiles(self): #are tiles bought in the scope of a city or empire?
-				actions.append({"action": "buy_tile", "city_id": city.id, "tile_q": tile.q, "tile_r": tile.r})
+				actions.append({"action": "purchase_tile", "data": {"city_id": city.id, "tile_coords": (tile.q, tile.r)}})
 					
 		# Assign worked tile
 
 		# Unassign worked tile
 
-		# End turn (this should probably be an action yeah?)
-		#if self.end_turn(player):
-			#actions.append({"action": "end_turn"})
+		if player.can_end_turn()[0]:
+			actions.append({"action": "end_turn", "data": {}})
 
 		return actions	
 
@@ -135,12 +140,26 @@ class Engine:
 		self.message = text
 		self.message_timer = duration
 
-	#should this be in helper.py?
-	def spawn_unit(self, player, q, r, name):
+	def spawn_unit(self, player, name, q, r):
 		unit = Unit(name, player=player, q=q, r=r)
 		self.units.append(unit)
+		player.units.append(unit)
 		self.tiles[q][r].unit = unit
+		print(f"Spawned {name} with ID {unit.id}")
 		return unit
+
+	def remove_unit(self, unit):
+		# Remove from global list
+		self.units = [u for u in self.units if u.id != unit.id]
+		
+		# Remove from player's list
+		if unit.player:
+			unit.player.units = [u for u in unit.player.units if u.id != unit.id]
+	
+		# Remove from tile
+		tile = self.get_tile(unit.q, unit.r)
+		if tile and tile.unit and tile.unit.id == unit.id:
+			tile.unit = None
 
 	def get_unit_by_id(self, unit_id):
 		for unit in self.units:
@@ -167,49 +186,44 @@ class Engine:
 			city.production_system.apply_production(self)
 
 	def end_turn(self):
-		success, message = self.current_player.end_turn(self)
+		self.turn += 1
+		self.selected_unit = None
+		#self.spawn_worker_on_schedule()
+		self.start_turn()		
+		return True
 
-		if success:
-			self.turn += 1
-			self.selected_unit = None
-			self.spawn_worker_on_schedule()
-			self.start_turn()		
-			return True
-		else:
-			print(f"Turn error: {message}")
-			self.show_message(message, 180)
-
-			return False
-
-	#helper method?
 	def spawn_worker_on_schedule(self, start_turn=20, interval=10, spawn_tile_q=0, spawn_tile_r=0):
+		pass
 		if self.turn >= start_turn and (self.turn - start_turn) % interval == 0:
 			tiles_map = self.tiles
-
-			q, r = spawn_tile_q, spawn_tile_r
+	
 			width = len(tiles_map)
 			height = len(tiles_map[0])
-
+	
 			checked_positions = set()
-
-			while (q, r) not in checked_positions:
+			q, r = spawn_tile_q, spawn_tile_r
+	
+			max_checks = width * height  # Prevent infinite loop
+			checks = 0
+	
+			while checks < max_checks:
+				if (q, r) in checked_positions:
+					break
 				checked_positions.add((q, r))
 				tile = tiles_map[q][r]
+	
 				if tile.unit is None:
-					# Spawn worker unit here
-					new_worker = Unit("Worker", self.current_player, q, r)
-					self.units.append(new_worker)
-					self.current_player.units.append(new_worker)
-					tile.unit = new_worker
+					self.spawn_unit(self.current_player, "Worker", q, r)
 					break
-
-				# Move to next tile in row-major order
+	
 				q += 1
 				if q >= width:
 					q = 0
 					r += 1
 					if r >= height:
 						r = 0
+	
+				checks += 1
 
 	def get_tile(self, q, r):
 		return self.tiles[q][r]

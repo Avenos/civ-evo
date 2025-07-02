@@ -47,7 +47,7 @@ class ProductionSystem:
 				for c in self.city.owner.cities: #needs adapted for multiple players
 					if any(b.name == project_name for b in c.buildings):
 						return False, f"{project_name} already exists somewhere in the world."
-					if c.current_project and c.current_project.name == project_name and c is not self.city:
+					if c.production_system.current_project and c.production_system.current_project.name == project_name and c is not self.city:
 						return False, f"{project_name} is already being constructed in another city."
 
 			if project_name == "Monument":
@@ -62,8 +62,7 @@ class ProductionSystem:
 
 			if project_name == "Circus Maximus":
 				for city in player.cities:
-					has_colisseum = any("Colisseum" in b.name for b in city.buildings)
-					if not has_coliseum:
+					if not any("Colisseum" in b.name for b in city.buildings):
 						return False, "Circus Maximus requires a completed Colisseum in all cities."
 
 			if project_name == "Ironworks":
@@ -193,7 +192,7 @@ class ProductionSystem:
 				return
 
 	def complete_unit(self, unit_name, q, r, engine):
-		engine.spawn_unit(player=self.city.owner, q=q, r=r, name=unit_name)
+		engine.spawn_unit(self.city.owner, unit_name, q, r)
 		print(f"[DEBUG] Spawned unit '{unit_name}' at city ({self.city.q},{self.city.r}) for player '{self.city.owner.name}'.")
 
 	def is_completed(self, project_name):

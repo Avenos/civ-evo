@@ -5,6 +5,7 @@ import math
 import heapq
 from itertools import combinations
 from collections import deque, defaultdict
+from core import Building
 from systems import ProductionSystem
 from constants import CITY_NAMES
 
@@ -320,7 +321,7 @@ class City:
 
 		percent_modifier = 1
 
-		if "Republic" in self.owner.unlocked_policies and isinstance(self.production_system.current_production, Building):
+		if "Republic" in self.owner.unlocked_policies and isinstance(self.production_system.current_project, Building):
 			percent_modifier += 0.05
 
 		if self.owner.in_golden_age:
@@ -337,7 +338,7 @@ class City:
 			return self.production_system.current_project.name
 		return None
 
-	def can_buy_tile(self, tile, engine):
+	def can_purchase_tile(self, tile, engine):
 		player = self.owner
 		q, r = tile.q, tile.r
 
@@ -358,7 +359,7 @@ class City:
 		return True, None
 
 	def purchase_tile(self, tile, engine):
-		can_buy, msg = self.can_buy_tile(tile, engine)
+		can_buy, msg = self.can_purchase_tile(tile, engine)
 		if not can_buy:
 			return False, msg
 
@@ -379,7 +380,7 @@ class City:
 				# Check map bounds here (assuming engine.tiles is a 2D list)
 				if 0 <= q < len(engine.tiles) and 0 <= r < len(engine.tiles[0]):
 					tile = engine.tiles[q][r]
-					can_buy, _ = self.can_buy_tile(tile, engine)
+					can_buy, _ = self.can_purchase_tile(tile, engine)
 					if can_buy:
 						purchasable_tiles.append(tile)
 

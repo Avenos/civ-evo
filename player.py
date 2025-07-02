@@ -24,6 +24,7 @@ class Player:
 		self.faith = 0
 
 		self.science_system = ScienceSystem(self)
+		self.all_policies = helper.build_policy_objects(dictionary.POLICIES)
 		self.unlocked_policies = []
 		self.free_policies = [] #how to manage this for oracle and poland?
 		self.pantheon = None
@@ -213,10 +214,10 @@ class Player:
 
 		# Apply immediate policy bonuses
 		if policy.name == "Collective Rule":
-			spawn_unit_near_capital(self, game, "Settler", "A free Settler has arrived!")
+			helper.spawn_unit_near_capital(self, game, "Settler", "A free Settler has arrived!")
 
 		elif policy.name == "Citizenship":
-			spawn_unit_near_capital(self, game, "Worker", "A free Worker has arrived!")
+			helper.spawn_unit_near_capital(self, game, "Worker", "A free Worker has arrived!")
 
 		elif policy.name == "Representation":
 			self.start_golden_age()
@@ -257,44 +258,39 @@ class Player:
 		return True, "Pantheon can be chosen."
 
 	def choose_pantheon(self, pantheon_name):
-		success, msg = can_choose_pantheon()
+		success, msg = self.can_choose_pantheon()
 
 		if not success:
 			return False, message
 
-		self.faith -= required_faith
+		self.faith = 0
 		self.pantheon = pantheon_name
 		return True, f"Pantheon '{pantheon_name}' chosen successfully!"
 
-
-	def end_turn(self, game):
-		# Check for policy selection requirement
-		if self.culture >= self.policy_cost and len(self.unlocked_policies) < len(game.all_policies):
+	def can_end_turn(self):
+		if self.culture >= self.policy_cost and len(self.unlocked_policies) < len(self.all_policies):
 			return False, "You must select a social policy before ending your turn!"
 
-		# Check tech research selection first (no progress yet)
 		if not self.science_system.current_research:
 			return False, "You must choose a technology to research before ending your turn!"
 
-		# Check production projects in cities
 		for city in self.cities:
 			if not city.production_system.current_project:
 				return False, f"{city.name} needs a production project!"
-
-		# Check Pantheon selection if faith threshold met
-		success, reason = self.can_choose_pantheon()
-		if success:
+		
+		if self.faith >= self.pantheon_threshold and not self.pantheon:
 			return False, "You must select a Pantheon before ending your turn!"
+		
+		return True, "Turn may be ended."
 
-		# All checks passed, now apply turn-end effects:
-
-		# Apply science progress and notify if tech unlocked
+	def end_turn(self, game):
+		success, message = self.can_end_turn()
+		
+		if not success:
+			return success, message
+		
 		unlocked = self.science_system.process_turn_science(self.science_per_turn, self)
 
-		if unlocked:
-			game.show_message(f"Tech Unlocked: {unlocked}!", 120)
-
-		# Apply resource yields
 		self.gold += self.gold_per_turn
 		self.culture += self.culture_per_turn
 		self.total_science_accrued += self.science_per_turn
@@ -305,7 +301,6 @@ class Player:
 			city.process_growth()
 			city.update_worked_tiles(game) #?
 
-
 		# Reset units' turns
 		for u in self.units:
 			u.reset_movement()
@@ -314,6 +309,8 @@ class Player:
 		self.update_golden_age()
 
 		#culture growth logic?
+		
+		game.end_turn()
 
 		return True, "Turn ended successfully."
 
@@ -358,13 +355,8 @@ class Player:
 				game.tiles[nq][nr].owner = self
 
 			city.update_worked_tiles(game)
-			self.remove_unit(unit, game)
+			game.remove_unit(unit)
 			game.selected_unit = None
 			game.selected_city = city
 
 			return True, None
-
-	def remove_unit(self, unit, game):
-		q, r = unit.q, unit.r
-		game.tiles[q][r].unit = None
-		self.units.remove(unit)

@@ -9,15 +9,32 @@ from collections import deque
 from constants import WIDTH, HEIGHT, GRID_WIDTH, GRID_HEIGHT
 from dictionary import EVEN_ROW_NEIGHBORS, ODD_ROW_NEIGHBORS
 
-def init_pygame_assets():
+def init_pygame_assets(headless=False):
+	import ctypes
+	import os
+	import pygame
+
+	if headless:
+		pygame.display.init()
+		clock = pygame.time.Clock()
+		return None, clock, None, None, None, None, None
+
 	pygame.display.init()
 	pygame.font.init()
-	screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.RESIZABLE)
+
+	# Create normal window (resizable), then maximize it
+	screen = pygame.display.set_mode((800, 600), pygame.RESIZABLE)
 	pygame.display.set_caption("Civ V Build Order Optimizer Replay")
+
+	# Maximize the window (Windows only)
+	hwnd = pygame.display.get_wm_info()["window"]
+	ctypes.windll.user32.ShowWindow(hwnd, 3)  # SW_MAXIMIZE
+
 	clock = pygame.time.Clock()
 	font = pygame.font.SysFont(None, 20)
 	big_font = pygame.font.SysFont(None, 24)
 
+	# Load terrain overlays
 	terrain_overlays = {}
 	for filename in os.listdir("assets"):
 		if filename.endswith(".png"):
@@ -25,15 +42,17 @@ def init_pygame_assets():
 			image = pygame.image.load(os.path.join("assets", filename)).convert_alpha()
 			terrain_overlays[key] = image
 
+	# Load icon images
 	yield_types = ["food", "production", "gold", "science", "culture", "faith", "happiness", "unhappiness"]
 	icon_images = {}
 	for yield_type in yield_types:
 		icon_images[yield_type] = pygame.image.load(f"assets/icons/{yield_type}.png").convert_alpha()
 
+	# Load unit icons
 	unit_icons = {}
 	for filename in os.listdir("assets/units"):
 		if filename.lower().endswith(".png"):
-			unit_name = os.path.splitext(filename)[0].lower()  # filename without extension
+			unit_name = os.path.splitext(filename)[0].lower()
 			full_path = os.path.join("assets/units", filename)
 			unit_icon = pygame.image.load(full_path).convert_alpha()
 			unit_icons[unit_name] = unit_icon
@@ -281,11 +300,10 @@ def add_river(tile, edge_index, tiles_map):
 		# Neighbor is off-map
 		pass
 
+#expensive?
 def is_adjacent_to_owned_tile(tile, player, engine):
 	q, r = tile.q, tile.r
 	neighbors = []
-
-	print(f"Checking adjacency for tile ({q}, {r})")
 
 	if r % 2 == 0:
 		offsets = dictionary.EVEN_ROW_NEIGHBORS.values()
@@ -296,18 +314,12 @@ def is_adjacent_to_owned_tile(tile, player, engine):
 		nq, nr = q + dq, r + dr
 		if 0 <= nq < GRID_WIDTH and 0 <= nr < GRID_HEIGHT:
 			neighbors.append((nq, nr))
-
-	print("Neighbors:", neighbors)
-
 	for nq, nr in neighbors:
 		neighbor_tile = engine.tiles[nq][nr]
 		owner = neighbor_tile.owner
-		print(f"Neighbor ({nq}, {nr}) owned by:", owner)
 		if owner == player:
-			print("Adjacent tile found!")
 			return True
 
-	print("No adjacent owned tiles found.")
 	return False
 
 def spawn_unit_near_capital(player, game, name, message):
@@ -318,16 +330,12 @@ def spawn_unit_near_capital(player, game, name, message):
 	capital = player.cities[0]
 	q, r = capital.q, capital.r
 
-	for dir_idx in range(6):
-		dq, dr = hex_direction(dir_idx)  # make sure this helper exists in helper.py
-		nq, nr = q + dq, r + dr
-
-		if 0 <= nq < game.GRID_WIDTH and 0 <= nr < game.GRID_HEIGHT:
-			tile = game.tiles[nq][nr]
-			if tile.unit is None and tile.city is None:
-				game.spawn_unit(player, q, r, name)
-				game.show_message(message, 120)
-				return True
+	for nq, nr in hex_neighbors(q, r):
+		tile = game.tiles[nq][nr]
+		if tile.unit is None and tile.city is None:
+			game.spawn_unit(player, nq, nr, name)
+			game.show_message(message, 120)
+			return True
 
 	game.show_message(f"No space near capital to place {name}!", 120)
 	return False

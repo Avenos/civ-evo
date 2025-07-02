@@ -30,7 +30,7 @@ class Tile:
 		#why is this here?
 		self.terrain_data = dictionary.TERRAIN_TYPES[terrain_type]
 		
-		if self.elevation == 2 or self.terrain_type in ("ocean", "coast", "lake"):
+		if self.elevation == 2 or self.terrain_type in ("o", "c", "l"):
 			self.movement_cost = 2
 			self.passable = 0
 		elif self.elevation == 1 or self.trees in (1, 2):
@@ -176,13 +176,15 @@ class Building:
 		self.national_wonder = national_wonder
 		self.progress = 0 #pass in for free stuff?
 		self.completed = False #pass in for free stuff? merge with above 100?
-
+		
 class Unit:
 	_id_counter = 0  # class-level variable for unique ID assignment
 
 	def __init__(self, name, player=None, q=None, r=None, hp=100, moves=2, gold_cost=0, production_cost=0, techs_required=None, policies_required=None):
+		print(f"[DEBUG] Before assigning ID, Unit._id_counter = {Unit._id_counter}")
 		self.id = Unit._id_counter
-		Unit._id_counter += 1 #need to set back to 0 on game start?
+		Unit._id_counter += 1
+		print(f"[DEBUG] Assigned ID {self.id} to new Unit '{name}'. Unit._id_counter incremented to {Unit._id_counter}")
 
 		self.name = name
 		self.player = player
@@ -200,10 +202,7 @@ class Unit:
 
 		self.progress = 0
 		self.completed = False
-
-		if player and q is not None and r is not None:
-			player.units.append(self)
-
+		
 	def can_move_to(self, to_tile):
 		if to_tile is None:
 			return False, "Invalid tile (tile does not exist)."
@@ -215,7 +214,7 @@ class Unit:
 			return False, "No moves left!"
 	
 		#this could use the neighbors method?
-		if helper.hex_distance(self.q, self.r, to_tile.q, to_tile.r) > 1:
+		if helper.hex_distance(self.q, self.r, to_tile.q, to_tile.r) != 1:
 			return False, "Can only move to adjacent tiles."
 	
 		if not to_tile.passable:

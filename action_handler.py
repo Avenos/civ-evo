@@ -1,7 +1,7 @@
 #possible actions: (also replicate in all legal actions in engine)
-#move a unit to a tile SONE
+#move a unit to a tile DONE
 #start production in a city DONE
-#purchase a tile or unit or building
+#purchase a tile or unit or building DONE
 #settle a city DONE
 #choose a tech DONE, limit to once per turn?
 #choose social policy DONE
@@ -113,14 +113,15 @@ def handle_action(engine, action_type, data, log_actions=True):
 
 	elif action_type == "choose_pantheon":
 		pantheon_name = data.get("pantheon_name")
-		result = engine.current_player.choose_pantheon(pantheon_name, engine.turn)
+		result = engine.current_player.choose_pantheon(pantheon_name)
 
 	elif action_type == "choose_policy":
 		policy = data.get("policy_name")
 		result = engine.current_player.choose_policy(policy, engine)
 
 	elif action_type == "end_turn":
-		result = engine.end_turn()
+		result = engine.current_player.end_turn(engine)
+		print(f"Turn: {engine.turn}")				
 
 	if log_actions and result[0]:  # success == True
 		log_action(engine.turn, action_type, data, engine.replay_log_filepath)
@@ -131,14 +132,14 @@ def handle_action(engine, action_type, data, log_actions=True):
 	}
 
 	status = "VALID" if result[0] else f"INVALID ({result[1]})"
-	print(f"ACTION: {json.dumps(action_summary, separators=(',', ':'))} --> {status}")
+	#print(f"ACTION: {json.dumps(action_summary, separators=(',', ':'))} --> {status}")
 
-	legal_actions = engine.get_legal_actions(engine.current_player)
-	print("\nLegal actions:")
-	for action in legal_actions:
-		print(f" - {action['action']} | { {k: v for k, v in action.items() if k != 'action'} }")
+	#legal_actions = engine.get_legal_actions(engine.current_player)
+	#print("Legal actions:")
+	#for action in legal_actions:
+		#print(f" - {action['action']} | { {k: v for k, v in action.items() if k != 'action'} }")
 
-
+	#print("\n")
 	return result
 
 def start_new_log(engine, prefix="replay", folder="replays"):

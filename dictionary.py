@@ -1,6 +1,5 @@
 
-#nicely scalable ui
-#player era and policy tree prereqs
+#deadless switch
 #list of legal actions for EA
 #tile improvement system, add dict improvement values, also adjacency bonuses for different tile types? flood plains? marsh?
 #citizen tile assignment choice system, #if city grows auto update the next worked tile to highest production tile then by gold 
@@ -8,12 +7,12 @@
 #verify forests at top part of minimap #define all rivers, add columns
 #make ui nice food decimal rounding? or floor?
 #border growth algorithm and formula 15 25 40 north cotton then dyes them cotton
-#speef monitoring and efficiency
+#speed monitoring and efficiency
 #terrain stuff lower case? why be consistent....
 #tile purchasing cost
 #does pop growth help expand borders? ancient ruins?
 #do we let the AI CHOOSE between pop and culture and free tech? yeah. whatever it wants.
-#action API finalize!! how do we end turn?
+#action API finalize!
 #verify science system overflow, display?
 #DE-select production projects each turn if they are no longer valid after all relevant actions. production applied at BEGINNING of turn. 1 turn left on NC and buiilt a city? it doesnt complete. right?
 #policies effects! finalize
@@ -26,6 +25,7 @@
 #trade routes caravans ability
 #roads? machinery? bridges over rivers?
 #figure out gpt formula: 1war and 1 worker =  1gpt
+#player era and policy tree prereqs
 #golden age verify tile gold also point req func, stacking?
 #happiness, gold and culture are ints?
 

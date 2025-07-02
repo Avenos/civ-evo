@@ -127,6 +127,8 @@ def draw_territory_shading(screen, engine, font, big_font):
 	screen.blit(territory_surf, (0, 0))
 
 def draw_cities(screen, engine, font, big_font):
+	RED = (200, 30, 30)
+	WHITE = (255, 255, 255)
 	GOLD_DARK_GREEN = (34, 139, 34)
 	DARK_YELLOW = (204, 153, 0)
 
@@ -134,10 +136,18 @@ def draw_cities(screen, engine, font, big_font):
 		for city in player.cities:
 			x, y = helper.hex_to_pixel(city.q, city.r)
 
-			# Draw city population number
-			label = big_font.render(str(city.population), True, GOLD_DARK_GREEN)
+			# Draw a big red circle behind the city population number for visibility
+			pygame.draw.circle(screen, RED, (int(x), int(y)), 18)
+
+			# Draw city population number in white on top
+			label = big_font.render(str(city.population), True, WHITE)
 			label_rect = label.get_rect(center=(x, y))
 			screen.blit(label, label_rect)
+
+			# Optionally, draw a simple city icon (if you have one)
+			# city_icon = some_surface_loaded_earlier
+			# icon_rect = city_icon.get_rect(center=(x, y + 20))  # slightly below number
+			# screen.blit(city_icon, icon_rect)
 
 			# Only draw worked tile dots if this city is selected
 			if engine.selected_city == city:
