@@ -333,7 +333,7 @@ def spawn_unit_near_capital(player, game, name, message):
 	for nq, nr in hex_neighbors(q, r):
 		tile = game.tiles[nq][nr]
 		if tile.unit is None and tile.city is None:
-			game.spawn_unit(player, nq, nr, name)
+			game.spawn_unit(player, name, nq, nr)
 			game.show_message(message, 120)
 			return True
 
@@ -388,15 +388,16 @@ def build_unit_object(name, data):
 	from core import Unit
 	return Unit(
 		name=name,
-		player=None,  # Assign player later...
-		q=None,       # Assign position later...
+		player=None,
+		q=None,
 		r=None,
 		hp=data.get("hp", 100),
 		moves=data.get("moves", 2),
 		gold_cost=data.get("gold_cost", 0),
 		production_cost=data.get("production_cost", 0),
 		techs_required=data.get("techs_required", []),
-		policies_required=data.get("policies_required", [])
+		policies_required=data.get("policies_required", []),
+		assign_id=False
 	)
 
 #is this expensive?

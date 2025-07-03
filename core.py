@@ -141,7 +141,7 @@ class Tile:
 	def faith(self):
 		#what about desert folklore?
 		if self.resource == "kailash":
-			if self.owner.pantheon == "One with Nature":
+			if self.owner and self.owner.pantheon == "One with Nature":
 				return 10
 			return 6
 		return 0
@@ -180,11 +180,15 @@ class Building:
 class Unit:
 	_id_counter = 0  # class-level variable for unique ID assignment
 
-	def __init__(self, name, player=None, q=None, r=None, hp=100, moves=2, gold_cost=0, production_cost=0, techs_required=None, policies_required=None):
-		print(f"[DEBUG] Before assigning ID, Unit._id_counter = {Unit._id_counter}")
-		self.id = Unit._id_counter
-		Unit._id_counter += 1
-		print(f"[DEBUG] Assigned ID {self.id} to new Unit '{name}'. Unit._id_counter incremented to {Unit._id_counter}")
+	def __init__(self, name, player=None, q=None, r=None, hp=100, moves=2,
+		     gold_cost=0, production_cost=0, techs_required=None,
+		     policies_required=None, assign_id=True):
+
+		if assign_id:
+			self.id = Unit._id_counter
+			Unit._id_counter += 1
+		else:
+			self.id = None  # For unit templates
 
 		self.name = name
 		self.player = player
@@ -202,6 +206,7 @@ class Unit:
 
 		self.progress = 0
 		self.completed = False
+
 		
 	def can_move_to(self, to_tile):
 		if to_tile is None:

@@ -193,8 +193,7 @@ class ProductionSystem:
 
 	def complete_unit(self, unit_name, q, r, engine):
 		engine.spawn_unit(self.city.owner, unit_name, q, r)
-		print(f"[DEBUG] Spawned unit '{unit_name}' at city ({self.city.q},{self.city.r}) for player '{self.city.owner.name}'.")
-
+		
 	def is_completed(self, project_name):
 		for b in self.building_projects:
 			if b.name == project_name:

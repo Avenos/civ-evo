@@ -1,6 +1,5 @@
 
-#deadless switch
-#list of legal actions for EA
+#show growth and prod status of indiviual cities
 #tile improvement system, add dict improvement values, also adjacency bonuses for different tile types? flood plains? marsh?
 #citizen tile assignment choice system, #if city grows auto update the next worked tile to highest production tile then by gold 
 #purchase system finalize, purhcased things landing on same tile... stacking system? terrible unit spawning code

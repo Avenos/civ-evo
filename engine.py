@@ -145,7 +145,6 @@ class Engine:
 		self.units.append(unit)
 		player.units.append(unit)
 		self.tiles[q][r].unit = unit
-		print(f"Spawned {name} with ID {unit.id}")
 		return unit
 
 	def remove_unit(self, unit):
@@ -237,16 +236,16 @@ class Engine:
 				"gold_per_turn": self.current_player.gold_per_turn,
 				"culture": self.current_player.culture,
 				"culture_per_turn": self.current_player.culture_per_turn,
-				"science": self.current_player.science,
+				"total_science_accrued": self.current_player.total_science_accrued,
 				"science_per_turn": self.current_player.science_per_turn,
 				"faith": self.current_player.faith,
 				"faith_per_turn": self.current_player.faith_per_turn,
 				"pantheon": self.current_player.pantheon,
 				"luxuries": self.current_player.luxuries,
-				"unlocked_policies": self.unlocked_policies,
+				"unlocked_policies": self.current_player.unlocked_policies,
 				"unlocked_techs": self.current_player.science_system.unlocked_techs,
 				"current_research": self.current_player.science_system.current_research,
-				"current_research_progress": self.current_player.current_research.progress
+				#"current_research_progress": self.current_player.science_system.current_research
 				},
 			"units": [
 				{
@@ -264,22 +263,22 @@ class Engine:
 					"r": c.r,
 					"population": c.population,
 					"food": c.food,
-					"production": c.production,
+					"production": c.production_per_turn,
 					"science": c.science,
 					"culture": c.culture,
 					"faith": c.faith,
 					"worked_tiles": c.worked_tiles,
 					"current_production": c.production_system.current_project,
-					"current_production_progress": c.production_system.current_project.progress,
+					#"current_production_progress": c.production_system.current_project.progress,
 				}
-				for c in self.cities
+				for c in self.current_player.cities
 				],
 			"tiles": [
 				[
 					{
 						"q": t.q,
 						"r": t.r,
-						"terrain": t.terrain,
+						"terrain_type": t.terrain_type,
 						"elevation": t.elevation,
 						"trees": t.trees,
 						"resource": t.resource,
