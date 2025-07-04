@@ -121,10 +121,12 @@ def handle_action(engine, action_type, data, log_actions=True):
 
 	elif action_type == "end_turn":
 		result = engine.current_player.end_turn(engine)
-		print(f"Turn: {engine.turn}")				
-
-	if log_actions and result[0]:  # success == True
-		log_action(engine.turn, action_type, data, engine.replay_log_filepath)
+		print(f"Turn: {engine.turn}")
+	
+	if log_actions and result[0]:
+		replay_path = getattr(engine, "replay_log_filepath", None)
+		if replay_path:
+			log_action(engine.turn, action_type, data, replay_path)
 
 	action_summary = {
 		"type": action_type,

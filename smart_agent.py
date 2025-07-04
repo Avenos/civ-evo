@@ -1,5 +1,8 @@
 
 import torch
+import torch.nn as nn
+import torch.optim as optim
+import random
 from state_encoder import encode_game_state  # assuming you have this
 from action_handler import handle_action  # whatever handles game actions
 
@@ -45,34 +48,56 @@ def encode_action(action):
 	return torch.tensor(vec, dtype=torch.float32)
 
 class SmartAgent:
-	def __init__(self, model, device='cpu'):
-		self.model = model.to(device)
+	def __init__(self, model, device, lr=1e-4, gamma=0.99):
+		self.model = model
 		self.device = device
+		self.memory = []
+		self.optimizer = optim.Adam(model.parameters(), lr=lr)
+		self.gamma = gamma
+		self.loss_fn = nn.MSELoss()
+		self.batch_size = 32
+		self.max_memory = 10000
 
-	def select_action(self, engine):
-		state = engine.get_state()
-		input_tensor = encode_game_state(state).to(self.device)
-		legal_actions = engine.get_legal_actions(engine.current_player)
+	def remember(self, state, action, reward, next_state, done):
+		self.memory.append((state, action, reward, next_state, done))
+		if len(self.memory) > self.max_memory:
+			self.memory.pop(0)
 
-		if not legal_actions:
-			return None
-
-		best_action = None
-		best_score = float("-inf")
-
-		for action in legal_actions:
-			action_tensor = encode_action(action).to(self.device)
-			full_input = torch.cat([input_tensor, action_tensor], dim=0).unsqueeze(0)
-
+	def select_action(self, encoded_state):
+		# Example epsilon-greedy (epsilon can be adjusted)
+		epsilon = 0.1
+		if random.random() < epsilon:
+			# Random action placeholder — you’ll want to replace with valid action sampling
+			return torch.tensor([random.randint(0, 10)], device=self.device)
+		else:
 			with torch.no_grad():
-				score = self.model(full_input).item()
+				q_value = self.model(encoded_state)
+				return q_value.argmax()  # or adapt depending on action space
 
-			if score > best_score:
-				best_score = score
-				best_action = action
+	def learn(self):
+		if len(self.memory) < self.batch_size:
+			return
 
-		return best_action
+		batch = random.sample(self.memory, self.batch_size)
+		states, actions, rewards, next_states, dones = zip(*batch)
 
+		states = torch.stack(states).to(self.device)
+		actions = torch.stack(actions).to(self.device)
+		rewards = torch.tensor(rewards, dtype=torch.float32).to(self.device)
+		next_states = torch.stack(next_states).to(self.device)
+		dones = torch.tensor(dones, dtype=torch.float32).to(self.device)
+
+		current_q = self.model(states).squeeze()
+		with torch.no_grad():
+			next_q = self.model(next_states).squeeze()
+			target_q = rewards + self.gamma * next_q * (1 - dones)
+
+		loss = self.loss_fn(current_q, target_q)
+
+		self.optimizer.zero_grad()
+		loss.backward()
+		self.optimizer.step()
+		
 	def run_agent(self, engine, headless=True):
 		while engine.turn < 40:
 			print(f"Turn {engine.turn} starting")
