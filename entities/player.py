@@ -23,7 +23,7 @@ class Player:
 		self._gold = 1000
 		self.faith = 0
 
-		self.era = "ancient"
+		self.current_era = "Ancient"
 		self.science_system = ScienceSystem(self)
 		self.all_policies = helper.build_policy_objects(dictionary.POLICIES)
 		self.unlocked_policies = []
@@ -185,23 +185,32 @@ class Player:
 
 		base = cost_per_unlocked_policy * penalty_multiplier
 		return int(math.ceil(base / 5.0) * 5)
-
+	
 	def can_choose_policy(self, policy_name, game):
 		policy = game.all_policies.get(policy_name)
 		if not policy:
 			return False, "Invalid policy choice."
-
+	
 		if policy.is_unlocked(self):
 			return False, "Policy already unlocked."
-
+	
 		if self.culture < self.policy_cost:
-			return False, "Not enough culture accrued to unlock this policy."	
-
-		#no like
+			return False, "Not enough culture accrued to unlock this policy."
+	
 		if not policy.can_unlock(self):
 			return False, "You don't meet the prerequisites for this policy."
 
-
+		if policy.era:
+			try:
+				era_order = dictionary.ERAS
+				player_era_index = era_order.index(self.current_era)
+				required_era_index = era_order.index(policy.era)
+			except ValueError:
+				return False, f"Internal error: Unknown era '{policy.era}' in policy {policy.name}"
+	
+			if player_era_index < required_era_index:
+				return False, f"{policy.name} requires the {policy.era} Era (you are in {self.current_era})."
+	
 		return True, "Policy can be chosen."
 
 	def choose_policy(self, policy_name, game):

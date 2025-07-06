@@ -345,12 +345,10 @@ class City:
 		if tile.owner is not None:
 			return False, "Tile already owned by another player."
 
-		from helper import hex_distance, is_adjacent_to_owned_tile
-
-		if hex_distance(self.q, self.r, q, r) > 3:
+		if helper.hex_distance(self.q, self.r, q, r) > 3:
 			return False, "Tile is too far from the city (must be within 3 tiles)."
 
-		if not is_adjacent_to_owned_tile(tile, player, engine):
+		if not helper.is_adjacent_to_owned_tile(tile, player, engine):
 			return False, "Tile must be adjacent to your city's borders."
 
 		if player.gold < self.PURCHASE_COST:
@@ -370,8 +368,6 @@ class City:
 		return True, f"Tile purchased for {self.PURCHASE_COST}g!"
 
 	def get_purchasable_tiles(self, engine):
-		from helper import hex_distance
-
 		purchasable_tiles = []
 		for dq in range(-3, 4):
 			for dr in range(-3, 4):

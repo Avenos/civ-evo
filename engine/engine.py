@@ -70,13 +70,14 @@ class Engine:
 		self.ui_purchase_buttons = []
 		self.ui_production_buttons = []
 		self.ui_pantheon_buttons = []
+		self.ui_tile_improvement_buttons = []
 
 		self.all_policies = helper.build_policy_objects(dictionary.POLICIES)
 		self.all_pantheons = dictionary.PANTHEONS
 		self.taken_pantheons = []
 
 		self.city_states = [(15, 3)]
-		self.city_states_met = {}
+		self.city_states_met = {} #[]?
 
 		self.players = [Player()]
 		self.current_player = self.players[0]
@@ -106,13 +107,31 @@ class Engine:
 			if player.can_found_city(unit, self)[0]:
 				actions.append({"action": "found_city", "data": {"unit_id": unit.id}})
 
+		# TILE IMPROVEMENT LOGIC
+		for unit in player.units:
+			if unit.name == "Worker":
+				tile = self.get_tile(unit.q, unit.r)
+				for improvement_name in dictionary.IMPROVEMENTS.keys():
+					if improvement_name in ["Road", "None"]:
+						continue  # Skip non-improvement types here if needed
+					success, _ = unit.can_improve_tile(tile, improvement_name, self)
+					if success:
+						actions.append({
+							"action": "improve_tile",
+							"data": {
+								"unit_id": unit.id,
+								"tile_coords": (tile.q, tile.r),
+								"improvement": improvement_name
+							}
+						})
+
 		for policy_name in self.all_policies:
 			if player.can_choose_policy(policy_name, self)[0]:
 				actions.append({"action": "choose_policy", "data": {"policy_name": policy_name}})
 
 		if not player.science_system.current_research:
 			for tech in player.science_system.get_available_techs():
-				actions.append({"action": "set_research", "data": {"tech_name": tech}})
+				actions.append({"action": "choose_research", "data": {"tech_name": tech}})
 
 		if player.can_choose_pantheon()[0]:
 			for pantheon in self.all_pantheons:

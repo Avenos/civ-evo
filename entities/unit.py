@@ -86,6 +86,8 @@ class Unit:
 
 		return True, "Unit moved successfully."
 
+	#to get a LIST of all legal tile improvements do i have to poll every single one...? I guess
+	#also roads are a separate thing really...
 	def can_improve_tile(self, tile, improvement, game):
 		if self.name != "Worker":
 			return False, "Only Workers can improve tiles."
@@ -93,13 +95,82 @@ class Unit:
 			return False, "Not enough movement points."
 		if not improvement:
 			return False, "No improvement specified."
-	
+		
+		if "tech_required" in imp_data:
+			if not self.player:
+				return False, "Player data not found."
+			if imp_data["tech_required"] not in self.player.science_system.unlocked_techs:
+				return False, f"{improvement} requires the {imp_data['tech_required']} technology."
+		
+		if improvement == "Road":
+			return True, ""		
+		
+		if tile.owner != self.player:
+			return False, "Cannot improve tile you do not own." #unless its a road
+		
 		imp_data = dictionary.IMPROVEMENTS.get(improvement)
 		if not imp_data:
 			return False, f"Unknown improvement '{improvement}'."
-		if tile.terrain not in imp_data["allowed_terrains"]:
-			return False, f"Cannot build {improvement} on {tile.terrain}."
-		return True, ""
+		
+		elif improvement == "Farm":
+			if tile.resource not in ["wheat", "n"]: #...does wheat override everthing except trees? how to code that?
+				return False, "Not a valid resource for farms" # how does this work before we discover iron and horses?
+			elif tile.trees != 0:
+				return False, "Need to remove trees first"
+			elif tile.terrain_type == "t" and not tile.fresh_water: #this is logically wrong, need an OR statement for tundra
+				return False, "Need fresh water to build farm on tundra"
+			elif tile.terrain_type not in ["g", "p", "d"]:
+				return False, "Cannot build farm on this terrain"
+			elif tile.elevation == 1 and not tile.fresh_water:
+				return False, "Need fresh water to build farm on hill"	
+			else:
+				return True, "Can build farm"
+		
+		elif improvement == "Mine":
+			if tile.trees != 0:
+				return False, "Need to remove trees first"			
+			elif tile.resource not in ["iron", "salt", "copper", "gems", "gold", "silver", "n"]:
+				return False, "Cannot build mine unless it is on a hill or has a valid resource"
+			elif tile.elevation != 1:
+				return False, "Cannot build a mine on flat land with no resource"
+			else:
+				return True, "Can build mine"
+		
+		elif improvement == "Pasture":
+			if tile.trees != 0:
+				return False, "Need to remove trees first"			
+			elif tile.resource not in ["cattle", "sheep", "horses"]:
+				return False, "Cannot build pasture without cattle, sheep, or horses"
+			else:
+				return True, "Can build pasture"
+		
+		elif improvement == "Plantation":
+			if tile.trees != 0:
+				return False, "Need to remove trees first"			
+			elif tile.resource not in ["citrus", "dyes", "cotton", "incense", "spices", "sugar", "bananas", "silk"]:
+				return False, "Not a valid resource"
+			else:
+				return True, "Can build plantation"
+				
+		elif improvement == "Quarry":
+			if tile.trees != 0:
+				return False, "Need to remove trees first"			
+			elif tile.resource not in ["stone", "marble"]:
+				return False, "Not a valid resource"
+			else:
+				return True, "Can build quarry"
+		
+		elif improvement == "Camp": #chopping would remove the camp?			
+			if tile.resource not in ["ivory", "truffles", "deer", "bison", "furs"]:
+				return False, "Not a valid resource"
+			else:
+				return True, "Can build quarry"		
+			
+		elif improvement == "Trading Post":
+			if tile.terrain_type not in ["g", "p", "d", "t"]:
+				return False, "Not a valid terrain type"
+			else:
+				return True, "Can build trading post"
 
 	def improve_tile(self, tile, improvement, game):
 		success, msg = self.can_improve_tile(tile, improvement, game)
@@ -107,22 +178,32 @@ class Unit:
 			return False, msg
 	
 		if tile.improvement != improvement:
-			# New improvement requested
 			tile.improvement = improvement
 			tile.improvement_progress = 0
 	
-		tile.improvement_progress += 1
-		self.moves_left -= 1
+		turns_required = 8 #not sure about this logic
+		
+		if "Citizenship" in self.player.unlocked_policies:
+			turns_required -= 2
+			
+		#we're really checking all cities for this every time...?
+		for city in self.player.cities:
+			for building in city:
+				if building.name == "Pyramids":
+					turns_required -= 2
+					
+		if tile.improvement_progress < turns_required:
+			tile.improvement_progress += 1
+			self.moves_left = 0
+		else:
+			return False, f"{improvement} already complete."
 	
-		imp_data = dictionary.IMPROVEMENTS[improvement]
-		if tile.improvement_progress >= imp_data["turns_required"]:
-			tile.improvement_progress = imp_data["turns_required"]
-			if game:
-				game.show_message(f"{improvement.capitalize()} completed on tile ({tile.q}, {tile.r})!", 90)
+		if tile.improvement_progress >= turns_required:
+			tile.improvement = improvement
 			return True, f"{improvement} completed!"
 	
-		return False, f"{improvement} in progress ({tile.improvement_progress}/{imp_data['turns_required']})"
-
+		#wtf is this return?
+		return False, f"{improvement} in progress ({progress}/{required})"
 
 	def reset_movement(self):
 		self.moves_left = self.moves

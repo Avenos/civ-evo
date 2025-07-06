@@ -9,13 +9,14 @@ from renderer import Renderer
 from utils import helper
 
 class RandomAgent:
-	def __init__(self, name="Avenos"):
-		pass	
+	def __init__(self, engine, headless=False):
+		self.engine = engine
+		self.renderer = Renderer()
 		
-	def run_random_agent(engine, headless=False):
+	def run(headless=False):
 		screen, clock, font, big_font, terrain_overlays, resource_icons, unit_icons = helper.init_pygame_assets(headless=headless)
 	
-		start_new_log(engine)
+		start_new_log(self.engine)
 		BASE_WIDTH = WIDTH
 		BASE_HEIGHT = HEIGHT
 		running = True
@@ -28,8 +29,8 @@ class RandomAgent:
 					if event.type == pygame.QUIT:
 						running = False
 	
-			if engine.message_timer > 0:
-				engine.message_timer -= 1
+			if self.engine.message_timer > 0:
+				self.engine.message_timer -= 1
 	
 			legal_actions = engine.get_legal_actions(engine.current_player)
 			if not legal_actions:

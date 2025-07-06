@@ -15,7 +15,7 @@ class AncientRuins:
 	def trigger(self, player, tile, chosen_effect_id=None, chosen_tech=None):
 		effect_id = chosen_effect_id if chosen_effect_id is not None else self.effect_id
 
-		valid_effects = {1,2,3,4,5}
+		valid_effects = {1,2,3,4}
 
 		if effect_id not in valid_effects:
 			raise ValueError(f"Invalid chosen effect ID: {effect_id}")

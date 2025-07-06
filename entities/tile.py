@@ -64,6 +64,7 @@ class Tile:
 			if self.improvement == "Camp" and self.owner.pantheon == "Goddess of the Hunt":
 				resource_food += 1
 
+		#fix
 		if self.improvement == "pasture" and self.resource == "sheep":
 			resource_food += 1
 

@@ -262,7 +262,30 @@ class Renderer():
 		txt = big_font.render("Next Turn", True, constants.WHITE)
 		screen.blit(txt, (next_turn_rect.x + 15, next_turn_rect.y + 10))
 		engine.ui_next_turn_button = next_turn_rect
-	
+
+		# Worker tile improvement buttons
+		engine.ui_tile_improvement_buttons = []
+		if engine.selected_unit and engine.selected_unit.name == "Worker":
+			worker_actions = [
+			    {"label": "Build Farm", "improvement": "Farm"},
+			{"label": "Build Mine", "improvement": "Mine"},
+			{"label": "Build Road", "improvement": "Road"},
+			{"label": "Remove Forest", "improvement": "Remove Forest"},
+		    ]
+			action_y = next_turn_rect.bottom + 10
+			action_height = 30
+			action_width = 120
+			for action in worker_actions:
+				action_rect = pygame.Rect(col1_x, action_y, action_width, action_height)
+				pygame.draw.rect(screen, constants.GRAY, action_rect)
+				txt = font.render(action["label"], True, constants.BLACK)
+				screen.blit(txt, (action_rect.x + 5, action_rect.y + 5))
+				engine.ui_tile_improvement_buttons.append({
+				"rect": action_rect,
+			    "improvement": action["improvement"]
+			})
+				action_y += action_height + 5
+
 		# --- COLUMN 2: TECH PANEL ---
 		col2_x = 1170 + x_offset
 		tech_y = 20

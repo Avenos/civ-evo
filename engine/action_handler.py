@@ -39,6 +39,22 @@ def handle_action(engine, action_type, data, log_actions=True):
 			result = (False, "Unit not found for founding city")
 		else:
 			result = engine.current_player.found_city(unit, engine)
+			
+	elif action_type == "improve_tile":
+		unit_id = data["unit_id"]
+		q, r = data["tile_coords"]
+		improvement = data["improvement"]
+	
+		unit = engine.get_unit_by_id(unit_id)
+		tile = engine.get_tile(q, r)
+	
+		if not unit:
+			return False, "Unit not found."
+		if not tile:
+			return False, "Invalid tile."
+	
+		success, msg = unit.improve_tile(tile, improvement, engine)
+		return success, msg
 
 	elif action_type == "choose_worked_tiles":
 		city_id = data.get("city_id")
@@ -89,7 +105,7 @@ def handle_action(engine, action_type, data, log_actions=True):
 		else:
 			result = city.production_system.choose_project(data["project_name"])
 
-	elif action_type == "set_research":
+	elif action_type == "choose_research":
 		result = engine.current_player.science_system.set_current_research(data["tech_name"]) 
 
 	elif action_type == "purchase_unit":
@@ -134,14 +150,14 @@ def handle_action(engine, action_type, data, log_actions=True):
 	}
 
 	status = "VALID" if result[0] else f"INVALID ({result[1]})"
-	#print(f"ACTION: {json.dumps(action_summary, separators=(',', ':'))} --> {status}")
+	print(f"ACTION: {json.dumps(action_summary, separators=(',', ':'))} --> {status}")
 
-	#legal_actions = engine.get_legal_actions(engine.current_player)
-	#print("Legal actions:")
-	#for action in legal_actions:
-		#print(f" - {action['action']} | { {k: v for k, v in action.items() if k != 'action'} }")
+	legal_actions = engine.get_legal_actions(engine.current_player)
+	print("Legal actions:")
+	for action in legal_actions:
+		print(f" - {action['action']} | { {k: v for k, v in action.items() if k != 'action'} }")
 
-	#print("\n")
+	print("\n")
 	return result
 
 def start_new_log(engine, prefix="replay", folder="replays"):

@@ -6,6 +6,37 @@ import heapq
 from collections import deque
 from data import dictionary, constants
 
+def get_improvement_turns_required(improvement, game):
+	base_turns = {
+            "Farm": 3,
+        "Mine": 4,
+        "Road": 2,
+        "Pasture": 3,
+        # etc.
+        }.get(improvement, 3)  # default 3
+
+	# Adjust based on policies or wonders
+	if game.has_policy("Faster Improvements"):
+		base_turns = max(1, base_turns - 1)
+
+	if game.has_wonder("Great Workshop"):
+		base_turns = max(1, base_turns - 1)
+
+	return base_turns
+
+def get_valid_improvements(tile, player):
+	valid = []
+	for name, data in dictionary.IMPROVEMENTS.items():
+		if tile.terrain_type not in data.get("valid_terrains", []):
+			continue
+		if tile.feature in data.get("requires_feature_absent", []):
+			continue
+		tech_req = data.get("tech_required")
+		if tech_req and tech_req not in player.science_system.get_unlocked_tech_names():
+			continue
+		valid.append(name)
+	return valid
+
 def init_pygame_assets(headless=False):
 	import ctypes
 	import os
@@ -309,7 +340,7 @@ def is_adjacent_to_owned_tile(tile, player, engine):
 
 	for dq, dr in offsets:
 		nq, nr = q + dq, r + dr
-		if 0 <= nq < GRID_WIDTH and 0 <= nr < GRID_HEIGHT:
+		if 0 <= nq < constants.GRID_WIDTH and 0 <= nr < constants.GRID_HEIGHT:
 			neighbors.append((nq, nr))
 	for nq, nr in neighbors:
 		neighbor_tile = engine.tiles[nq][nr]
@@ -339,7 +370,16 @@ def spawn_unit_near_capital(player, game, name, message):
 
 def build_policy_objects(policy_dict):
 	from entities import Policy
-	return {name: Policy(name, **details) for name, details in policy_dict.items()}
+
+	policies = {}
+	for name, details in policy_dict.items():
+		era = details.get("era", "Ancient")  # Default to "Ancient" if not specified
+		prerequisites = details.get("prerequisites", None)
+		desc = details.get("desc", "")
+
+		policies[name] = Policy(name, era, prerequisites=prerequisites, desc=desc)
+
+	return policies
 
 def build_tech_objects(tech_dict):
 	from entities import Tech

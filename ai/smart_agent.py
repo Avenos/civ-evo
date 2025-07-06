@@ -9,9 +9,9 @@ from .state_encoder import StateEncoder
 from engine import Engine, action_handler
 
 ACTION_TYPES = [
-	"move_unit", "found_city", "choose_project", "set_research",
+	"move_unit", "found_city", "choose_project", "choose_research",
 	"purchase_unit", "purchase_building", "purchase_tile",
-	"choose_pantheon", "choose_policy", "choose_worked_tiles",
+	"choose_pantheon", "choose_policy", "improve_tile",
 	"assign_tile", "unassign_tile", "end_turn"
 ]
 
