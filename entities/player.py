@@ -78,7 +78,7 @@ class Player:
 	@property
 	def happiness(self):
 		happiness = 9 # Base happiness
-		happiness += 4 * len(set(self.improved_tiles)) # +4 happiness for each unique luxury resource
+		happiness += 4 * len(set(self.improved_tiles)) # +4 happiness for each unique luxury resource hmmmm
 		happiness += 1 # +1 for discovering natural wonders
 		happiness += sum(city.local_happiness for city in self.cities) # Local city happiness
 
@@ -94,6 +94,10 @@ class Player:
 
 		if self.pantheon == "Goddess of Love":
 			happiness += sum(1 for city in self.cities if city.population >= 6)
+			
+		if self.pantheon == "Sacred Waters":
+			pass #hmmmmm need tile refernce in city yeah?
+			#happiness += 1 sum(for city in self.cities if city.)
 
 		#need owned tile list?
 		#if any(tile.resource == "kailash" for tile in self.owned_tiles):
@@ -117,7 +121,7 @@ class Player:
 
 		unhappiness = city_unhappiness + citizen_unhappiness
 
-		return math.floor(happiness - unhappiness)
+		return math.floor(happiness - unhappiness) + 100
 
 	@property
 	def science_per_turn(self):
@@ -160,12 +164,19 @@ class Player:
 		if "Monarchy" in self.unlocked_policies and capital:
 			income += capital.population // 2
 
-		luxury_counts = Counter(self.luxuries)
-		income += sum((count - 1) * 7 for count in luxury_counts.values() if count > 1) #trading simulation... need to offer exchange as well...
+		#simulate trading luxes... but we should have a choice to trade for happiness as well?
+		#luxury_counts = Counter(self.luxuries)
+		#income += sum((count - 1) * 7 for count in luxury_counts.values() if count > 1) #trading simulation... need to offer exchange as well...
 
+		#simulate embassies
+		#income += 1 for turns 20, 30, 40, 50, 55, 60, 65, 70
+		
 		expenses = len(self.improved_tiles) #that are in territory?
 		expenses += 2 * len(self.units)
-		#building maintenance cost is the sum of all maintenance on all buildings in all cities? i dont think its local...
+		
+		for city in self.cities:
+			for building in city.buildings:
+				expenses += building.maintenance
 
 		return income - expenses
 
@@ -188,6 +199,19 @@ class Player:
 	
 	def can_choose_policy(self, policy_name, game):
 		policy = game.all_policies.get(policy_name)
+		
+		if policy.era:
+			try:
+				era_order = dictionary.ERAS
+				player_era_index = era_order.index(self.current_era)
+				required_era_index = era_order.index(policy.era)
+			except ValueError:
+				return False, f"Internal error: Unknown era '{policy.era}' in policy {policy.name}"
+	
+			if player_era_index < required_era_index:
+				return False, f"{policy.name} requires the {policy.era} Era (you are in {self.current_era})."
+			
+		
 		if not policy:
 			return False, "Invalid policy choice."
 	
@@ -200,17 +224,6 @@ class Player:
 		if not policy.can_unlock(self):
 			return False, "You don't meet the prerequisites for this policy."
 
-		if policy.era:
-			try:
-				era_order = dictionary.ERAS
-				player_era_index = era_order.index(self.current_era)
-				required_era_index = era_order.index(policy.era)
-			except ValueError:
-				return False, f"Internal error: Unknown era '{policy.era}' in policy {policy.name}"
-	
-			if player_era_index < required_era_index:
-				return False, f"{policy.name} requires the {policy.era} Era (you are in {self.current_era})."
-	
 		return True, "Policy can be chosen."
 
 	def choose_policy(self, policy_name, game):
@@ -222,12 +235,11 @@ class Player:
 		self.culture -= self.policy_cost
 		self.unlocked_policies.append(policy.name)
 
-		# Apply immediate policy bonuses
 		if policy.name == "Collective Rule":
-			helper.spawn_unit_near_capital(self, game, "Settler", "A free Settler has arrived!")
+			helper.spawn_unit_near_capital(self, game, "Settler")
 
 		elif policy.name == "Citizenship":
-			helper.spawn_unit_near_capital(self, game, "Worker", "A free Worker has arrived!")
+			helper.spawn_unit_near_capital(self, game, "Worker")
 
 		elif policy.name == "Representation":
 			self.start_golden_age()
@@ -258,7 +270,7 @@ class Player:
 
 	@property
 	def pantheon_threshold(self):
-		return 100 #+ 5 * (self.turn // 10)  # Assuming self.turn is updated	
+		return 30 #+ 5 * (self.turn // 10)  # Assuming self.turn is updated	
 
 	def can_choose_pantheon(self):
 		if self.pantheon:
@@ -271,7 +283,7 @@ class Player:
 		success, msg = self.can_choose_pantheon()
 
 		if not success:
-			return False, message
+			return False, msg
 
 		self.faith = 0
 		self.pantheon = pantheon_name

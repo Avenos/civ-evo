@@ -13,9 +13,11 @@ class Tile:
 		self.owner = None
 
 		self.improvement = None
-		self.improvement_progress = 0  # turns worked on improvement...
-		self.road = 0
+		self.improvement_progress = 0
+		self.improvement_complete = False
 		self.road_progress = 0
+		self.road_complete = False
+		
 		self.unit = None  # or maybe a list if you support stacking in the future
 		self.rivers = set()  # Set of edge indices (0 through 5) with rivers
 		self.fresh_water = False
@@ -64,9 +66,13 @@ class Tile:
 			if self.improvement == "Camp" and self.owner.pantheon == "Goddess of the Hunt":
 				resource_food += 1
 
-		#fix
-		if self.improvement == "pasture" and self.resource == "sheep":
+		#fix?
+		if self.improvement == "Pasture" and self.improvement_complete and self.resource == "sheep":
 			resource_food += 1
+			
+		#need more logic here
+		if self.improvement == "Farm" and self.improvement_complete:
+			resource_food += 1 #2 if civil service and fresh water
 
 		return base_food + resource_food
 
@@ -96,7 +102,10 @@ class Tile:
 			# Other resources (like stone or deer) may always provide bonus.... what?
 			resource_production = dictionary.RESOURCES.get(self.resource, {}).get("production", 0)
 
-		if self.improvement == "pasture" and (self.resource == "horses" or elf.resource == "cattle" ):
+		if self.improvement == "Pasture" and self.improvement_complete and (self.resource == "horses" or elf.resource == "cattle" ):
+			resource_production += 1
+
+		if self.improvement == "Mine" and self.improvement_complete:
 			resource_production += 1
 
 		return base_production + resource_production
@@ -115,11 +124,18 @@ class Tile:
 		if self.owner and self.owner.in_golden_age and gold >= 1:
 			gold += 1
 
+		if self.improvement == "Trading Post" and self.improvement_complete:
+			gold += 1
+			
 		return gold
 
 	@property
 	def science(self):
 		science = self.terrain_data.get("science", 0)
+		
+		if self.improvement == "Academy" and self.improvement_complete:
+			science += 8
+			
 		return science
 
 	@property
@@ -135,9 +151,14 @@ class Tile:
 
 	@property
 	def faith(self):
-		#what about desert folklore?
+		faith = 0
+		
+		if self.owner and self.owner.pantheon == "Desert Folklore" and self.terrain_type == 'd':
+			faith +=1
+			
 		if self.resource == "kailash":
 			if self.owner and self.owner.pantheon == "One with Nature":
-				return 10
-			return 6
-		return 0
+				faith += 10
+			else:
+				faith += 6
+		return faith

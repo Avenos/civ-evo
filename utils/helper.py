@@ -6,37 +6,6 @@ import heapq
 from collections import deque
 from data import dictionary, constants
 
-def get_improvement_turns_required(improvement, game):
-	base_turns = {
-            "Farm": 3,
-        "Mine": 4,
-        "Road": 2,
-        "Pasture": 3,
-        # etc.
-        }.get(improvement, 3)  # default 3
-
-	# Adjust based on policies or wonders
-	if game.has_policy("Faster Improvements"):
-		base_turns = max(1, base_turns - 1)
-
-	if game.has_wonder("Great Workshop"):
-		base_turns = max(1, base_turns - 1)
-
-	return base_turns
-
-def get_valid_improvements(tile, player):
-	valid = []
-	for name, data in dictionary.IMPROVEMENTS.items():
-		if tile.terrain_type not in data.get("valid_terrains", []):
-			continue
-		if tile.feature in data.get("requires_feature_absent", []):
-			continue
-		tech_req = data.get("tech_required")
-		if tech_req and tech_req not in player.science_system.get_unlocked_tech_names():
-			continue
-		valid.append(name)
-	return valid
-
 def init_pygame_assets(headless=False):
 	import ctypes
 	import os
@@ -50,19 +19,17 @@ def init_pygame_assets(headless=False):
 	pygame.display.init()
 	pygame.font.init()
 
-	# Create normal window (resizable), then maximize it
 	screen = pygame.display.set_mode((800, 600), pygame.RESIZABLE)
-	pygame.display.set_caption("Civ V Build Order Optimizer Replay")
+	pygame.display.set_caption("Civ V Build Order Optimizer")
 
 	# Maximize the window (Windows only)
 	hwnd = pygame.display.get_wm_info()["window"]
-	ctypes.windll.user32.ShowWindow(hwnd, 3)  # SW_MAXIMIZE
+	ctypes.windll.user32.ShowWindow(hwnd, 3)
 
 	clock = pygame.time.Clock()
 	font = pygame.font.SysFont(None, 20)
 	big_font = pygame.font.SysFont(None, 24)
 
-	# Load terrain overlays
 	terrain_overlays = {}
 	for filename in os.listdir("assets"):
 		if filename.endswith(".png"):
@@ -70,13 +37,11 @@ def init_pygame_assets(headless=False):
 			image = pygame.image.load(os.path.join("assets", filename)).convert_alpha()
 			terrain_overlays[key] = image
 
-	# Load icon images
 	yield_types = ["food", "production", "gold", "science", "culture", "faith", "happiness", "unhappiness"]
 	icon_images = {}
 	for yield_type in yield_types:
 		icon_images[yield_type] = pygame.image.load(f"assets/icons/{yield_type}.png").convert_alpha()
 
-	# Load unit icons
 	unit_icons = {}
 	for filename in os.listdir("assets/units"):
 		if filename.lower().endswith(".png"):
@@ -263,12 +228,12 @@ def assign_fresh_water_flags(game):
 			tile.fresh_water = has_fresh_water(tile, game)
 
 def has_fresh_water(tile, game):
-	if tile.rivers or tile.terrain_type == "lake" or tile.resource == "oasis":
+	if tile.rivers or tile.terrain_type == "l" or tile.resource == "oasis": #does oasis provide fresh water? flood plains? or just rivers for that
 		return True
 
 	for q2, r2 in hex_neighbors(tile.q, tile.r):
 		neighbor = game.tiles[q2][r2]
-		if neighbor.terrain_type == "lake" or neighbor.resource == "oasis":
+		if neighbor.terrain_type == "l" or neighbor.resource == "oasis":
 			return True
 	return False
 
@@ -328,29 +293,15 @@ def add_river(tile, edge_index, tiles_map):
 		# Neighbor is off-map
 		pass
 
-#expensive?
 def is_adjacent_to_owned_tile(tile, player, engine):
-	q, r = tile.q, tile.r
-	neighbors = []
-
-	if r % 2 == 0:
-		offsets = dictionary.EVEN_ROW_NEIGHBORS.values()
-	else:
-		offsets = dictionary.ODD_ROW_NEIGHBORS.values()
-
-	for dq, dr in offsets:
-		nq, nr = q + dq, r + dr
-		if 0 <= nq < constants.GRID_WIDTH and 0 <= nr < constants.GRID_HEIGHT:
-			neighbors.append((nq, nr))
-	for nq, nr in neighbors:
+	for nq, nr in hex_neighbors(tile.q, tile.r):
 		neighbor_tile = engine.tiles[nq][nr]
 		owner = neighbor_tile.owner
 		if owner == player:
 			return True
-
 	return False
 
-def spawn_unit_near_capital(player, game, name, message):
+def spawn_unit_near_capital(player, game, name):
 	if not player.cities:
 		game.show_message(f"No cities to place free {name}!", 120)
 		return False
@@ -362,7 +313,7 @@ def spawn_unit_near_capital(player, game, name, message):
 		tile = game.tiles[nq][nr]
 		if tile.unit is None and tile.city is None:
 			game.spawn_unit(player, name, nq, nr)
-			game.show_message(message, 120)
+			game.show_message(f"A free {name} has arrived!", 120)
 			return True
 
 	game.show_message(f"No space near capital to place {name}!", 120)

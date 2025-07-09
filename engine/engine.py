@@ -3,7 +3,7 @@ import json
 from utils import helper
 from data import constants, dictionary
 
-from entities import Tile, Unit, City, Player
+from entities import Tile, Unit, City, Player, AncientRuins
 from engine import action_handler
 
 class EnvWrapper:
@@ -62,6 +62,8 @@ class Engine:
 				tile = Tile(q, r, terrain, elevation, trees, resource)
 				tile_col.append(tile)
 			self.tiles.append(tile_col)
+			
+		helper.assign_fresh_water_flags(self)
 
 		self.ui_found_city_button = None
 		self.ui_next_turn_button = None
@@ -86,7 +88,10 @@ class Engine:
 		self.spawn_unit(self.players[0], "Worker", 8, 8)
 		self.spawn_unit(self.players[0], "Settler", 9, 8)
 		self.spawn_unit(self.players[0], "Warrior", 10, 8)
-
+		self.spawn_unit(self.players[0], "Settler", 9, 9)
+		
+		self.tiles[6][6].ancient_ruin = AncientRuins(2)
+		
 		self.selected_unit = None
 		self.selected_city = None
 
@@ -107,7 +112,6 @@ class Engine:
 			if player.can_found_city(unit, self)[0]:
 				actions.append({"action": "found_city", "data": {"unit_id": unit.id}})
 
-		# TILE IMPROVEMENT LOGIC
 		for unit in player.units:
 			if unit.name == "Worker":
 				tile = self.get_tile(unit.q, unit.r)

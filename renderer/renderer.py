@@ -62,12 +62,12 @@ class Renderer():
 				if tile.ancient_ruin:
 					ar_text = "AR"
 					ar_surf = font.render(ar_text, True, (139, 69, 19))
-					ar_rect = ar_surf.get_rect(center=(x, y + HEX_RADIUS // 2))
+					ar_rect = ar_surf.get_rect(center=(x, y + constants.HEX_RADIUS // 2))
 					screen.blit(ar_surf, ar_rect)
 	
 					# --- Draw tile yield icons ---
 					yield_offset_x = -20  # Adjust horizontal spacing between icons
-					yield_offset_y = HEX_RADIUS // 3  # Slightly below center of tile
+					yield_offset_y = constants.HEX_RADIUS // 3  # Slightly below center of tile
 	
 				icon_spacing = 16
 				yield_offset_x = -10
@@ -185,7 +185,7 @@ class Renderer():
 		player = engine.current_player
 		resources = [
 			("science", f"+{player.science_per_turn}"),
-			("gold", f"{player.gold} +{player.gold_per_turn}"),
+			("gold", f"{player.gold} +{player.gold_per_turn}"), #negative display?
 			("happiness", f"{player.happiness} {player.happiness_points}/{player.happiness_points_needed_for_golden_age}"),
 			("culture", f"{player.culture}/{player.policy_cost} +{player.culture_per_turn}"),
 			("faith", f"{player.faith} +{player.faith_per_turn}"),

@@ -113,15 +113,16 @@ class City:
 		base_threshold = 15 * (self.border_expansions + 1)
 
 		if "Tradition" in self.owner.social_policies:
-			return base_threshold // 2 #probabl =y not accurate
+			return base_threshold // 2 #probably not accurate
 
 		return base_threshold
 
 	#do we really need to call this constantly... is that what properties do?
+	#self? only call when a new road is built?
 	@property
-	def has_city_connection(city, capital, all_tiles):
+	def has_city_connection(cuty, capital, all_tiles):
 		if city == capital:
-			return True
+			return False #i dont think capital counts?
 
 		visited = set()
 		queue = deque()
@@ -201,7 +202,6 @@ class City:
 
 		return growth_modifier * difference if difference >= 0 else difference
 
-
 	@property
 	def food_needed_for_growth(self):
 		n = self.population
@@ -239,6 +239,48 @@ class City:
 					self.aqueduct_basket = 0
 			else:
 				self.food += self.food_per_turn	
+
+
+	@property
+	def production_per_turn(self):
+		worked_production = sum(tile.production for tile in self.worked_tiles)
+		unassigned_workers = self.population - len(self.worked_tiles)
+		bonus_from_unemployed = max(0, unassigned_workers) * 1
+		from_buildings = sum(b.production for b in self.buildings if b.completed)
+
+		total = worked_production + bonus_from_unemployed + from_buildings
+
+		if "Republic" in self.owner.unlocked_policies:
+			total += 1
+
+		if self.owner.pantheon == "God-King" and self.is_capital == True:
+			total += 1
+
+		if self.owner.pantheon == "God of Craftsmen" and self.population >= 3:
+			total += 1			
+
+		percent_modifier = 1
+
+		if "Republic" in self.owner.unlocked_policies and isinstance(self.production_system.current_project, Building):
+			percent_modifier += 0.05
+			
+		if "Aristocracy" in self.owner.unlocked_policies and isinstance(self.production_system.current_project, Building) and self.production_system.current_project.wonder:
+			percent_modifier += 0.15 #correct? also not for national wonders right		
+
+		if self.owner.in_golden_age:
+			percent_modifier += 0.2
+
+		if self.owner.happiness < 0:
+			percent_modifier -= 0.02 * self.owner.happiness		
+
+		return percent_modifier * total
+
+	@property
+	def current_project_name(self):
+		if self.production_system.current_project:
+			return self.production_system.current_project.name
+		return None
+
 
 	@property
 	def culture(self):
@@ -301,49 +343,15 @@ class City:
 
 		return percent_modifier * total_gold
 
-	@property
-	def production_per_turn(self):
-		worked_production = sum(tile.production for tile in self.worked_tiles)
-		unassigned_workers = self.population - len(self.worked_tiles)
-		bonus_from_unemployed = max(0, unassigned_workers) * 1
-		from_buildings = sum(b.production for b in self.buildings if b.completed)
-
-		total = worked_production + bonus_from_unemployed + from_buildings
-
-		if "Republic" in self.owner.unlocked_policies:
-			total += 1
-
-		if self.owner.pantheon == "God-King" and self.is_capital == True:
-			total += 1
-
-		if self.owner.pantheon == "God of Craftsmen" and self.population >= 3:
-			total += 1			
-
-		percent_modifier = 1
-
-		if "Republic" in self.owner.unlocked_policies and isinstance(self.production_system.current_project, Building):
-			percent_modifier += 0.05
-
-		if self.owner.in_golden_age:
-			percent_modifier += 0.2
-
-		if self.owner.happiness < 0:
-			percent_modifier -= 0.02 * self.owner.happiness		
-
-		return percent_modifier * total
-
-	@property
-	def current_project_name(self):
-		if self.production_system.current_project:
-			return self.production_system.current_project.name
-		return None
-
 	def can_purchase_tile(self, tile, engine):
 		player = self.owner
 		q, r = tile.q, tile.r
-
+		
+		if not helper.in_bounds(q, r):
+			return False, "Tile out of bounds."
+		
 		if tile.owner is not None:
-			return False, "Tile already owned by another player."
+			return False, "Tile already owned by someone"
 
 		if helper.hex_distance(self.q, self.r, q, r) > 3:
 			return False, "Tile is too far from the city (must be within 3 tiles)."
@@ -357,13 +365,12 @@ class City:
 		return True, None
 
 	def purchase_tile(self, tile, engine):
-		can_buy, msg = self.can_purchase_tile(tile, engine)
-		if not can_buy:
+		success, msg = self.can_purchase_tile(tile, engine)
+		if not success:
 			return False, msg
 
-		player = self.owner
-		player.gold -= self.PURCHASE_COST
-		tile.owner = player
+		self.owner.gold -= self.PURCHASE_COST
+		tile.owner = self.owner
 
 		return True, f"Tile purchased for {self.PURCHASE_COST}g!"
 

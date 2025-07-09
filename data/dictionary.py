@@ -7,40 +7,43 @@
 #900 + 97 gold per turn
 
 #major:
-#finalize tile improvement system, and all dependent bonuses. roads - flood plains? marsh?
+#finalize tile improvement system, and all dependent bonuses, flood plains? marsh?
+#forced actions?
+#how exactly do properties update?
 #border growth algorithm and formula 15 25 40 north cotton then dyes them cotton
-#speed monitoring and efficiency
+#roads? machinery? bridges over rivers? chopping also
+#purchase system finalize, purhcased things landing on same tile... stacking system?
+#verify forests at top part of minimap #define all rivers, add columns
+#tile purchasing cost algorithm
+#city connections verify and speed
+#select production projects each turn if they are no longer valid after all relevant actions. production applied at BEGINNING of turn. 1 turn left on NC and buiilt a city? it doesnt complete. right?
+#figure out gpt formula: 1war and 1 worker =  1gpt
+#program all building effects, stoneworks, stable, lighthouse, verify aqeuduct, etc
+#city itself tile yield values? settling on luxes also city roads maintenance?? 
+#trade routes caravans ability
+
+#speed monitoring and efficiency*
 #actually get the neural network functional
 
 #minor:
-#show growth and prod status of indiviual cities
-#purchase system finalize, purhcased things landing on same tile... stacking system?
-#verify forests at top part of minimap #define all rivers, add columns
+#do we let the AI CHOOSE between pop and culture and free tech? yeah. whatever it wants. #does pop growth ancient ruins help expand borders?
+#if we click outside grid, no invalid tile error msg...
+#luxuries, also trading
+#era advancement
+#golden age negqative happiness?
+#are embassies required to trade?
+#show growth and prod status of indiviual cities, also visual tile improvements
 #make ui nice food decimal rounding? #happiness, gold and culture are ints?
-#tile purchasing cost algorithm
-#does pop growth help expand borders?
-#do we let the AI CHOOSE between pop and culture and free tech? yeah. whatever it wants.
 #verify science system overflow, display?
-#select production projects each turn if they are no longer valid after all relevant actions. production applied at BEGINNING of turn. 1 turn left on NC and buiilt a city? it doesnt complete. right?
-#policies effects finalize
-#pantheon system finalize impllement do NEW cities not auto get pantheons or do they?
-#city connections verify
-#program all building effects, stoneworks, stable, lighthouse, verify aqeuduct, etc
-#city itself tile yield values? settling on luxes also city roads maintenance?? 
+#pantheon system do NEW cities not auto get pantheons or do they?
 #negative gold penalties check
-#trade routes caravans ability
-#roads? machinery? bridges over rivers?
-#figure out gpt formula: 1war and 1 worker =  1gpt
-#player era and policy tree prereqs
 #golden age verify tile gold also point req func, stacking?
-#embassies sim
 #yield icons and toggle
 #meeting people tech boost?
 #wonders allowed toa by 42 pyramids by 52 else gold?
 #great person slots
-
-#stretch
-##hover formulas? multi civ? map importer? standard map size? research agreements? sell buildings? FREE policies pretend we are poland?
+#Extensible: multi civ? map importer? standard map size? 
+#Stretch: hover formulas? research agreements? sell buildings? delete units? FREE policies pretend we are poland?
 
 PLAYER_COLORS = [
     (0, 255, 0, 50),       # Player 0 — Green
@@ -123,7 +126,6 @@ BUILDINGS = {
     "Temple of Artemis": {"culture": 1, "production_cost": 185, "techs_required": ["Archery"], "wonder": True}, #Implemented except GE point and ranged bonus
     "Stone Works": {"maintenance": 1, "production_cost": 75, "techs_required": ["Calendar"], "gold_cost": 320}, #city must have a quarry
     "Forge": {},
-    "Lighthouse": {},
     "Stable": {"maintenance": 1, "production_cost": 100, "techs_required": ["Horseback Riding"], "gold_cost": 500},
     "Pyramids": {"production_cost": 185, "techs_required": ["Masonry"], "policies_required": ["Liberty"], "wonder": True},
     "National College": {"science": 3, "science_percentage": 0.5, "production_cost": 125, "techs_required": ["Philosophy"], "national_wonder": True}, #production_cost depends on cities...
@@ -135,7 +137,7 @@ BUILDINGS = {
     "Aqueduct": {"maintenance": 1, "production_cost": 100, "techs_required": ["Engineering"], "gold_cost": 400}, #Implemented should probably test
     "Colosseum": {"maintenance": 1, "happiness": 2, "production_cost": 100, "techs_required": ["Construction"], "gold_cost": 500}, #Implemented
     "University": {"maintenance": 2, "science_percentage": 0.33, "production_cost": 160, "techs_required": ["Education"], "buildings_required": ["Library"], "gold_cost": 660}, #GS slots
-    "Market": {"gold": 1, "production_cost": 100, "techs_required": ["Currency"], "gold_cost": 500},
+    "Market": {"gold": 1, "gold_percentage": 0.25, "production_cost": 100, "techs_required": ["Currency"], "gold_cost": 500},
     "Mint": {"production_cost": 100, "techs_required": ["Currency"], "gold_cost": 500}, #Implemented
     "Artists' Guild": {"maintenance": 1, "production_cost": 150, "techs_required": ["Guilds"], "national_wonder": True},
     "Writers' Guild": {"maintenance": 1, "production_cost": 100, "techs_required": ["Drama and Poetry"], "national_wonder": True},
@@ -186,7 +188,7 @@ IMPROVEMENTS = {
     "Plantation": { "tech_required": "Calendar" },
     "Quarry": { "tech_required": "Masonry" },
     "Camp": { "tech_required": "Trapping" },
-    "Trading Post": { "tech_required": "Guilds" },	
+    "Trading Post": { "tech_required": "Guilds" },
     "Road": {"tech_required": "The Wheel"},
     "None": {},
 }
@@ -212,7 +214,7 @@ TECHS = {
     "Construction": {"base_cost": 105, "prerequisites": ["The Wheel", "Masonry"], "era": "classical"}, #colosseum, lumber mill
 
     "Philosophy": {"base_cost": 175, "prerequisites": ["Calendar", "Writing"], "era": "classical"}, #nat college, oracle
-    "Drama and Poetry": {"base_cost": 175, "prerequisites": ["Writing"], "era": "classical"}, #writers guild"
+    "Drama and Poetry": {"base_cost": 175, "prerequisites": ["Writing"], "era": "classical"}, #writers guild
     "Currency": {"base_cost": 175, "prerequisites": ["Mathematics"], "era": "classical"}, #mint, market
     "Engineering": {"base_cost": 175, "prerequisites": ["Mathematics", "Construction"], "era": "classical"}, #aqueduct, bridge over river, extra trade route
     "Iron Working": {"base_cost": 175, "prerequisites": ["Bronze Working"], "era": "classical"}, #check cost
@@ -230,16 +232,16 @@ TECHS = {
     "Steel": {"base_cost": 485, "prerequisites": ["Metal Casting"], "era": "medieval"},
 
     "Astronomy": {"base_cost": 780, "prerequisites": ["Compass", "Education"], "era": "renaissance"}, #observatory
-    "Acoustics": {"base_cost": 780, "prerequisites": ["Education"], "era": "renaissance"}, #sistine chapel*
+    "Acoustics": {"base_cost": 780, "prerequisites": ["Education"], "era": "renaissance"}, #sistine chapel
     "Banking": {"base_cost": 780, "prerequisites": ["Education", "Chivalry"], "era": "renaissance"}, #bank, forbidden palace, trade route
-    "Printing Press": {"base_cost": 780, "prerequisites": ["Chivalry", "Machinery", "Physics"], "era": "renaissance"}, #zoo, leaning tower*
+    "Printing Press": {"base_cost": 780, "prerequisites": ["Chivalry", "Machinery", "Physics"], "era": "renaissance"}, #zoo, leaning tower
     "Gunpowder": {"base_cost": 780, "prerequisites": ["Physics", "Steel"], "era": "renaissance"}
 }
 
 POLICIES = {
     "Tradition": {"desc": "Greatly increases rate of border growth. +3 Culture. Allows hanging gardens", "prerequisites": []}, #Implemented except border
-    "Aristocracy": {"desc": "+1 happiness for every 10 citizens in a city. +15% wonder production", "prerequisites": ["Tradition"]}, #Implemented happ
-    "Oligarchy": {"desc": "Units in cities cost no maintenance", "prerequisites": ["Tradition"]},
+    "Aristocracy": {"desc": "+1 happiness for every 10 citizens in a city. +15% wonder production", "prerequisites": ["Tradition"]}, #Implemented
+    "Oligarchy": {"desc": "Units in cities cost no maintenance", "prerequisites": ["Tradition"]}, #Implemented
     "Legalism": {"desc": "First four cities get a FREE monument if they don't already have one", "prerequisites": ["Oligarchy"]}, #Implemented
     "Landed Elite": {"desc": "+2 food and +10% excess food in the capitol", "prerequisites": ["Legalism"]}, #Implemented
     "Monarchy": {"desc": "+1 gold and -1 unhappiness for every 2 citizens in the capital", "prerequisites": ["Legalism"]}, #Implemented
@@ -247,21 +249,21 @@ POLICIES = {
 
     "Liberty": {"desc": "+1 culture per city. Allows pyramids", "prerequisites": []}, #Implemented
     "Republic": {"desc": "+1 production per city, 5% more building production", "prerequisites": ["Liberty"]}, #Implemented
-    "Citizenship": {"desc": "Immediate worker, workers upgrade tiles 25% faster", "prerequisites": ["Liberty"]},
-    "Collective Rule": {"desc": "Immediate settler, settlers cost 50% less.", "prerequisites": ["Republic"]},
+    "Citizenship": {"desc": "Immediate worker, workers upgrade tiles 25% faster", "prerequisites": ["Liberty"]}, #Implemented
+    "Collective Rule": {"desc": "Immediate settler, settlers cost 50% less.", "prerequisites": ["Republic"]}, #Implemented
     "Representation": {"desc": "Immediate golden age, culture cost from extra cities is 33% less", "prerequisites": ["Citizenship"]}, #Implemented
     "Meritocracy": {"desc": "+1 happiness for each city connected to capitol, also -5% unhappiness from citizens", "prerequisites": ["Citizenship"]}, #Implemented
     #great scientist/engineer upon completion
 
-    "Patronage": {"desc": "City state rep is more resilient. Allows forbidden palace", "era": "classical"}, #Implemented
-    "Commerce": {"desc": "Gold yields up 25% in capital. Allows big ben", "era": "medieval"}, #Implemented
+    "Patronage": {"desc": "City state rep is more resilient. Allows forbidden palace", "era": "Classical"}, #Implemented
+    "Commerce": {"desc": "Gold yields up 25% in capital. Allows big ben", "era": "Medieval"}, #Implemented
 
-    "Rationalism": {"desc": "Global science up 10%. Allows porcelain tower", "era": "rennaisance"} #Implemented
+    "Rationalism": {"desc": "Global science up 10%. Allows porcelain tower", "era": "Renaissance"} #Implemented
 }
 
 PANTHEONS = {
-    "Oral Tradition": {"desc": " +1 Culture from Plantations"}, #Implemented
-    "Goddess of Love": {"desc": " +1 Happiness from cities with Population of 6+"}, #Implemented
+    "Oral Tradition": {"desc": "+1 Culture from Plantations"}, #Implemented
+    "Goddess of Love": {"desc": "+1 Happiness from cities with Population of 6+"}, #Implemented
     "God of Craftsmen": {"desc": "+1 Production in cities with Population of 3+"}, #Implemented
     "Fertility Rites": {"desc": "+10% Growth in all cities"}, #Implemented
     "Goddess of the Hunt": {"desc": "+1 Food from Camps"}, #Implemented
@@ -270,6 +272,7 @@ PANTHEONS = {
     "Sacred Waters": {"desc": "+1 Happiness from cities on rivers"},
     "Sun God": {"desc": "+1 Food for each Bananas, Citrus, and Wheat resource"}, #Implemented
     "One with Nature": {"desc": "+4 faith from natural wonders"}, #Implemented for kailash only
+    "Desert Folklore": {"desc": "+1 faith from each desert tile"}, #Implemented
 }
 
 # Influence cost lookup by terrain/feature

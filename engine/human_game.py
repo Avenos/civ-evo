@@ -89,9 +89,9 @@ class HumanGame:
 										"improvement": improvement
 									}
 									success, message = handle_action(self.engine, "improve_tile", action_data)
-									self.engine.show_message(message if not success else f"Started {improvement}", 90)
+									self.engine.show_message(message, 90)
 								else:
-									self.engine.show_message("No worker selected.", 90)
+									self.engine.show_message("No unit selected.", 90)
 								logical_click_handled = True
 								break
 
@@ -225,21 +225,22 @@ class HumanGame:
 					if tile.improvement and tile.improvement_progress is not None:
 						# Default to 3 if you want a safe fallback
 						progress = tile.improvement_progress
-						# Estimate total turns if available
+						# Estimate total turns if available this is very bad.....
 						base_turns = {
 							"Farm": 3,
-							"Mine": 4,
-							"Road": 2,
+							"Mine": 3,
+							"Road": 3,
 							"Pasture": 3,
-							"Plantation": 4,
-							"Quarry": 4,
+							"Plantation": 3,
+							"Quarry": 3,
 							"Camp": 3,
 						}.get(tile.improvement, 3)
 						info_lines.append(f"Progress: {progress}/{base_turns}")
 			
+					#only show if not zero
 					info_lines += [
 						f"Resource: {tile.resource or 'None'}",
-						f"Fresh water: {tile.fresh_water or 'None'}",
+						f"Fresh water: {tile.fresh_water}",
 						f"Food: {tile.food}",
 						f"Production: {tile.production}",
 						f"Science: {tile.science}",

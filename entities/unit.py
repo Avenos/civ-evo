@@ -82,6 +82,7 @@ class Unit:
 		if to_tile.ancient_ruin:
 			ruin = to_tile.ancient_ruin
 			ruin.trigger(self.player, to_tile)
+			#make an actual message?
 			print(f"Ancient Ruins triggered: {ruin.description}")
 
 		return True, "Unit moved successfully."
@@ -96,21 +97,43 @@ class Unit:
 		if not improvement:
 			return False, "No improvement specified."
 		
+		imp_data = dictionary.IMPROVEMENTS.get(improvement)
+		if not imp_data:
+			return False, f"Unknown improvement '{improvement}'."
+		
 		if "tech_required" in imp_data:
 			if not self.player:
 				return False, "Player data not found."
 			if imp_data["tech_required"] not in self.player.science_system.unlocked_techs:
 				return False, f"{improvement} requires the {imp_data['tech_required']} technology."
 		
-		if improvement == "Road":
-			return True, ""		
+		turns_required = 3 #not sure about this logic
+		
+		if "Citizenship" in self.player.unlocked_policies:
+			turns_required -= 2
+			
+		#we're really checking all cities for this every time...?
+		for city in self.player.cities:
+			for building in city.buildings:
+				if building.name == "Pyramids":
+					turns_required -= 2		
+	
+		if improvement == tile.improvement and tile.improvement_progress >= turns_required:
+			return False, "Improvement already complete!"
+		
+		#this is the check def, not the DO def... probably separate chopping at least
+		#if improvement == "Road":
+			#if tile.road_progress >= turns_required:
+				#return False, "Road already complete!"
+			#else:
+				#tile.road_progress += 1
+				#if tile.road_progress >= turns_required:
+					#tile.road_complete = True
+					#return True, "Road completed!"
+				#return True, "Road worked on"
 		
 		if tile.owner != self.player:
 			return False, "Cannot improve tile you do not own." #unless its a road
-		
-		imp_data = dictionary.IMPROVEMENTS.get(improvement)
-		if not imp_data:
-			return False, f"Unknown improvement '{improvement}'."
 		
 		elif improvement == "Farm":
 			if tile.resource not in ["wheat", "n"]: #...does wheat override everthing except trees? how to code that?
@@ -181,29 +204,30 @@ class Unit:
 			tile.improvement = improvement
 			tile.improvement_progress = 0
 	
-		turns_required = 8 #not sure about this logic
+		turns_required = 3 #not sure about this logic
 		
 		if "Citizenship" in self.player.unlocked_policies:
 			turns_required -= 2
 			
 		#we're really checking all cities for this every time...?
 		for city in self.player.cities:
-			for building in city:
+			for building in city.buildings:
 				if building.name == "Pyramids":
 					turns_required -= 2
 					
+		tile.improvement_progress += 1
+		self.moves_left = 0
+					
 		if tile.improvement_progress < turns_required:
-			tile.improvement_progress += 1
-			self.moves_left = 0
-		else:
-			return False, f"{improvement} already complete."
+			return True, "Improvement worked on."
 	
 		if tile.improvement_progress >= turns_required:
-			tile.improvement = improvement
+			tile.improvement_complete = True
 			return True, f"{improvement} completed!"
+		
+	def establish_trade_route():
+		if self.name == "Caravan":
+			pass
 	
-		#wtf is this return?
-		return False, f"{improvement} in progress ({progress}/{required})"
-
 	def reset_movement(self):
 		self.moves_left = self.moves

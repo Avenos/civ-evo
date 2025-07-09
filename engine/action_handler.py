@@ -121,10 +121,9 @@ def handle_action(engine, action_type, data, log_actions=True):
 		q, r = data.get("tile_coords", (None, None))
 		if q is None or r is None:
 			return False, "Invalid tile coordinates"
-		if 0 <= q < GRID_WIDTH and 0 <= r < GRID_HEIGHT:
-			tile = engine.tiles[q][r]
-		else:
-			return False, "Tile coordinates out of bounds"
+		
+		tile = engine.get_tile(q, r)
+		
 		result = city.purchase_tile(tile, engine) if city else (False, "City not found")
 
 	elif action_type == "choose_pantheon":

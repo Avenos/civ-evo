@@ -9,22 +9,23 @@ from renderer import Renderer
 from utils import helper
 
 class RandomAgent:
-	def __init__(self, engine, headless=False):
+	def __init__(self, engine, headless):
 		self.engine = engine
 		self.renderer = Renderer()
+		self.headless = headless
 		
-	def run(headless=False):
-		screen, clock, font, big_font, terrain_overlays, resource_icons, unit_icons = helper.init_pygame_assets(headless=headless)
+	def run(self):
+		screen, clock, font, big_font, terrain_overlays, resource_icons, unit_icons = helper.init_pygame_assets(headless=self.headless)
 	
 		start_new_log(self.engine)
-		BASE_WIDTH = WIDTH
-		BASE_HEIGHT = HEIGHT
+		BASE_WIDTH = constants.WIDTH
+		BASE_HEIGHT = constants.HEIGHT
 		running = True
 	
 		while running:
-			clock.tick(FPS)
+			clock.tick(constants.FPS)
 	
-			if not headless:
+			if not self.headless:
 				for event in pygame.event.get():
 					if event.type == pygame.QUIT:
 						running = False
@@ -32,16 +33,16 @@ class RandomAgent:
 			if self.engine.message_timer > 0:
 				self.engine.message_timer -= 1
 	
-			legal_actions = engine.get_legal_actions(engine.current_player)
+			legal_actions = self.engine.get_legal_actions(self.engine.current_player)
 			if not legal_actions:
 				break  # Safety guard
 	
 			action = random.choice(legal_actions)
-			handle_action(engine, action["action"], action["data"])
+			handle_action(self.engine, action["action"], action["data"])
 	
-			if headless:
+			if self.headless:
 				continue  # Skip rendering
-	
+
 			# === Rendering ===
 			window_width, window_height = pygame.display.get_surface().get_size()
 			scale = min(window_width / BASE_WIDTH, window_height / BASE_HEIGHT)
@@ -61,13 +62,13 @@ class RandomAgent:
 	
 			base_surface = pygame.Surface((BASE_WIDTH, BASE_HEIGHT))
 			base_surface.fill((255, 255, 255))
-			hex_mask = helper.create_hex_mask(HEX_RADIUS)
-			renderer.draw_grid(base_surface, engine, font, big_font, terrain_overlays, hex_mask, resource_icons)
-			renderer.draw_territory_shading(base_surface, engine, font, big_font)
-			renderer.draw_cities(base_surface, engine, font, big_font)
-			renderer.draw_units(base_surface, engine, font, big_font, unit_icons)
-			renderer.draw_ui(base_surface, engine, font, big_font, resource_icons)
-			renderer.draw_message(base_surface, engine)
+			hex_mask = helper.create_hex_mask(constants.HEX_RADIUS)
+			self.renderer.draw_grid(base_surface, self.engine, font, big_font, terrain_overlays, hex_mask, resource_icons)
+			self.renderer.draw_territory_shading(base_surface, self.engine, font, big_font)
+			self.renderer.draw_cities(base_surface, self.engine, font, big_font)
+			self.renderer.draw_units(base_surface, self.engine, font, big_font, unit_icons)
+			self.renderer.draw_ui(base_surface, self.engine, font, big_font, resource_icons)
+			self.renderer.draw_message(base_surface, self.engine)
 	
 			scaled_surface = pygame.transform.smoothscale(base_surface, (scaled_width, scaled_height))
 			screen.fill((0, 0, 0))
@@ -76,5 +77,5 @@ class RandomAgent:
 			pygame.display.flip()
 			pygame.time.wait(50)
 	
-		if not headless:
+		if not self.headless:
 			pygame.quit()
