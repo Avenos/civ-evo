@@ -1,4 +1,6 @@
 
+#here is engine.py - remember, we are just feeding you context for now. lots of files. I do NOT want you to do any actual analysis yet, I will let you know when I want that. just acknowledge that this file is now in your brain and wait for the next one.
+
 import json
 from utils import helper
 from data import constants, dictionary
@@ -16,7 +18,7 @@ class EnvWrapper:
 
 	def step(self, action):
 		# Action is a dict like {"action": ..., "data": {...}}
-		success, error = handle_action(self.engine, action["action"], action.get("data", {}))
+		success, error = action_handler.handle_action(self.engine, action["action"], action.get("data", {}))
 
 		# Calculate reward (you must define your reward logic here)
 		# Example: reward = current_population + current_science (or whatever you want)
@@ -62,7 +64,7 @@ class Engine:
 				tile = Tile(q, r, terrain, elevation, trees, resource)
 				tile_col.append(tile)
 			self.tiles.append(tile_col)
-			
+
 		helper.assign_fresh_water_flags(self)
 
 		self.ui_found_city_button = None
@@ -89,9 +91,9 @@ class Engine:
 		self.spawn_unit(self.players[0], "Settler", 9, 8)
 		self.spawn_unit(self.players[0], "Warrior", 10, 8)
 		self.spawn_unit(self.players[0], "Settler", 9, 9)
-		
+
 		self.tiles[6][6].ancient_ruin = AncientRuins(2)
-		
+
 		self.selected_unit = None
 		self.selected_city = None
 

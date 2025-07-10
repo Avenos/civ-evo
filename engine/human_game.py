@@ -1,4 +1,6 @@
 
+#here is human_game.py - remember, we are just feeding you context for now. lots of files. I do NOT want you to do any actual analysis yet, I will let you know when I want that. just acknowledge that this file is now in your brain and wait for the next one.
+
 import pygame
 import time
 from data import dictionary, constants
@@ -220,7 +222,7 @@ class HumanGame:
 						f"Trees: {tile.trees}",
 						f"Improvement: {tile.improvement or 'None'}",
 					]
-			
+
 					# Show improvement progress if under construction
 					if tile.improvement and tile.improvement_progress is not None:
 						# Default to 3 if you want a safe fallback
@@ -234,9 +236,9 @@ class HumanGame:
 							"Plantation": 3,
 							"Quarry": 3,
 							"Camp": 3,
-						}.get(tile.improvement, 3)
+							}.get(tile.improvement, 3)
 						info_lines.append(f"Progress: {progress}/{base_turns}")
-			
+
 					#only show if not zero
 					info_lines += [
 						f"Resource: {tile.resource or 'None'}",
@@ -248,7 +250,7 @@ class HumanGame:
 						f"Culture: {tile.culture}",
 						f"Faith: {tile.faith}",
 					]
-			
+
 					info_width = 220
 					info_height = 20 * len(info_lines)
 					info_x = mx + 15

@@ -1,4 +1,6 @@
 
+#here is train.py - remember, we are just feeding you context for now. lots of files. I do NOT want you to do any actual analysis yet, I will let you know when I want that. just acknowledge that this file is now in your brain and wait for the next one.
+
 import os
 import torch
 from engine import EnvWrapper
@@ -17,6 +19,7 @@ class Train:
 		# Prepare environment
 		self.env = EnvWrapper()
 		self.engine = self.env.engine
+		self.state_encoder = StateEncoder()
 
 		# Create model directory
 		os.makedirs("models", exist_ok=True)
@@ -30,7 +33,7 @@ class Train:
 			print(f"[DEBUG] Starting Episode {episode + 1}")
 
 			while not done:
-				encoded_state = encode_game_state(state).to(self.device)
+				encoded_state = self.state_encoder.encode_game_state(state).to(self.device)
 
 				legal_actions = self.engine.get_legal_actions(self.engine.current_player)
 				action = self.agent.select_best_action_from(legal_actions, self.engine)

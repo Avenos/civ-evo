@@ -1,4 +1,6 @@
 
+#here is tile.py - remember, we are just feeding you context for now. lots of files. I do NOT want you to do any actual analysis yet, I will let you know when I want that. just acknowledge that this file is now in your brain and wait for the next one.
+
 from data import dictionary
 
 class Tile:
@@ -17,7 +19,7 @@ class Tile:
 		self.improvement_complete = False
 		self.road_progress = 0
 		self.road_complete = False
-		
+
 		self.unit = None  # or maybe a list if you support stacking in the future
 		self.rivers = set()  # Set of edge indices (0 through 5) with rivers
 		self.fresh_water = False
@@ -55,12 +57,17 @@ class Tile:
 
 		if self.worked_by: #this is actually needed otherwise granary bonus applies to all cities
 			if any("Granary" in b.name for b in self.worked_by.buildings):
-				if self.resource in {"wheat", "deer", "bananas"}:
+				if self.resource in ["wheat", "deer", "bananas"]: #what type of brackets here?
+					resource_food += 1
+			if any("Lighthouse" in b.name for b in self.worked_by.buildings):
+				if self.resource == "fish":
+					resource_food += 1
+				if self.terrain_type in ["c", "o"]:
 					resource_food += 1
 
 		if self.owner:
 			if self.owner.pantheon == "Sun God":
-				if self.resource in {"wheat", "citrus", "bananas"}:
+				if self.resource in ["wheat", "citrus", "bananas"]:
 					resource_food += 1
 
 			if self.improvement == "Camp" and self.owner.pantheon == "Goddess of the Hunt":
@@ -69,7 +76,7 @@ class Tile:
 		#fix?
 		if self.improvement == "Pasture" and self.improvement_complete and self.resource == "sheep":
 			resource_food += 1
-			
+
 		#need more logic here
 		if self.improvement == "Farm" and self.improvement_complete:
 			resource_food += 1 #2 if civil service and fresh water
@@ -102,11 +109,16 @@ class Tile:
 			# Other resources (like stone or deer) may always provide bonus.... what?
 			resource_production = dictionary.RESOURCES.get(self.resource, {}).get("production", 0)
 
-		if self.improvement == "Pasture" and self.improvement_complete and (self.resource == "horses" or elf.resource == "cattle" ):
+		if self.improvement == "Pasture" and self.improvement_complete and (self.resource == "horses" or self.resource == "cattle" ):
 			resource_production += 1
 
 		if self.improvement == "Mine" and self.improvement_complete:
 			resource_production += 1
+
+		if self.worked_by: #this is actually needed otherwise lighthouse bonus applies to all cities
+			if any("Lighthouse" in b.name for b in self.worked_by.buildings):
+				if self.resource in ["fish", "pearls", "whales", "crab"]: #what type of brackets here?
+					resource_production += 1		
 
 		return base_production + resource_production
 
@@ -126,16 +138,16 @@ class Tile:
 
 		if self.improvement == "Trading Post" and self.improvement_complete:
 			gold += 1
-			
+
 		return gold
 
 	@property
 	def science(self):
 		science = self.terrain_data.get("science", 0)
-		
+
 		if self.improvement == "Academy" and self.improvement_complete:
 			science += 8
-			
+
 		return science
 
 	@property
@@ -152,10 +164,10 @@ class Tile:
 	@property
 	def faith(self):
 		faith = 0
-		
+
 		if self.owner and self.owner.pantheon == "Desert Folklore" and self.terrain_type == 'd':
 			faith +=1
-			
+
 		if self.resource == "kailash":
 			if self.owner and self.owner.pantheon == "One with Nature":
 				faith += 10

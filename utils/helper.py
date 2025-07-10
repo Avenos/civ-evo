@@ -1,10 +1,44 @@
 
+#here is helper.py - remember, we are just feeding you context for now. lots of files. I do NOT want you to do any actual analysis yet, I will let you know when I want that. just acknowledge that this file is now in your brain and wait for the next one.
+
 import pygame
 import math
 import os
 import heapq
 from collections import deque
 from data import dictionary, constants
+
+def update_city_connections(player, all_tiles):
+	if city == capital:
+		return False #i dont think capital counts?
+
+	visited = set()
+	queue = deque()
+	queue.append(city.tile)
+	visited.add(city.tile)
+
+	while queue:
+		current_tile = queue.popleft()
+		neighbors = get_neighboring_tiles(current_tile)
+
+		for neighbor in neighbors:
+			if neighbor in visited:
+				continue
+
+			if neighbor.owner != city.owner:
+				continue
+
+			if not neighbor.improvement == "Road":
+				continue
+
+			visited.add(neighbor)
+			queue.append(neighbor)
+
+			# Check if this neighbor has the capital city
+			if neighbor.city == capital:
+				return True
+
+	return False
 
 def init_pygame_assets(headless=False):
 	import ctypes
@@ -51,115 +85,6 @@ def init_pygame_assets(headless=False):
 			unit_icons[unit_name] = unit_icon
 
 	return screen, clock, font, big_font, terrain_overlays, icon_images, unit_icons
-
-def a_star_path(start, goal, game_map, move_points_per_turn=2):
-	"""
-	Finds the fastest path (in turns) from start to goal.
-
-	Args:
-	    start (tuple): (q, r)
-	    goal (tuple): (q, r)
-	    game_map (dict): {(q, r): Tile}
-	    move_points_per_turn (int): Unit's movement points per turn
-
-	Returns:
-	    List of (q, r) tiles from start to goal, in order
-	"""
-
-	def reconstruct_path_grouped(came_from, current_state):
-		"""
-		Returns a list of turns, where each turn is a list of (from → to) steps.
-		"""
-		path = []
-		while current_state in came_from:
-			prev_state = came_from[current_state]
-			path.append((prev_state, current_state))
-			current_state = prev_state
-		path.reverse()
-
-		grouped = []
-		current_turn = -1
-		turn_moves = []
-		for prev, curr in path:
-			_, curr_turn, _ = curr
-			pos_from = prev[0]
-			pos_to = curr[0]
-			if curr_turn != current_turn:
-				if turn_moves:
-					grouped.append(turn_moves)
-				turn_moves = [(pos_from, pos_to)]
-				current_turn = curr_turn
-			else:
-				turn_moves.append((pos_from, pos_to))
-
-		if turn_moves:
-			grouped.append(turn_moves)
-
-		return grouped
-
-	def heuristic(a, b):
-		return hex_distance(a[0], a[1], b[0], b[1])
-
-	open_set = []
-	start_state = (start, 0, move_points_per_turn)  # (pos, turns_used, mp_remaining)
-	heapq.heappush(open_set, (heuristic(start, goal), start_state))
-
-	came_from = {}
-	cost_so_far = {start_state: 0}
-
-	while open_set:
-		_, current = heapq.heappop(open_set)
-		current_pos, turns_used, mp_remaining = current
-
-		if current_pos == goal:
-			grouped_path = reconstruct_path_grouped(came_from, current)
-			print(f"Reached goal {goal} in {len(grouped_path)} turns.")
-			for i, moves in enumerate(grouped_path, 1):
-				move_str = " → ".join(f"{step[0]}" for step in moves) + f" → {moves[-1][1]}"
-				print(f"Turn {i}: {move_str}")
-
-			remaining_mp = current[2]
-			if remaining_mp > 0:
-				print(f"Arrived at goal with {remaining_mp} movement points left.")
-			else:
-				print("Arrived at goal with no movement remaining.")
-			return [step[0] for moves in grouped_path for step in moves] + [goal]
-
-		for neighbor in hex_neighbors(*current_pos):
-			if neighbor not in game_map:
-				continue
-
-			current_tile = game_map[current_pos]
-			neighbor_tile = game_map[neighbor]
-
-			if not getattr(neighbor_tile, "passable", True):
-				continue
-
-			crossing_river = helper.has_river_between(current_tile, neighbor_tile)
-			cost_to_enter = neighbor_tile.movement_cost
-
-			# Movement logic
-			if mp_remaining <= 0:
-				new_turns = turns_used + 1
-				new_mp = move_points_per_turn - cost_to_enter
-			else:
-				new_turns = turns_used
-				new_mp = mp_remaining - cost_to_enter
-
-			if crossing_river:
-				new_mp = 0
-
-			new_state = (neighbor, new_turns, new_mp)
-			new_cost = new_turns
-
-			if new_state not in cost_so_far or new_cost < cost_so_far[new_state]:
-				cost_so_far[new_state] = new_cost
-				priority = new_cost + heuristic(neighbor, goal) / move_points_per_turn
-				heapq.heappush(open_set, (priority, new_state))
-				came_from[new_state] = current
-
-	print("No path found.")
-	return None
 
 def hex_to_pixel(q, r):
 	x = constants.HEX_RADIUS * math.sqrt(3) * (q + 0.5 * (r & 1))
@@ -393,24 +318,21 @@ def check_city_state_proximity(game, player):
 	for tile_coords in game.city_states:
 		q, r = tile_coords
 
-		# Initialize reward tracking if missing
 		if tile_coords not in game.city_states_met:
 			game.city_states_met[tile_coords] = set()
 
-		# Skip if player already claimed reward for this tile
 		if player.name in game.city_states_met[tile_coords]:
 			continue
 
-		# Check if any of the player's units are within range
 		for unit in player.units:
-			dist = hex_distance(unit.q, unit.r, q, r)  # correct
+			dist = hex_distance(unit.q, unit.r, q, r)
 			if dist <= 3:
 				player.gold += 30
 				player.faith += 8
 				game.show_message(f"{player.name} discovered a city-state! +30 gold, +8 faith", 120)
 
 				game.city_states_met[tile_coords].add(player.name)
-				break  # Only reward once per tile per player
+				break
 
 def build_tile_image_key(tile, available_images):
 	terrain_key = tile.terrain_type.lower()
@@ -439,4 +361,113 @@ def build_tile_image_key(tile, available_images):
 		if key and key in available_images:
 			return key
 
+	return None
+
+def a_star_path(start, goal, game_map, move_points_per_turn=2):
+	"""
+	Finds the fastest path (in turns) from start to goal.
+
+	Args:
+	    start (tuple): (q, r)
+	    goal (tuple): (q, r)
+	    game_map (dict): {(q, r): Tile}
+	    move_points_per_turn (int): Unit's movement points per turn
+
+	Returns:
+	    List of (q, r) tiles from start to goal, in order
+	"""
+
+	def reconstruct_path_grouped(came_from, current_state):
+		"""
+		Returns a list of turns, where each turn is a list of (from → to) steps.
+		"""
+		path = []
+		while current_state in came_from:
+			prev_state = came_from[current_state]
+			path.append((prev_state, current_state))
+			current_state = prev_state
+		path.reverse()
+
+		grouped = []
+		current_turn = -1
+		turn_moves = []
+		for prev, curr in path:
+			_, curr_turn, _ = curr
+			pos_from = prev[0]
+			pos_to = curr[0]
+			if curr_turn != current_turn:
+				if turn_moves:
+					grouped.append(turn_moves)
+				turn_moves = [(pos_from, pos_to)]
+				current_turn = curr_turn
+			else:
+				turn_moves.append((pos_from, pos_to))
+
+		if turn_moves:
+			grouped.append(turn_moves)
+
+		return grouped
+
+	def heuristic(a, b):
+		return hex_distance(a[0], a[1], b[0], b[1])
+
+	open_set = []
+	start_state = (start, 0, move_points_per_turn)  # (pos, turns_used, mp_remaining)
+	heapq.heappush(open_set, (heuristic(start, goal), start_state))
+
+	came_from = {}
+	cost_so_far = {start_state: 0}
+
+	while open_set:
+		_, current = heapq.heappop(open_set)
+		current_pos, turns_used, mp_remaining = current
+
+		if current_pos == goal:
+			grouped_path = reconstruct_path_grouped(came_from, current)
+			print(f"Reached goal {goal} in {len(grouped_path)} turns.")
+			for i, moves in enumerate(grouped_path, 1):
+				move_str = " → ".join(f"{step[0]}" for step in moves) + f" → {moves[-1][1]}"
+				print(f"Turn {i}: {move_str}")
+
+			remaining_mp = current[2]
+			if remaining_mp > 0:
+				print(f"Arrived at goal with {remaining_mp} movement points left.")
+			else:
+				print("Arrived at goal with no movement remaining.")
+			return [step[0] for moves in grouped_path for step in moves] + [goal]
+
+		for neighbor in hex_neighbors(*current_pos):
+			if neighbor not in game_map:
+				continue
+
+			current_tile = game_map[current_pos]
+			neighbor_tile = game_map[neighbor]
+
+			if not getattr(neighbor_tile, "passable", True):
+				continue
+
+			crossing_river = helper.has_river_between(current_tile, neighbor_tile)
+			cost_to_enter = neighbor_tile.movement_cost
+
+			# Movement logic
+			if mp_remaining <= 0:
+				new_turns = turns_used + 1
+				new_mp = move_points_per_turn - cost_to_enter
+			else:
+				new_turns = turns_used
+				new_mp = mp_remaining - cost_to_enter
+
+			if crossing_river:
+				new_mp = 0
+
+			new_state = (neighbor, new_turns, new_mp)
+			new_cost = new_turns
+
+			if new_state not in cost_so_far or new_cost < cost_so_far[new_state]:
+				cost_so_far[new_state] = new_cost
+				priority = new_cost + heuristic(neighbor, goal) / move_points_per_turn
+				heapq.heappush(open_set, (priority, new_state))
+				came_from[new_state] = current
+
+	print("No path found.")
 	return None

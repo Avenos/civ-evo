@@ -1,4 +1,6 @@
 
+#here is city.py - remember, we are just feeding you context for now. lots of files. I do NOT want you to do any actual analysis yet, I will let you know when I want that. just acknowledge that this file is now in your brain and wait for the next one.
+
 from data import dictionary, constants
 from entities import Building
 from utils import helper
@@ -25,7 +27,8 @@ class City:
 			City._id_counter += 1
 		self.q = q
 		self.r = r
-		self.is_capital = 0
+		self.is_capital = False
+		self.has_city_connection = False
 		self.owner = player
 		self.population = 1
 		self.food = 0  # accrued food basket
@@ -117,41 +120,6 @@ class City:
 
 		return base_threshold
 
-	#do we really need to call this constantly... is that what properties do?
-	#self? only call when a new road is built?
-	@property
-	def has_city_connection(cuty, capital, all_tiles):
-		if city == capital:
-			return False #i dont think capital counts?
-
-		visited = set()
-		queue = deque()
-		queue.append(city.tile)
-		visited.add(city.tile)
-
-		while queue:
-			current_tile = queue.popleft()
-			neighbors = get_neighboring_tiles(current_tile)
-
-			for neighbor in neighbors:
-				if neighbor in visited:
-					continue
-
-				if neighbor.owner != city.owner:
-					continue
-
-				if not neighbor.improvement == "Road":
-					continue
-
-				visited.add(neighbor)
-				queue.append(neighbor)
-
-				# Check if this neighbor has the capital city
-				if neighbor.city == capital:
-					return True
-
-		return False
-
 	@property
 	def food_per_turn(self):
 		if self.current_project_name == "Settler":
@@ -238,8 +206,7 @@ class City:
 					self.food = 0
 					self.aqueduct_basket = 0
 			else:
-				self.food += self.food_per_turn	
-
+				self.food += self.food_per_turn
 
 	@property
 	def production_per_turn(self):
@@ -263,7 +230,7 @@ class City:
 
 		if "Republic" in self.owner.unlocked_policies and isinstance(self.production_system.current_project, Building):
 			percent_modifier += 0.05
-			
+
 		if "Aristocracy" in self.owner.unlocked_policies and isinstance(self.production_system.current_project, Building) and self.production_system.current_project.wonder:
 			percent_modifier += 0.15 #correct? also not for national wonders right		
 
@@ -271,7 +238,7 @@ class City:
 			percent_modifier += 0.2
 
 		if self.owner.happiness < 0:
-			percent_modifier -= 0.02 * self.owner.happiness		
+			percent_modifier -= 0.02 * self.owner.happiness	
 
 		return percent_modifier * total
 
@@ -280,7 +247,6 @@ class City:
 		if self.production_system.current_project:
 			return self.production_system.current_project.name
 		return None
-
 
 	@property
 	def culture(self):
@@ -346,10 +312,10 @@ class City:
 	def can_purchase_tile(self, tile, engine):
 		player = self.owner
 		q, r = tile.q, tile.r
-		
+
 		if not helper.in_bounds(q, r):
 			return False, "Tile out of bounds."
-		
+
 		if tile.owner is not None:
 			return False, "Tile already owned by someone"
 

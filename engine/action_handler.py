@@ -1,14 +1,5 @@
-#possible actions: (also replicate in all legal actions in engine)
-#move a unit to a tile DONE
-#start production in a city DONE
-#purchase a tile or unit or building DONE
-#settle a city DONE
-#choose a tech DONE, limit to once per turn?
-#choose social policy DONE
-#choose a pantheon DONE
-#choose tiles worked by cities
-#assign a trade route
-#sell a building eh...
+
+#here is action_handler.py - remember, we are just feeding you context for now. lots of files. I do NOT want you to do any actual analysis yet, I will let you know when I want that. just acknowledge that this file is now in your brain and wait for the next one.
 
 import json
 import os

@@ -1,4 +1,6 @@
 
+#here is unit.py - remember, we are just feeding you context for now. lots of files. I do NOT want you to do any actual analysis yet, I will let you know when I want that. just acknowledge that this file is now in your brain and wait for the next one.
+
 from data import dictionary, constants
 from utils import helper
 import math
@@ -63,7 +65,6 @@ class Unit:
 		if not success:
 			return False, message
 
-		# Calculate movement cost
 		move_cost = 1
 		if self.name != "Scout":
 			if helper.has_river_between(from_tile, to_tile):
@@ -72,7 +73,6 @@ class Unit:
 			if to_tile.elevation == 1 or to_tile.trees:
 				move_cost = max(move_cost, self.moves_left)  # Use up all moves on rough terrain
 
-		# Apply move
 		self.moves_left -= move_cost
 		from_tile.unit = None
 		to_tile.unit = self
@@ -96,31 +96,31 @@ class Unit:
 			return False, "Not enough movement points."
 		if not improvement:
 			return False, "No improvement specified."
-		
+
 		imp_data = dictionary.IMPROVEMENTS.get(improvement)
 		if not imp_data:
 			return False, f"Unknown improvement '{improvement}'."
-		
+
 		if "tech_required" in imp_data:
 			if not self.player:
 				return False, "Player data not found."
 			if imp_data["tech_required"] not in self.player.science_system.unlocked_techs:
 				return False, f"{improvement} requires the {imp_data['tech_required']} technology."
-		
+
 		turns_required = 3 #not sure about this logic
-		
+
 		if "Citizenship" in self.player.unlocked_policies:
 			turns_required -= 2
-			
+
 		#we're really checking all cities for this every time...?
 		for city in self.player.cities:
 			for building in city.buildings:
 				if building.name == "Pyramids":
 					turns_required -= 2		
-	
+
 		if improvement == tile.improvement and tile.improvement_progress >= turns_required:
 			return False, "Improvement already complete!"
-		
+
 		#this is the check def, not the DO def... probably separate chopping at least
 		#if improvement == "Road":
 			#if tile.road_progress >= turns_required:
@@ -131,10 +131,10 @@ class Unit:
 					#tile.road_complete = True
 					#return True, "Road completed!"
 				#return True, "Road worked on"
-		
+
 		if tile.owner != self.player:
 			return False, "Cannot improve tile you do not own." #unless its a road
-		
+
 		elif improvement == "Farm":
 			if tile.resource not in ["wheat", "n"]: #...does wheat override everthing except trees? how to code that?
 				return False, "Not a valid resource for farms" # how does this work before we discover iron and horses?
@@ -148,7 +148,7 @@ class Unit:
 				return False, "Need fresh water to build farm on hill"	
 			else:
 				return True, "Can build farm"
-		
+
 		elif improvement == "Mine":
 			if tile.trees != 0:
 				return False, "Need to remove trees first"			
@@ -158,7 +158,7 @@ class Unit:
 				return False, "Cannot build a mine on flat land with no resource"
 			else:
 				return True, "Can build mine"
-		
+
 		elif improvement == "Pasture":
 			if tile.trees != 0:
 				return False, "Need to remove trees first"			
@@ -166,7 +166,7 @@ class Unit:
 				return False, "Cannot build pasture without cattle, sheep, or horses"
 			else:
 				return True, "Can build pasture"
-		
+
 		elif improvement == "Plantation":
 			if tile.trees != 0:
 				return False, "Need to remove trees first"			
@@ -174,7 +174,7 @@ class Unit:
 				return False, "Not a valid resource"
 			else:
 				return True, "Can build plantation"
-				
+
 		elif improvement == "Quarry":
 			if tile.trees != 0:
 				return False, "Need to remove trees first"			
@@ -182,13 +182,13 @@ class Unit:
 				return False, "Not a valid resource"
 			else:
 				return True, "Can build quarry"
-		
+
 		elif improvement == "Camp": #chopping would remove the camp?			
 			if tile.resource not in ["ivory", "truffles", "deer", "bison", "furs"]:
 				return False, "Not a valid resource"
 			else:
 				return True, "Can build quarry"		
-			
+
 		elif improvement == "Trading Post":
 			if tile.terrain_type not in ["g", "p", "d", "t"]:
 				return False, "Not a valid terrain type"
@@ -199,35 +199,35 @@ class Unit:
 		success, msg = self.can_improve_tile(tile, improvement, game)
 		if not success:
 			return False, msg
-	
+
 		if tile.improvement != improvement:
 			tile.improvement = improvement
 			tile.improvement_progress = 0
-	
+
 		turns_required = 3 #not sure about this logic
-		
+
 		if "Citizenship" in self.player.unlocked_policies:
 			turns_required -= 2
-			
+
 		#we're really checking all cities for this every time...?
 		for city in self.player.cities:
 			for building in city.buildings:
 				if building.name == "Pyramids":
 					turns_required -= 2
-					
+
 		tile.improvement_progress += 1
 		self.moves_left = 0
-					
+
 		if tile.improvement_progress < turns_required:
 			return True, "Improvement worked on."
-	
+
 		if tile.improvement_progress >= turns_required:
 			tile.improvement_complete = True
 			return True, f"{improvement} completed!"
-		
+
 	def establish_trade_route():
 		if self.name == "Caravan":
 			pass
-	
+
 	def reset_movement(self):
 		self.moves_left = self.moves

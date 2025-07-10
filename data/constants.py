@@ -1,5 +1,5 @@
 
-GRID_WIDTH = 21
+GRID_WIDTH = 23
 GRID_HEIGHT = 23
 HEX_RADIUS = 30
 HEX_DIAMETER = HEX_RADIUS * 2
@@ -8,16 +8,31 @@ WIDTH = 2200
 HEIGHT = 1100
 
 WHITE = (255, 255, 255)
+BLACK = (0, 0, 0)
 GRAY = (180, 180, 180)
 GREEN = (0, 200, 0)
 BLUE = (0, 0, 255)
-BLACK = (0, 0, 0)
+GREEN = (0, 255, 0),
+ORANGE = (255, 165, 0)
+PURPLE = (128, 0, 128)
+CYAN = (0, 255, 255)
+PINK = (255, 192, 203)
 RED = (255, 0, 0)
 CYAN = (0, 180, 200)
 YELLOW = (255, 255, 0)
 GOLD_DARK_GREEN = (34, 139, 34)
 DARK_YELLOW = (204, 153, 0)
 
+ERAS = [
+    "Ancient",
+    "Classical",
+    "Medieval",
+    "Renaissance",
+    "Industrial",
+    "Modern",
+    "Atomic",
+    "Information",
+]
 
 CITY_NAMES = [
 	"Delhi",

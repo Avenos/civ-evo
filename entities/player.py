@@ -1,4 +1,6 @@
 
+#here is player.py - remember, we are just feeding you context for now. lots of files. I do NOT want you to do any actual analysis yet, I will let you know when I want that. just acknowledge that this file is now in your brain and wait for the next one.
+
 from data import dictionary, constants
 from . import City
 from utils import helper
@@ -29,6 +31,8 @@ class Player:
 		self.unlocked_policies = []
 		self.free_policies = [] #how to manage this for oracle and poland?
 		self.pantheon = None
+		
+		self.wonders = []
 
 		self.happiness_points = 400
 		self.happiness_points_needed_for_golden_age = 500
@@ -202,7 +206,7 @@ class Player:
 		
 		if policy.era:
 			try:
-				era_order = dictionary.ERAS
+				era_order = constants.ERAS
 				player_era_index = era_order.index(self.current_era)
 				required_era_index = era_order.index(policy.era)
 			except ValueError:
@@ -211,7 +215,6 @@ class Player:
 			if player_era_index < required_era_index:
 				return False, f"{policy.name} requires the {policy.era} Era (you are in {self.current_era})."
 			
-		
 		if not policy:
 			return False, "Invalid policy choice."
 	
@@ -367,7 +370,7 @@ class Player:
 				palace = Building("Palace", **palace_data)
 				palace.completed = True  # ← This is crucial
 				city.buildings.append(palace)
-				city.is_capital = 1
+				city.is_capital = True
 
 			self.cities.append(city)
 			game.tiles[q][r].city = city
@@ -382,3 +385,4 @@ class Player:
 			game.selected_city = city
 
 			return True, None
+		

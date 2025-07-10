@@ -1,4 +1,6 @@
 
+#here is smart_agent.py - remember, we are just feeding you context for now. lots of files. I do NOT want you to do any actual analysis yet, I will let you know when I want that. just acknowledge that this file is now in your brain and wait for the next one.
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -59,6 +61,7 @@ class SmartAgent:
 		self.loss_fn = nn.MSELoss()
 		self.batch_size = 32
 		self.max_memory = 10000
+		self.state_encoder = StateEncoder()
 
 	def remember(self, state, action, reward, next_state, done):
 		self.memory.append((state, action, reward, next_state, done))
@@ -145,7 +148,7 @@ class SmartAgent:
 
 	def select_best_action_from(self, legal_actions, engine):
 		state = engine.get_state()
-		input_tensor = encode_game_state(state).to(self.device)
+		input_tensor = self.state_encoder.encode_game_state(state).to(self.device)
 
 		best_action = None
 		best_score = float("-inf")
