@@ -14,7 +14,7 @@ ACTION_TYPES = [
 	"move_unit", "found_city", "choose_project", "choose_research",
 	"purchase_unit", "purchase_building", "purchase_tile",
 	"choose_pantheon", "choose_policy", "improve_tile",
-	"assign_tile", "unassign_tile", "end_turn"
+	"swap_tile", "end_turn" #caravan, 
 ]
 
 MAX_ID = 1000
@@ -63,10 +63,118 @@ class SmartAgent:
 		self.max_memory = 10000
 		self.state_encoder = StateEncoder()
 
+		self.action_type_to_idx = {
+			"move_unit": 0,
+			"found_city": 1,
+			"improve_tile": 2,
+			"choose_worked_tiles": 3,
+			"assign_tile": 4,
+			"unassign_tile": 5,
+			"choose_project": 6,
+			"choose_research": 7,
+			"purchase_unit": 8,
+			"purchase_building": 9,
+			"purchase_tile": 10,
+			"choose_pantheon": 11,
+			"choose_policy": 12,
+			"end_turn": 13
+		}
+
+		# Example vocabularies for categorical data
+		self.improvement_to_idx = {"farm": 0, "mine": 1, "road": 2, "lumbermill": 3}
+		self.project_to_idx = {"granary": 0, "library": 1}
+		self.tech_to_idx = {"pottery": 0, "mining": 1}
+		self.pantheon_to_idx = {"fertility": 0, "god_of_war": 1}
+		self.policy_to_idx = {"liberty": 0, "tradition": 1}
+		self.unit_name_to_idx = {"warrior": 0, "settler": 1}
+		self.building_name_to_idx = {"granary": 0, "barracks": 1}
+
+		self.max_worked_tiles = 32  # max tiles for choose_worked_tiles		
+
 	def remember(self, state, action, reward, next_state, done):
-		self.memory.append((state, action, reward, next_state, done))
+		action_tensor = self.encode_action(action)
+		self.memory.append((state, action_tensor, reward, next_state, done))
 		if len(self.memory) > self.max_memory:
 			self.memory.pop(0)
+
+	def encode_action(self, action_dict):
+		action_name = action_dict.get("action")
+		action_idx = self.action_type_to_idx.get(action_name, -1)
+		if action_idx == -1:
+			raise ValueError(f"Unknown action type: {action_name}")
+
+		# Start encoding: one-hot or integer for action type + parameters
+		# For simplicity, put everything in a fixed length tensor
+
+		# We'll create a vector of length N (say 20), pad zeros if unused
+		vec = torch.zeros(20, dtype=torch.float32, device=self.device)
+		vec[0] = action_idx  # first element = action type index
+
+		data = action_dict.get("data", {})
+
+		try:
+			if action_name == "move_unit":
+				# encode 'to' coords normalized by map size (assume map size 20x20 here)
+				to_q, to_r = data["to"]
+				vec[1] = to_q / 20
+				vec[2] = to_r / 20
+
+			elif action_name == "found_city":
+				# encode unit_id as a normalized int (you can adjust)
+				vec[1] = data.get("unit_id", 0) / 1000
+
+			elif action_name == "improve_tile":
+				q, r = data["tile_coords"]
+				improvement_idx = self.improvement_to_idx.get(data["improvement"], -1)
+				vec[1] = q / 20
+				vec[2] = r / 20
+				vec[3] = improvement_idx if improvement_idx >= 0 else 0
+
+			elif action_name == "choose_worked_tiles":
+				tiles = data.get("tiles", [])
+				for i in range(min(len(tiles), self.max_worked_tiles)):
+					q, r = tiles[i]
+					vec[1 + i*2] = q / 20
+					vec[2 + i*2] = r / 20
+				# pad remaining with zeros
+
+			elif action_name in ["assign_tile", "unassign_tile", "purchase_tile"]:
+				q, r = data.get("tile", (0,0))
+				vec[1] = q / 20
+				vec[2] = r / 20
+				# city_id can be encoded as well if needed
+
+			elif action_name == "choose_project":
+				project_idx = self.project_to_idx.get(data.get("project_name", ""), 0)
+				vec[1] = project_idx
+
+			elif action_name == "choose_research":
+				tech_idx = self.tech_to_idx.get(data.get("tech_name", ""), 0)
+				vec[1] = tech_idx
+
+			elif action_name == "purchase_unit":
+				unit_idx = self.unit_name_to_idx.get(data.get("name", ""), 0)
+				vec[1] = unit_idx
+
+			elif action_name == "purchase_building":
+				building_idx = self.building_name_to_idx.get(data.get("name", ""), 0)
+				vec[1] = building_idx
+
+			elif action_name == "choose_pantheon":
+				pantheon_idx = self.pantheon_to_idx.get(data.get("pantheon_name", ""), 0)
+				vec[1] = pantheon_idx
+
+			elif action_name == "choose_policy":
+				policy_idx = self.policy_to_idx.get(data.get("policy_name", ""), 0)
+				vec[1] = policy_idx
+
+			elif action_name == "end_turn":
+				# no params needed
+				pass
+		except Exception as e:
+			print(f"Error encoding action {action_dict}: {e}")
+
+		return vec
 
 	def select_action(self, encoded_state):
 		epsilon = 0.1
@@ -103,7 +211,7 @@ class SmartAgent:
 
 	def run_agent(self, headless=True):
 		device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-		model = MyModelClass().to(device)
+		model = Model().to(device)
 
 		try:
 			model.load_state_dict(torch.load("model.pth", map_location=device))

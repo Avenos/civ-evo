@@ -11,6 +11,7 @@ class Tile:
 		self.elevation = elevation
 		self.trees = trees
 		self.resource = resource
+		self.luxury = dictionary.RESOURCES.get(self.resource, {}).get("luxury", False)
 		self.city = None
 		self.owner = None
 
@@ -41,7 +42,9 @@ class Tile:
 
 	@property
 	def food(self):
-		if self.terrain_type == "snow":
+		if self.city: #is this correct? what about settle on 3 food tile?
+			base_food = 2
+		elif self.terrain_type == "snow":
 			base_food = 0
 		elif self.trees == 2: # Jungle
 			base_food = 2
@@ -52,7 +55,6 @@ class Tile:
 		else:
 			base_food = self.terrain_data.get("food", 0)
 
-		# hmmmm
 		resource_food = dictionary.RESOURCES.get(self.resource, {}).get("food", 0)
 
 		if self.worked_by: #this is actually needed otherwise granary bonus applies to all cities
@@ -81,13 +83,15 @@ class Tile:
 		if self.improvement == "Farm" and self.improvement_complete:
 			resource_food += 1 #2 if civil service and fresh water
 
-		return base_food + resource_food
+		return base_food + resource_food #++
 
 	@property
 	def production(self):
 		player = self.owner
-
-		if self.terrain_type == "s":
+		
+		if self.city: #is this correct? snow even hill is one prod...
+			base_production = 1 + self.elevation
+		elif self.terrain_type == "s":
 			base_production = 0
 		elif self.trees == 2: # Jungle
 			base_production = 0

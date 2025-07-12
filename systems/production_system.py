@@ -15,6 +15,7 @@ class ProductionSystem:
 
 		self.current_project = None  # Can be building or unit (store as a dict/object)
 
+	#every state change, we are checking through EVERY building that exists to see if we can build it? really? whenever they become available just append to list? hmmmm, but there are other factors...
 	def can_choose_project(self, project):
 		from entities import Unit
 
@@ -85,7 +86,7 @@ class ProductionSystem:
 		if isinstance(project, Unit) and project_name == "Settler" and self.city.population < 2:
 			return False, "Settler cannot be built unless city population is at least 2."
 
-		return True, None
+		return True, "Can choose project"
 
 	def get_available_projects(self):
 		seen = set()
@@ -155,25 +156,6 @@ class ProductionSystem:
 				self.complete_building(building.name)
 				self.current_project = None
 
-	def get_progress(self, project_name=None):
-		if project_name:
-			# Look in buildings
-			for b in self.building_projects:
-				if b.name == project_name:
-					return b.progress
-			# Look in units
-			for u in self.unit_projects:
-				if u["name"] == project_name:
-					return u.get("progress", 0)
-			return 0
-
-		if self.current_project:
-			if isinstance(self.current_project, dict):
-				return self.current_project.get("progress", 0)
-			else:
-				return self.current_project.progress
-		return 0
-
 	def complete_building(self, building_name):
 		for b in self.building_projects:
 			if b.name == building_name:
@@ -181,24 +163,17 @@ class ProductionSystem:
 				b.progress = b.production_cost
 				self.city.buildings.append(b)
 
+				if b.wonder:
+					self.city.owner.wonders.append(b.name) #append right func?
+
 				if building_name == "Hanging Gardens":
-					garden_building = helper.create_building("Garden")
-					garden_building.completed = True
-					garden_building.progress = garden_building.production_cost
-					self.city.buildings.append(garden_building)
+					garden = helper.create_building("Garden")
+					garden.completed = True
+					garden.progress = garden.production_cost
+					self.city.buildings.append(garden)
 
 				return
 
 	def complete_unit(self, unit_name, q, r, engine):
 		engine.spawn_unit(self.city.owner, unit_name, q, r)
-
-	def is_completed(self, project_name):
-		for b in self.building_projects:
-			if b.name == project_name:
-				return b.completed
-		return False  # Units aren't persistent objects in this system
-
-	def get_current_project_name(self):
-		if not self.current_project:
-			return None
-		return self.current_project["name"] if isinstance(self.current_project, dict) else self.current_project.name
+		#do something to complete PROJECT here?

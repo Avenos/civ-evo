@@ -178,7 +178,7 @@ class Renderer():
 		padding = 10
 		icon_size = 20
 		screen_width = screen.get_width()
-		x_offset = 200  # shift everything right by 100 px
+		x_offset = 250  # shift everything right
 
 		# Background bar (full width, so no x_offset here)
 		pygame.draw.rect(screen, bar_bg_color, (0, 0, screen_width, bar_height))
@@ -287,7 +287,7 @@ class Renderer():
 				action_y += action_height + 5
 
 		# --- COLUMN 2: TECH PANEL ---
-		col2_x = 1170 + x_offset
+		col2_x = 1100 + x_offset
 		tech_y = 20
 		panel_width = 180
 
@@ -324,7 +324,7 @@ class Renderer():
 			})
 
 		# --- COLUMN 3: CULTURE PANEL ---
-		col3_x = 1370 + x_offset
+		col3_x = 1250 + x_offset
 		policy_y = 20
 		policy_width = 200
 		policy_height = 500
@@ -369,7 +369,7 @@ class Renderer():
 		if engine.selected_city:
 			city = engine.selected_city
 
-			col4_x = 1610 + x_offset
+			col4_x = 1450 + x_offset
 			col4_y = 20
 			col4_width = 220
 			col4_height = 500
@@ -414,7 +414,7 @@ class Renderer():
 			# --- Fifth column: Production Projects ---
 			city = engine.selected_city
 
-			col5_x = 1860 + x_offset
+			col5_x = 1650 + x_offset
 			col5_y = 20
 			col5_width = 220
 			col5_height = 500

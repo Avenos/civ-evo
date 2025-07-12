@@ -40,7 +40,7 @@ class RandomAgent:
 				break  # Safety guard
 
 			action = random.choice(legal_actions)
-			handle_action(self.engine, action["action"], action["data"])
+			handle_action(self.engine, action["action"], action["data"], True) #all actions in legal list are pre-verified
 
 			if self.headless:
 				continue  # Skip rendering

@@ -10,9 +10,7 @@ from collections import deque, defaultdict
 class Unit:
 	_id_counter = 0  # class-level variable for unique ID assignment
 
-	def __init__(self, name, player=None, q=None, r=None, hp=100, moves=2,
-		     gold_cost=0, production_cost=0, techs_required=None,
-		     policies_required=None, assign_id=True):
+	def __init__(self, name, player=None, q=None, r=None, hp=100, moves=2, gold_cost=0, production_cost=0, techs_required=None, policies_required=None, assign_id=True):
 
 		if assign_id:
 			self.id = Unit._id_counter
@@ -37,7 +35,6 @@ class Unit:
 		self.progress = 0
 		self.completed = False
 
-
 	def can_move_to(self, to_tile):
 		if to_tile is None:
 			return False, "Invalid tile (tile does not exist)."
@@ -48,7 +45,6 @@ class Unit:
 		if self.moves_left == 0:
 			return False, "No moves left!"
 
-		#this could use the neighbors method?
 		if helper.hex_distance(self.q, self.r, to_tile.q, to_tile.r) != 1:
 			return False, "Can only move to adjacent tiles."
 
@@ -60,18 +56,18 @@ class Unit:
 
 		return True, "Valid move."
 
-	def move_to(self, from_tile, to_tile):
-		success, message = self.can_move_to(to_tile)
-		if not success:
-			return False, message
+	def move_to(self, from_tile, to_tile, verified=False): #easy as this?
+		if not verified:
+			success, message = self.can_move_to(to_tile)
+			if not success:
+				return False, message
 
 		move_cost = 1
 		if self.name != "Scout":
 			if helper.has_river_between(from_tile, to_tile):
-				print(f"River detected between ({from_tile.q},{from_tile.r}) and ({to_tile.q},{to_tile.r})")
 				move_cost = max(move_cost, 1)
 			if to_tile.elevation == 1 or to_tile.trees:
-				move_cost = max(move_cost, self.moves_left)  # Use up all moves on rough terrain
+				move_cost = max(move_cost, self.moves_left)
 
 		self.moves_left -= move_cost
 		from_tile.unit = None
@@ -82,8 +78,6 @@ class Unit:
 		if to_tile.ancient_ruin:
 			ruin = to_tile.ancient_ruin
 			ruin.trigger(self.player, to_tile)
-			#make an actual message?
-			print(f"Ancient Ruins triggered: {ruin.description}")
 
 		return True, "Unit moved successfully."
 
@@ -113,10 +107,8 @@ class Unit:
 			turns_required -= 2
 
 		#we're really checking all cities for this every time...?
-		for city in self.player.cities:
-			for building in city.buildings:
-				if building.name == "Pyramids":
-					turns_required -= 2		
+		if "Pyramids" in self.player.wonders:
+			turns_required -= 2		
 
 		if improvement == tile.improvement and tile.improvement_progress >= turns_required:
 			return False, "Improvement already complete!"
@@ -195,10 +187,11 @@ class Unit:
 			else:
 				return True, "Can build trading post"
 
-	def improve_tile(self, tile, improvement, game):
-		success, msg = self.can_improve_tile(tile, improvement, game)
-		if not success:
-			return False, msg
+	def improve_tile(self, tile, improvement, game, verified=False):
+		if not verified:
+			success, message = self.can_improve_tile(tile, improvement, game)
+			if not success:
+				return False, message
 
 		if tile.improvement != improvement:
 			tile.improvement = improvement
@@ -209,11 +202,8 @@ class Unit:
 		if "Citizenship" in self.player.unlocked_policies:
 			turns_required -= 2
 
-		#we're really checking all cities for this every time...?
-		for city in self.player.cities:
-			for building in city.buildings:
-				if building.name == "Pyramids":
-					turns_required -= 2
+		if "Pyramids" in self.player.wonders:
+			turns_required -= 2
 
 		tile.improvement_progress += 1
 		self.moves_left = 0
@@ -223,6 +213,11 @@ class Unit:
 
 		if tile.improvement_progress >= turns_required:
 			tile.improvement_complete = True
+
+			#need to check that its the right improvement though... otherwise farms can wire up luxes
+			if dictionary.RESOURCES.get(tile.resource, {}).get("luxury", False):
+				self.player.luxuries.append(tile.resource)
+			
 			return True, f"{improvement} completed!"
 
 	def establish_trade_route():

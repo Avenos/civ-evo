@@ -39,27 +39,13 @@ class ScienceSystem:
 			self.overflow = total - cost
 			self._accumulated_science = 0
 			self.current_research = None
-			if tech.name in [] and player.era == "ancient":
-				player.era = "classical"
-			if tech.name in [] and player.era == "classical":
-				player.era = "medieval"
-			if tech.name in [] and player.era == "medieval":
-				player.era = "rennaisance"				
-		
+			#perform era check here
 			return tech.name
 		else:
 			tech.progress = total
 			self._accumulated_science = 0
 			self.overflow = 0
 			return None
-
-	@property
-	def unlocked_techs(self):
-		return {name for name, tech in self.techs.items() if tech.unlocked}        
-
-	#should we return a list of objects not names?
-	def get_unlocked_names(self): #objects or names?
-		return [name for name, tech in self.techs.items() if tech.unlocked]	
 
 	def set_current_research(self, tech_name, player=None):
 		tech = self.techs.get(tech_name)
@@ -86,6 +72,14 @@ class ScienceSystem:
 
 		return True, f"Selected tech: {tech_name}"
 
+	@property
+	def unlocked_techs(self):
+		return {name for name, tech in self.techs.items() if tech.unlocked}        
+
+	#should we return a list of objects not names?
+	def get_unlocked_names(self): #objects or names?
+		return [name for name, tech in self.techs.items() if tech.unlocked]	
+
 	def get_available_techs(self):
 		available = []
 		for name, tech in self.techs.items():
@@ -94,3 +88,4 @@ class ScienceSystem:
 			if all(self.techs[req].unlocked for req in tech.prerequisites):
 				available.append(name)
 		return available
+	

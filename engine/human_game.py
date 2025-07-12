@@ -14,6 +14,7 @@ class HumanGame:
 		self.renderer = Renderer()
 
 	def run(self):
+		#put in init? eh.
 		screen, clock, font, big_font, terrain_overlays, resource_icons, unit_icons = helper.init_pygame_assets()
 
 		start_new_log(self.engine)
@@ -171,7 +172,7 @@ class HumanGame:
 									self.engine.selected_unit = None
 									self.engine.selected_city = None
 
-							elif event.button == 3:  # Right click to buy tile
+							elif event.button == 3:
 								if 0 <= q < constants.GRID_WIDTH and 0 <= r < constants.GRID_HEIGHT:
 									tile = self.engine.tiles[q][r]
 									if self.engine.selected_unit:
@@ -181,7 +182,8 @@ class HumanGame:
 										if not success:
 											self.engine.show_message(message, 90)
 										else:
-											helper.check_city_state_proximity(self.engine, self.engine.current_player)
+											pass
+											#helper.check_city_state_proximity(self.engine, self.engine.current_player)
 									elif self.engine.selected_city:
 										city_id = self.engine.selected_city.id
 										action_data = {"city_id": city_id, "tile_coords": (q, r)}

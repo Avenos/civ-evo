@@ -40,86 +40,6 @@ class City:
 		self.worked_tiles = set()
 		self.aqueduct_basket = 0
 
-	def compute_influence_distance(city, game, max_range=5):
-		visited = set()
-		distances = {}
-		start_coords = (city.q, city.r)
-		heap = [(0, start_coords)]
-
-		while heap:
-			dist, (q, r) = heapq.heappop(heap)
-			if (q, r) in visited:
-				continue
-
-			visited.add((q, r))
-			if helper.hex_distance(city.q, city.r, q, r) > max_range:
-				continue
-
-			tile = game.tiles[q][r]
-			cost = INFLUENCE_COST.get(tile.terrain_type, 1)
-			mod_cost = max(1, min(3, cost))  # Clamp between 1 and 3
-			total = dist + mod_cost
-			distances[(q, r)] = total
-
-			for nq, nr in helper.hex_neighbors(q, r):
-				if (nq, nr) not in visited:
-					heapq.heappush(heap, (total, (nq, nr)))
-		return distances
-
-	def compute_tile_priority(tile, dist, game, city):
-		priority = dist * MULTIPLIERS["DISTANCE"]
-
-		if tile.resource and tile.resource not in tile.unworkable_resources:
-			priority += MULTIPLIERS["RESOURCE"]
-		if tile.is_water and not tile.resource:
-			priority += MULTIPLIERS["WATER"]
-		if tile.unworkable and not tile.resource:
-			priority += MULTIPLIERS["UNWORKABLE"]
-		if tile.improvement and tile.improvement != "Barbarian Camp":
-			priority += MULTIPLIERS["IMPROVEMENT"]
-		if tile.improvement == "Barbarian Camp":
-			priority += MULTIPLIERS["BARB_CAMP"]
-		if tile.has_road:
-			priority += MULTIPLIERS["ROAD"]
-		if tile.natural_wonder:
-			priority += MULTIPLIERS["NATURAL_WONDER"]
-		priority += (tile.food + tile.production + tile.gold) * MULTIPLIERS["YIELD_POINT"]
-
-		# Check adjacency
-		if not any((nq, nr) in city.territory for nq, nr in helper.hex_neighbors(tile.q, tile.r)):
-			priority += MULTIPLIERS["NO_ADJACENT_OWNED"]
-
-		return priority
-
-	def gain_culture(self, amount):
-		self.stored_culture += amount
-		if self.stored_culture >= self.border_growth_threshold:
-			return self.expand_borders()
-		return (False, "Not enough culture for border expansion yet.")	
-
-	def expand_borders(self, game):
-		if self.stored_culture < self.border_growth_threshold:
-			return (False, "Insufficient culture to expand borders.")
-
-		tile = self._select_best_border_tile(game)
-		if not tile:
-			return (False, "No valid tile to expand into.")
-
-		self.territory.add((tile.q, tile.r))
-		self.stored_culture -= self.border_growth_threshold
-		self.border_expansions += 1
-
-		return (True, None)
-
-	@property
-	def border_growth_threshold(self):
-		base_threshold = 15 * (self.border_expansions + 1)
-
-		if "Tradition" in self.owner.social_policies:
-			return base_threshold // 2 #probably not accurate
-
-		return base_threshold
-
 	@property
 	def food_per_turn(self):
 		if self.current_project_name == "Settler":
@@ -135,7 +55,7 @@ class City:
 			positive += 2
 
 		# Temple of Artemis: +10% BASE food empire-wide
-		if any("Temple of Artemis" in b.name for city in self.owner.cities for b in city.buildings):
+		if "Temple of Artemis" in self.owner.wonders:
 			positive *= 1.10
 
 		# Subtract population consumption
@@ -165,8 +85,10 @@ class City:
 			"Landed Elite",
 			"Monarchy"
 		]
+		
+		
 		if (all(p in self.owner.unlocked_policies for p in required_policies) and self in self.owner.cities[:4]): #this might not work if we can LOSE cities...
-			growth_modifier += 0.15		
+			growth_modifier += 0.15
 
 		return growth_modifier * difference if difference >= 0 else difference
 
@@ -210,6 +132,7 @@ class City:
 
 	@property
 	def production_per_turn(self):
+		#city itself?
 		worked_production = sum(tile.production for tile in self.worked_tiles)
 		unassigned_workers = self.population - len(self.worked_tiles)
 		bonus_from_unemployed = max(0, unassigned_workers) * 1
@@ -346,7 +269,7 @@ class City:
 			for dr in range(-3, 4):
 				q = self.q + dq
 				r = self.r + dr
-				# Check map bounds here (assuming engine.tiles is a 2D list)
+				
 				if 0 <= q < len(engine.tiles) and 0 <= r < len(engine.tiles[0]):
 					tile = engine.tiles[q][r]
 					can_buy, _ = self.can_purchase_tile(tile, engine)
@@ -378,7 +301,10 @@ class City:
 		available_tiles = [t for t in owned_tiles if t not in other_worked_tiles and (t.q, t.r) != city_coords]
 
 		# Sort by food + production
-		available_tiles.sort(key=lambda t: t.food + t.production, reverse=True)
+		if self.current_project_name == "Settler": #also make swapping unavailable?
+			available_tiles.sort(key=lambda t: t.production + t.science, reverse=True)
+		else:
+			available_tiles.sort(key=lambda t: t.food + t.production, reverse=True)
 
 		# Start with city tile (always worked)
 		chosen_tiles = [city_tile]
@@ -397,7 +323,6 @@ class City:
 		"""Tiles within 3 hexes, owned by this player, and not worked by others (excluding city tile)."""
 		city_coords = (self.q, self.r)
 
-		# Get all tiles within 3 hexes that are owned by the same player, excluding the city tile
 		territory_tiles = [
 			tile for row in game.tiles for tile in row
 			if tile.owner == self.owner and
@@ -405,46 +330,17 @@ class City:
 			helper.hex_distance(self.q, self.r, tile.q, tile.r) <= 3
 		]
 
-		# Tiles worked by other cities
 		other_worked_tiles = set()
 		for player in game.players:
 			for city in player.cities:
 				if city is not self:
 					other_worked_tiles.update(city.worked_tiles)
 
-		# Filter out tiles already worked by others
 		workable = {
 			tile for tile in territory_tiles if tile not in other_worked_tiles
 		}
 
 		return workable
-
-	#this is probably too much...
-	def get_valid_worked_tile_combinations(self, game):
-		max_tiles = self.population  # +1?
-
-		# Get all eligible tiles
-		workable_tiles = list(self.get_workable_tiles(game))
-
-		# Generate all valid combinations of workable tiles (up to max_tiles)
-		all_combos = []
-		for n in range(1, max_tiles + 1):
-			for combo in combinations(workable_tiles, n):
-				all_combos.append(combo)
-
-		return all_combos	
-
-	def set_worked_tiles(self, tiles, game):
-		if len(tiles) > self.population:
-			return False, f"Too many tiles assigned: max is {self.population}"
-
-		workable = self.get_workable_tiles(game)
-		for tile in tiles:
-			if tile not in workable:
-				return False, f"Tile at ({tile.q},{tile.r}) is not valid to work"
-
-		self.worked_tiles = set(tiles)
-		return True, "Worked tiles updated successfully"
 
 	def can_unassign_tile(self, tile):
 		if tile in self.worked_tiles:
@@ -460,19 +356,19 @@ class City:
 			return success, message
 
 	def can_assign_tile(self, tile):
-		pass
-
-	def assign_tile(self, tile, game):
 		if len(self.worked_tiles) >= self.population:
 			return False, "All citizens are already assigned"
 
-		if tile not in self.get_workable_tiles(game): #move this logic up!
+		if tile not in self.get_workable_tiles(game):
 			return False, f"Tile at ({tile.q},{tile.r}) is not valid to assign"
+		
+		return True, "Tile can be assigned"
 
+	def assign_tile(self, tile, game):
 		self.worked_tiles.add(tile)
-		return True, f"Tile at ({tile.q},{tile.r}) assigned"
+		return True, f"Tile assigned"
 
-	def purchase_building(self, building_name, player):
+	def can_purchase_building(self, building_name, player):
 		building_data = dictionary.BUILDINGS.get(building_name)
 		if not building_data:
 			return False, "Building not found."
@@ -492,17 +388,28 @@ class City:
 
 		if player.gold < gold_cost:
 			return False, "Not enough gold."
+		
+		return True, "Building can be purchased"
+	
+	def purchase_building(self, building_name, player):
+		success, message = self.can_purchase_building(building_name, player)
+		
+		if not success:
+			return success, message
 
+		building_data = dictionary.BUILDINGS.get(building_name) #lookup twice...
+		gold_cost = building_data.get("gold_cost", 0)
 		player.gold -= gold_cost
 
 		building_obj = helper.build_building_object(building_name, building_data)
 		self.buildings.append(building_obj)
-
-		print(f"Buildings in {self.name}: {[b.name for b in self.buildings]}")
-
+		
+		if self.current_project_name == building_name:
+			self.production_system.current_project = None
+		
 		return True, f"Purchased {building_name}."
 
-	def purchase_unit(self, name, player):
+	def can_purchase_unit(self, name, player):
 		unit_data = dictionary.UNITS.get(name)
 		if not unit_data:
 			return False, "Unit not found."
@@ -510,16 +417,97 @@ class City:
 		gold_cost = unit_data.get("gold_cost", 0)
 		if player.gold < gold_cost:
 			return False, "Not enough gold."
+		
+		return True, "Can purchase unit"
+
+	def purchase_unit(self, name, player):
+		success, message = self.can_purchase_unit(name, player)
+		
+		if not success:
+			return success, message
 
 		player.gold -= gold_cost
-
-		# Create and add the new unit at the city location
-		new_unit = Unit(name, player, self.q + 1, self.r + 1)
-
-		game.tiles[q][r].unit = new_unit
-		player.units.append(new_unit)  # is this done already in the unit constructor? i dont like
+		
+		engine.spawn_unit(player, name, self.q, self.r)
 
 		return True, f"Purchased {name}."
 
-	def has_building(self, name):
-		return any(b.name == name for b in self.buildings)
+	def compute_influence_distance(city, game, max_range=5):
+		visited = set()
+		distances = {}
+		start_coords = (city.q, city.r)
+		heap = [(0, start_coords)]
+
+		while heap:
+			dist, (q, r) = heapq.heappop(heap)
+			if (q, r) in visited:
+				continue
+
+			visited.add((q, r))
+			if helper.hex_distance(city.q, city.r, q, r) > max_range:
+				continue
+
+			tile = game.tiles[q][r]
+			cost = INFLUENCE_COST.get(tile.terrain_type, 1)
+			mod_cost = max(1, min(3, cost))  # Clamp between 1 and 3
+			total = dist + mod_cost
+			distances[(q, r)] = total
+
+			for nq, nr in helper.hex_neighbors(q, r):
+				if (nq, nr) not in visited:
+					heapq.heappush(heap, (total, (nq, nr)))
+		return distances
+
+	def compute_tile_priority(tile, dist, game, city):
+		priority = dist * MULTIPLIERS["DISTANCE"]
+
+		if tile.resource and tile.resource not in tile.unworkable_resources:
+			priority += MULTIPLIERS["RESOURCE"]
+		if tile.is_water and not tile.resource:
+			priority += MULTIPLIERS["WATER"]
+		if tile.unworkable and not tile.resource:
+			priority += MULTIPLIERS["UNWORKABLE"]
+		if tile.improvement and tile.improvement != "Barbarian Camp":
+			priority += MULTIPLIERS["IMPROVEMENT"]
+		if tile.improvement == "Barbarian Camp":
+			priority += MULTIPLIERS["BARB_CAMP"]
+		if tile.has_road:
+			priority += MULTIPLIERS["ROAD"]
+		if tile.natural_wonder:
+			priority += MULTIPLIERS["NATURAL_WONDER"]
+		priority += (tile.food + tile.production + tile.gold) * MULTIPLIERS["YIELD_POINT"]
+
+		# Check adjacency
+		if not any((nq, nr) in city.territory for nq, nr in helper.hex_neighbors(tile.q, tile.r)):
+			priority += MULTIPLIERS["NO_ADJACENT_OWNED"]
+
+		return priority
+
+	def gain_culture(self, amount):
+		self.stored_culture += amount
+		if self.stored_culture >= self.border_growth_threshold:
+			return self.expand_borders()
+		return (False, "Not enough culture for border expansion yet.")	
+
+	def expand_borders(self, game):
+		if self.stored_culture < self.border_growth_threshold:
+			return (False, "Insufficient culture to expand borders.")
+
+		tile = self._select_best_border_tile(game)
+		if not tile:
+			return (False, "No valid tile to expand into.")
+
+		self.territory.add((tile.q, tile.r))
+		self.stored_culture -= self.border_growth_threshold
+		self.border_expansions += 1
+
+		return (True, None)
+
+	@property
+	def border_growth_threshold(self):
+		base_threshold = 15 * (self.border_expansions + 1)
+
+		if "Tradition" in self.owner.social_policies:
+			return base_threshold // 2 #probably not accurate
+
+		return base_threshold

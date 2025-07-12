@@ -8,7 +8,8 @@ import heapq
 from collections import deque
 from data import dictionary, constants
 
-def update_city_connections(player, all_tiles):
+#call when we complete a road, for all cities that do NOT already have connections.
+def update_city_connections(player, city):
 	if city == capital:
 		return False #i dont think capital counts?
 
@@ -19,7 +20,7 @@ def update_city_connections(player, all_tiles):
 
 	while queue:
 		current_tile = queue.popleft()
-		neighbors = get_neighboring_tiles(current_tile)
+		neighbors = tile_neighbors(current_tile)
 
 		for neighbor in neighbors:
 			if neighbor in visited:
@@ -117,6 +118,17 @@ def hex_neighbors(q, r):
 	neighbors = [(q + dq, r + dr) for dq, dr in directions]
 	return [(nq, nr) for nq, nr in neighbors if in_bounds(nq, nr)]
 
+def tile_neighbors(tile):
+	if tile.r % 2 == 0:
+		directions = dictionary.EVEN_ROW_NEIGHBORS.values()
+	else:
+		directions = dictionary.ODD_ROW_NEIGHBORS.values()
+
+	neighbors = [(tile.q + dq, tile.r + dr) for dq, dr in directions]
+	
+	#fix
+	return [(nq, nr) for nq, nr in neighbors if in_bounds(nq, nr)]
+
 def get_hex_at_pixel(x, y):
 	for q in range(constants.GRID_WIDTH):
 		for r in range(constants.GRID_HEIGHT):
@@ -173,7 +185,6 @@ def has_river_between(tile1, tile2):
 	dq = tile2.q - tile1.q
 	dr = tile2.r - tile1.r
 
-	# Determine if we're in an even or odd row to get the right neighbor offsets
 	is_even = (tile1.r % 2 == 0)
 	neighbor_offsets = dictionary.EVEN_ROW_NEIGHBORS if is_even else dictionary.ODD_ROW_NEIGHBORS
 
@@ -224,24 +235,6 @@ def is_adjacent_to_owned_tile(tile, player, engine):
 		owner = neighbor_tile.owner
 		if owner == player:
 			return True
-	return False
-
-def spawn_unit_near_capital(player, game, name):
-	if not player.cities:
-		game.show_message(f"No cities to place free {name}!", 120)
-		return False
-
-	capital = player.cities[0]
-	q, r = capital.q, capital.r
-
-	for nq, nr in hex_neighbors(q, r):
-		tile = game.tiles[nq][nr]
-		if tile.unit is None and tile.city is None:
-			game.spawn_unit(player, name, nq, nr)
-			game.show_message(f"A free {name} has arrived!", 120)
-			return True
-
-	game.show_message(f"No space near capital to place {name}!", 120)
 	return False
 
 def build_policy_objects(policy_dict):
@@ -313,26 +306,26 @@ def build_unit_object(name, data):
 		assign_id=False
 	)
 
-#is this expensive?
-def check_city_state_proximity(game, player):
-	for tile_coords in game.city_states:
-		q, r = tile_coords
+#is this expensive? yeah if you are calling it on every move....
+#def check_city_state_proximity(game, player):
+	#for tile_coords in game.city_states:
+		#q, r = tile_coords
 
-		if tile_coords not in game.city_states_met:
-			game.city_states_met[tile_coords] = set()
+		#if tile_coords not in game.city_states_met:
+			#game.city_states_met[tile_coords] = set()
 
-		if player.name in game.city_states_met[tile_coords]:
-			continue
+		#if player.name in game.city_states_met[tile_coords]:
+			#continue
 
-		for unit in player.units:
-			dist = hex_distance(unit.q, unit.r, q, r)
-			if dist <= 3:
-				player.gold += 30
-				player.faith += 8
-				game.show_message(f"{player.name} discovered a city-state! +30 gold, +8 faith", 120)
+		#for unit in player.units:
+			#dist = hex_distance(unit.q, unit.r, q, r)
+			#if dist <= 3:
+				#player.gold += 30
+				#player.faith += 8
+				#game.show_message(f"{player.name} discovered a city-state! +30 gold, +8 faith", 120)
 
-				game.city_states_met[tile_coords].add(player.name)
-				break
+				#game.city_states_met[tile_coords].add(player.name)
+				#break
 
 def build_tile_image_key(tile, available_images):
 	terrain_key = tile.terrain_type.lower()

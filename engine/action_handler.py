@@ -6,7 +6,8 @@ import os
 from datetime import datetime
 from data import constants
 
-def handle_action(engine, action_type, data, log_actions=True):
+#handle already verified legal actions?
+def handle_action(engine, action_type, data, log_actions=False, verified=False):
 	"""
 	Game Engine API
 	Handles a single action applied to the engine.
@@ -22,50 +23,32 @@ def handle_action(engine, action_type, data, log_actions=True):
 		else:
 			from_tile = engine.tiles[unit.q][unit.r]
 			to_tile = engine.tiles[to_q][to_r]
-			result = unit.move_to(from_tile, to_tile)
+			result = unit.move_to(from_tile, to_tile, verified)
 
 	elif action_type == "found_city":
 		unit = engine.get_unit_by_id(data["unit_id"])
 		if not unit:
 			result = (False, "Unit not found for founding city")
 		else:
-			result = engine.current_player.found_city(unit, engine)
-			
+			result = engine.current_player.found_city(unit, engine, verified)
+
 	elif action_type == "improve_tile":
 		unit_id = data["unit_id"]
 		q, r = data["tile_coords"]
 		improvement = data["improvement"]
-	
+
 		unit = engine.get_unit_by_id(unit_id)
 		tile = engine.get_tile(q, r)
-	
+
 		if not unit:
 			return False, "Unit not found."
 		if not tile:
 			return False, "Invalid tile."
-	
-		success, msg = unit.improve_tile(tile, improvement, engine)
+
+		success, msg = unit.improve_tile(tile, improvement, engine, verified)
 		return success, msg
 
-	elif action_type == "choose_worked_tiles":
-		city_id = data.get("city_id")
-		tile_coords = data.get("tiles")  # list of (q, r) tuples
-
-		city = engine.get_city_by_id(city_id)
-		if not city:
-			result = (False, "City not found")
-		else:
-			# Convert coords to tile objects
-			tiles = []
-			for q, r in tile_coords:
-				if q < 0 or r < 0 or q >= len(engine.tiles) or r >= len(engine.tiles[0]):
-					result = (False, f"Tile coords ({q},{r}) out of bounds")
-					break
-				tiles.append(engine.tiles[q][r])
-			else:
-				result = city.set_worked_tiles(tiles, engine)
-
-	elif action_type == "assign_tile":
+	elif action_type == "swap_tile":
 		city_id = data.get("city_id")
 		q, r = data.get("tile")
 		city = engine.get_city_by_id(city_id)
@@ -77,24 +60,12 @@ def handle_action(engine, action_type, data, log_actions=True):
 			tile = engine.tiles[q][r]
 			result = city.assign_tile(tile, engine)
 
-	elif action_type == "unassign_tile":
-		city_id = data.get("city_id")
-		q, r = data.get("tile")
-		city = engine.get_city_by_id(city_id)
-		if not city:
-			result = (False, "City not found")
-		elif q < 0 or r < 0 or q >= len(engine.tiles) or r >= len(engine.tiles[0]):
-			result = (False, f"Tile coords ({q},{r}) out of bounds")
-		else:
-			tile = engine.tiles[q][r]
-			result = city.unassign_tile(tile)    
-
 	elif action_type == "choose_project":
 		city = engine.get_city_by_id(data["city_id"])
 		if not city:
 			result = (False, "City not found for production choice")
 		else:
-			result = city.production_system.choose_project(data["project_name"])
+			result = city.production_system.choose_project(data["project_name"], verified)
 
 	elif action_type == "choose_research":
 		result = engine.current_player.science_system.set_current_research(data["tech_name"]) 
@@ -112,9 +83,9 @@ def handle_action(engine, action_type, data, log_actions=True):
 		q, r = data.get("tile_coords", (None, None))
 		if q is None or r is None:
 			return False, "Invalid tile coordinates"
-		
+
 		tile = engine.get_tile(q, r)
-		
+
 		result = city.purchase_tile(tile, engine) if city else (False, "City not found")
 
 	elif action_type == "choose_pantheon":
@@ -134,20 +105,20 @@ def handle_action(engine, action_type, data, log_actions=True):
 		if replay_path:
 			log_action(engine.turn, action_type, data, replay_path)
 
-	action_summary = {
-		"type": action_type,
-		"data": data
-	}
+	#action_summary = {
+		#"type": action_type,
+		#"data": data
+	#}
 
-	status = "VALID" if result[0] else f"INVALID ({result[1]})"
-	print(f"ACTION: {json.dumps(action_summary, separators=(',', ':'))} --> {status}")
+	#status = "VALID" if result[0] else f"INVALID ({result[1]})"
+	#print(f"ACTION: {json.dumps(action_summary, separators=(',', ':'))} --> {status}")
 
-	legal_actions = engine.get_legal_actions(engine.current_player)
-	print("Legal actions:")
-	for action in legal_actions:
-		print(f" - {action['action']} | { {k: v for k, v in action.items() if k != 'action'} }")
+	#legal_actions = engine.get_legal_actions(engine.current_player)
+	#print("Legal actions:")
+	#for action in legal_actions:
+		#print(f" - {action['action']} | { {k: v for k, v in action.items() if k != 'action'} }")
 
-	print("\n")
+	#print("\n")
 	return result
 
 def start_new_log(engine, prefix="replay", folder="replays"):

@@ -23,7 +23,7 @@ class EnvWrapper:
 		# Calculate reward (you must define your reward logic here)
 		# Example: reward = current_population + current_science (or whatever you want)
 		current_player = self.engine.current_player
-		reward = sum(city.population for city in current_player.cities) + getattr(current_player, "total_science", 0)
+		reward = 50 * sum(city.population for city in current_player.cities) + getattr(current_player, "total_science_accrued", 0)
 
 		# Check if episode done, e.g. after fixed turns or game over condition
 		done = self.engine.turn >= 40  # example stopping condition
@@ -43,7 +43,7 @@ class Engine:
 		Unit._id_counter = 0
 		City._id_counter = 0
 
-		self.is_replay = False
+		self.record_actions = False
 		self.recorded_actions = []
 
 		self.message = ""
@@ -57,6 +57,7 @@ class Engine:
 		with open("maps//indianSubcontinent.json") as f:
 			map_layout = json.load(f)
 		transposed_layout = list(zip(*map_layout))
+		
 		for q, col in enumerate(transposed_layout):
 			tile_col = []
 			for r, tile_data in enumerate(col):
@@ -80,26 +81,89 @@ class Engine:
 		self.all_pantheons = dictionary.PANTHEONS
 		self.taken_pantheons = []
 
-		self.city_states = [(15, 3)]
-		self.city_states_met = {} #[]?
+		#self.city_states = [(15, 3)]
+		#self.city_states_met = {} #[]?
 
 		self.players = [Player()]
 		self.current_player = self.players[0]
 		self.replay_log_filepath = None
 
-		self.spawn_unit(self.players[0], "Worker", 8, 8)
-		self.spawn_unit(self.players[0], "Settler", 9, 8)
-		self.spawn_unit(self.players[0], "Warrior", 10, 8)
-		self.spawn_unit(self.players[0], "Settler", 9, 9)
+		self.spawn_unit(self.players[0], "Worker", 10, 8)
+		self.spawn_unit(self.players[0], "Settler", 11, 8)
+		self.spawn_unit(self.players[0], "Warrior", 12, 8)
 
 		self.tiles[6][6].ancient_ruin = AncientRuins(2)
 
 		self.selected_unit = None
 		self.selected_city = None
-
+		
+	#arent we recording in action handler?
 	def record_action(self, turn, action_type, data):
-		if not self.is_replay:
-			self.recorded_actions.append([turn, action_type, data])
+		self.recorded_actions.append([turn, action_type, data])
+
+	def show_message(self, text, duration=90):
+		self.message = text
+		self.message_timer = duration
+
+	def spawn_unit(self, player, name, q, r): #this is not entirely accurate
+		tile = self.get_tile(q, r)
+		
+		if tile.unit is None:
+			unit = Unit(name, player, q, r)
+			self.units.append(unit)
+			player.units.append(unit)
+			self.tiles[q][r].unit = unit
+			return True, "Unit spawned"
+		else:
+			for nq, nr in hex_neighbors(q, r):
+				tile = game.tiles[nq][nr]
+				if tile.unit is None:
+					unit = Unit(name, player, q, r)
+					self.units.append(unit)
+					player.units.append(unit)
+					self.tiles[q][r].unit = unit
+					return True, "Unit spawned on neighboring tile"
+		return False, "No room to spawn unit!"
+		
+	def remove_unit(self, unit):
+		self.units = [u for u in self.units if u.id != unit.id]
+		if unit.player:
+			unit.player.units = [u for u in unit.player.units if u.id != unit.id]
+		tile = self.get_tile(unit.q, unit.r)
+		if tile and tile.unit and tile.unit.id == unit.id:
+			tile.unit = None
+
+	def get_unit_by_id(self, unit_id):
+		for unit in self.units:
+			if unit.id == unit_id:
+				return unit
+		return None
+
+	def get_city_by_id(self, city_id):
+		for player in self.players:
+			for city in player.cities:
+				if city.id == city_id:
+					return city
+		return None
+
+	def get_tile(self, q, r):
+		return self.tiles[q][r]
+
+	def get_unit_at(self, q, r):
+		return self.tiles[q][r].unit
+	
+	def get_city_at(self, q, r):
+		return self.tiles[q][r].city
+
+	def end_turn(self):
+		self.turn += 1
+		self.selected_unit = None
+		self.start_turn()
+		return True
+	
+	def start_turn(self):
+		for city in self.current_player.cities:
+			city.production_system.apply_production(self)
 
 	def get_legal_actions(self, player):
 		actions = []
@@ -131,11 +195,13 @@ class Engine:
 							}
 						})
 
-		for policy_name in self.all_policies:
-			if player.can_choose_policy(policy_name, self)[0]:
-				actions.append({"action": "choose_policy", "data": {"policy_name": policy_name}})
+		#all policies already researched check? also....this should only check at the BEGINNING of a turn... not during...
+		if self.current_player.culture < self.current_player.policy_cost:
+			for policy_name in self.all_policies:
+				if player.can_choose_policy(policy_name, self)[0]:
+					actions.append({"action": "choose_policy", "data": {"policy_name": policy_name}})
 
-		if not player.science_system.current_research:
+		if not player.science_system.current_research: #disallow swapping, its pointless - except for that minor civil service exploit
 			for tech in player.science_system.get_available_techs():
 				actions.append({"action": "choose_research", "data": {"tech_name": tech}})
 
@@ -144,7 +210,7 @@ class Engine:
 				actions.append({"action": "choose_pantheon", "data": {"pantheon": pantheon}})
 
 		for city in player.cities:
-			if not city.production_system.current_project:
+			if not city.production_system.current_project: #disallow production swapping for now?
 				for project in city.production_system.get_available_projects():
 					actions.append({"action": "choose_project", "data": {"city_id": city.id, "project_name": project.name}})
 
@@ -152,80 +218,45 @@ class Engine:
 			for tile in city.get_purchasable_tiles(self):
 				actions.append({"action": "purchase_tile", "data": {"city_id": city.id, "tile_coords": (tile.q, tile.r)}})
 
+		#for city in player.cities:
+			#for project in city.get_available_projects():
+				#actions.append({"action": "purchase_unit", "data": {"city_id": city.id}})
+				
+		#for city in player.cities:
+			#for project in city.get_available_projects():
+				#actions.append({"action": "purchase_unit", "data": {"city_id": city.id}})
+		
+		##tile SWAPs? settler just lock in science/prod/gold/culture/faith
+		#for city in player.cities:
+			#for 
+				
 		if player.can_end_turn()[0]:
 			actions.append({"action": "end_turn", "data": {}})
 
 		return actions
 
-	def show_message(self, text, duration=90):
-		self.message = text
-		self.message_timer = duration
-
-	def spawn_unit(self, player, name, q, r):
-		unit = Unit(name, player=player, q=q, r=r)
-		self.units.append(unit)
-		player.units.append(unit)
-		self.tiles[q][r].unit = unit
-		return unit
-
-	def remove_unit(self, unit):
-		self.units = [u for u in self.units if u.id != unit.id]
-		if unit.player:
-			unit.player.units = [u for u in unit.player.units if u.id != unit.id]
-		tile = self.get_tile(unit.q, unit.r)
-		if tile and tile.unit and tile.unit.id == unit.id:
-			tile.unit = None
-
-	def get_unit_by_id(self, unit_id):
-		for unit in self.units:
-			if unit.id == unit_id:
-				return unit
-		return None
-
-	def get_city_by_id(self, city_id):
-		for player in self.players:
-			for city in player.cities:
-				if city.id == city_id:
-					return city
-		return None
-
-	def get_unit_at(self, q, r):
-		return self.tiles[q][r].unit
-
-	def get_city_at(self, q, r):
-		return self.tiles[q][r].city
-
-	def start_turn(self):
-		for city in self.current_player.cities:
-			city.production_system.apply_production(self)
-
-	def end_turn(self):
-		self.turn += 1
-		self.selected_unit = None
-		self.start_turn()
-		return True
-
-	def get_tile(self, q, r):
-		return self.tiles[q][r]
-
 	def get_state(self):
 		return {
 			"turn": self.turn,
 			"player": {
-				"name": self.current_player.name,
+				"total_science_accrued": self.current_player.total_science_accrued,
+				"science_per_turn": self.current_player.science_per_turn,				
 				"gold": self.current_player.gold,
 				"gold_per_turn": self.current_player.gold_per_turn,
 				"culture": self.current_player.culture,
 				"culture_per_turn": self.current_player.culture_per_turn,
-				"total_science_accrued": self.current_player.total_science_accrued,
-				"science_per_turn": self.current_player.science_per_turn,
 				"faith": self.current_player.faith,
 				"faith_per_turn": self.current_player.faith_per_turn,
 				"pantheon": self.current_player.pantheon,
+				"happiness": self.current_player.happiness,
 				"luxuries": self.current_player.luxuries,
 				"unlocked_policies": self.current_player.unlocked_policies,
 				"unlocked_techs": self.current_player.science_system.unlocked_techs,
 				"current_research": self.current_player.science_system.current_research,
+				"current_research_progress": self.current_player.science_system.current_research_progress,
+				"era": self.current_player.era,
+				"golden_age_turns_left": self.current_player.golden_age_turns_left,
+				"trade_routes": self.current_player.trade_routes,
 				},
 			"units": [
 				{
@@ -249,6 +280,7 @@ class Engine:
 					"faith": c.faith,
 					"worked_tiles": c.worked_tiles,
 					"current_production": c.production_system.current_project,
+					#building list?
 				}
 				for c in self.current_player.cities
 				],
