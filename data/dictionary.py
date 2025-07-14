@@ -8,26 +8,27 @@
 
 #major:
 #building project instances and completion
-#are we checking TWICE whether we can do an action? one in legal list, AND checks in methods? verified flag, or just dont bother...
+#worked tile bullshit, lock in settler prod tiles?
 #finalize tile improvement system, and all dependent bonuses, flood plains? marsh?
 #forced actions? end turn just doesnt show up... but how does it know which are required
 #border growth algorithm and formula 15 25 40 north cotton then dyes them cotton
 #roads? machinery? bridges over rivers? chopping also, then city connections too
 #verify forests at top part of minimap #define all rivers, add columns
-#tile purchasing cost algorithm
-#select production projects each turn if they are no longer valid after all relevant actions. production applied at BEGINNING of turn. 1 turn left on NC and buiilt a city? it doesnt complete. right?
+#tile purchasing cost algorithm, less after 1st growth?
+#select production projects each turn if they are no longer valid after all relevant actions. production applied at BEGINNING of turn. 1 turn left on NC and buiilt a city? it doesnt complete. right? restriced DURING turn too..
 #figure out gpt formula: 1war and 1 worker =  1gpt, just 2 per after that? or era dependent? improvement cost?
 #program all building effects, stoneworks, stable, verify aqeuduct, etc
-#trade routes caravans ability
+#trade routes caravans ability almost done
+
 #speed monitoring and efficiency*
 #actually get the neural network functional
 
 #minor:
-#city itself tile yield values? think i got it. what about snow?
-#luxes verify and tweak
+#city hill tile yield values? think i got it. what about snow?
+#luxes verify
 #do we let the AI CHOOSE between pop and culture and free tech? yeah. whatever it wants. #does pop growth ancient ruins help expand borders?
 #if we click outside grid, no invalid tile error msg...
-#luxuries, also trading
+#luxuries, also trading??
 #era advancement
 #golden age negative happiness?
 #are embassies required to trade?
@@ -41,8 +42,8 @@
 #meeting people tech boost?
 #wonders allowed toa by 42 pyramids by 52 else gold?
 #great person slots
-#Extensible: multi civ? map importer? standard map size? 
-#Stretch: hover formulas? research agreements? sell buildings? delete units? FREE policies pretend we are poland?
+#multi civ? map importer? standard map size? 
+#hover formulas? research agreements? sell buildings? delete units? FREE policies pretend we are poland?
 
 # Edge indices: clockwise from E = 0
 DIRECTION_TO_EDGE = {

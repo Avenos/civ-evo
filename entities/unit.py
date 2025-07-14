@@ -34,6 +34,9 @@ class Unit:
 
 		self.progress = 0
 		self.completed = False
+		
+		#caravans
+		self.route_active = False
 
 	def can_move_to(self, to_tile):
 		if to_tile is None:
@@ -187,11 +190,10 @@ class Unit:
 			else:
 				return True, "Can build trading post"
 
-	def improve_tile(self, tile, improvement, game, verified=False):
-		if not verified:
-			success, message = self.can_improve_tile(tile, improvement, game)
-			if not success:
-				return False, message
+	def improve_tile(self, tile, improvement, game):
+		success, message = self.can_improve_tile(tile, improvement, game)
+		if not success:
+			return False, message
 
 		if tile.improvement != improvement:
 			tile.improvement = improvement
@@ -220,9 +222,78 @@ class Unit:
 			
 			return True, f"{improvement} completed!"
 
-	def establish_trade_route():
-		if self.name == "Caravan":
-			pass
+	def can_establish_trade_route(self, dest_city, engine):
+		player = self.owner
+		
+		if self.name != "Caravan":
+			return False, "Only Caravans can establish trade routes."
+	
+		if not self.tile.city:
+			return False, "Caravan must be stationed in a city."
+	
+		if not self.tile.city.has_granary:
+			return False, "Trade routes require a Granary in the origin city."
+	
+		if dest_city == self.tile.city:
+			return False, "Cannot establish a trade route to the same city."
+	
+		if len(player.active_trade_routes) >= player.max_trade_routes:
+			return False, "Maximum number of trade routes reached."
+	
+		if self.route_active:
+			return False, "This Caravan is already assigned to a trade route."
+	
+		# Optionally: check if destination is a valid target (same player?)
+		if dest_city.owner != player:
+			return False, "Can only trade with your own cities (for now)."
+	
+		return True, "Can establish trade route"
+	
+	def establish_trade_route(self, dest_city, engine):
+		success, msg = self.can_establish_trade_route(dest_city, engine)
+		if not success:
+			return success, msg
+	
+		self.route_active = True
+		self.route_target = dest_city
+		self.route_turns_remaining = 30
+		self.has_moved = True
+	
+		self.owner.active_trade_routes.append({
+			"unit_id": self.id,
+			"from": self.tile.city.id,
+			"to": dest_city.id,
+			"turns": 30
+		})
+	
+		return True, f"Established trade route to {dest_city.name} for 30 turns."
+
+	def can_rebase(self, city):
+		if self.name != "Caravan":
+			return False, "Only Caravans can rebase."
+	
+		if not city in self.owner.cities:
+			return False, "Can only rebase to own cities."
+	
+		if city == self.tile.city:
+			return False, "Already based in this city."
+	
+		return True, "Can rebase"
+	
+	def rebase_to(self, city):
+		success, msg = self.can_rebase(city)
+		if not success:
+			return False, msg
+	
+		# We'll simulate "rebasing" by teleporting the unit
+		self.q, self.r = city.q, city.r
+		self.has_moved = True
+		self.route_active = False
+		self.route_target = None
+		self.route_turns_remaining = 0
+	
+		return True, f"Rebased to {city.name}."
+
 
 	def reset_movement(self):
 		self.moves_left = self.moves

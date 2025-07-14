@@ -19,7 +19,7 @@ class RandomAgent:
 	def run(self):
 		screen, clock, font, big_font, terrain_overlays, resource_icons, unit_icons = helper.init_pygame_assets(headless=self.headless)
 
-		start_new_log(self.engine)
+		#start_new_log(self.engine)
 		BASE_WIDTH = constants.WIDTH
 		BASE_HEIGHT = constants.HEIGHT
 		running = True
@@ -40,7 +40,7 @@ class RandomAgent:
 				break  # Safety guard
 
 			action = random.choice(legal_actions)
-			handle_action(self.engine, action["action"], action["data"], True) #all actions in legal list are pre-verified
+			handle_action(self.engine, action["action"], action["data"], False)
 
 			if self.headless:
 				continue  # Skip rendering

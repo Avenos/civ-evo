@@ -85,8 +85,8 @@ class City:
 			"Landed Elite",
 			"Monarchy"
 		]
-		
-		
+
+
 		if (all(p in self.owner.unlocked_policies for p in required_policies) and self in self.owner.cities[:4]): #this might not work if we can LOSE cities...
 			growth_modifier += 0.15
 
@@ -269,7 +269,7 @@ class City:
 			for dr in range(-3, 4):
 				q = self.q + dq
 				r = self.r + dr
-				
+
 				if 0 <= q < len(engine.tiles) and 0 <= r < len(engine.tiles[0]):
 					tile = engine.tiles[q][r]
 					can_buy, _ = self.can_purchase_tile(tile, engine)
@@ -282,47 +282,13 @@ class City:
 		city_tile = game.tiles[self.q][self.r]
 		city_coords = (self.q, self.r)
 
-		# Collect all tiles within 3 hexes whose owner is the same as the city owner (player)
-		owned_tiles = []
-		for row in game.tiles:
-			for tile in row:
-				if tile.owner == self.owner:
-					if helper.hex_distance(self.q, self.r, tile.q, tile.r) <= 3:
-						owned_tiles.append(tile)
+		# 1. Start fresh (leave city_tile out of this set!)
+		self.worked_tiles = set()
 
-		# Gather tiles worked by other cities (all players)
-		other_worked_tiles = set()
-		for player in game.players:
-			for city in player.cities:
-				if city is not self:
-					other_worked_tiles.update(city.worked_tiles)
+		# 2. Determine number of assignable citizens (city tile is automatic)
+		assignable_citizens = max(0, self.population - 1)
 
-		# Exclude tiles worked by others, except city tile which is always yours
-		available_tiles = [t for t in owned_tiles if t not in other_worked_tiles and (t.q, t.r) != city_coords]
-
-		# Sort by food + production
-		if self.current_project_name == "Settler": #also make swapping unavailable?
-			available_tiles.sort(key=lambda t: t.production + t.science, reverse=True)
-		else:
-			available_tiles.sort(key=lambda t: t.food + t.production, reverse=True)
-
-		# Start with city tile (always worked)
-		chosen_tiles = [city_tile]
-
-		# Add up to pop more tiles
-		chosen_tiles.extend(available_tiles[:self.population])
-
-		# Update city worked tiles
-		self.worked_tiles = set(chosen_tiles)
-
-		# Mark tiles as worked by this city
-		for tile in self.worked_tiles:
-			tile.worked_by = self
-
-	def get_workable_tiles(self, game):
-		"""Tiles within 3 hexes, owned by this player, and not worked by others (excluding city tile)."""
-		city_coords = (self.q, self.r)
-
+		# 3. Get all valid owned tiles within 3 hexes (excluding city tile)
 		territory_tiles = [
 			tile for row in game.tiles for tile in row
 			if tile.owner == self.owner and
@@ -330,6 +296,49 @@ class City:
 			helper.hex_distance(self.q, self.r, tile.q, tile.r) <= 3
 		]
 
+		# 4. Exclude tiles already worked by other cities
+		other_worked_tiles = set()
+		for player in game.players:
+			for city in player.cities:
+				if city is not self:
+					other_worked_tiles.update(city.worked_tiles)
+
+		available_tiles = [
+			tile for tile in territory_tiles if tile not in other_worked_tiles
+		]
+
+		# 5. Sort by best yields (custom logic per project type)
+		if self.current_project_name == "Settler":
+			available_tiles.sort(key=lambda t: t.production + t.science, reverse=True)
+		else:
+			available_tiles.sort(key=lambda t: t.food + t.production, reverse=True)
+
+		# 6. Pick best N tiles to work
+		tiles_to_work = available_tiles[:assignable_citizens]
+
+		# 7. Assign them
+		for tile in tiles_to_work:
+			tile.worked_by = self
+			self.worked_tiles.add(tile)
+
+		# 8. Always mark the city tile as "worked by this city" for yield purposes
+		city_tile.worked_by = self  # even though not in self.worked_tiles
+
+	def get_workable_tiles(self, game):
+		"""Returns tiles within 3 hexes, owned by this player, and not worked by others.
+		Excludes the city tile — which is always worked automatically and not assignable.
+		"""
+		city_coords = (self.q, self.r)
+
+		# Get territory within range (excluding city tile)
+		territory_tiles = [
+			tile for row in game.tiles for tile in row
+			if tile.owner == self.owner and
+			(tile.q, tile.r) != city_coords and
+			helper.hex_distance(self.q, self.r, tile.q, tile.r) <= 3
+		]
+
+		# Exclude tiles worked by other cities
 		other_worked_tiles = set()
 		for player in game.players:
 			for city in player.cities:
@@ -342,31 +351,35 @@ class City:
 
 		return workable
 
-	def can_unassign_tile(self, tile):
-		if tile in self.worked_tiles:
-			return True, f"Tile can be unassigned"
-		return False, f"Tile at ({tile.q},{tile.r}) was not worked"		
 
-	def unassign_tile(self, tile):
-		success, message = can_unassign_tile()
-
-		if success:
-			self.worked_tiles.remove(tile)
-		else:
-			return success, message
-
-	def can_assign_tile(self, tile):
-		if len(self.worked_tiles) >= self.population:
+	def can_assign_tile(self, tile, game):
+		if tile == self.tile:
+			return False, "City tile is always worked and cannot be assigned"
+		if len(self.worked_tiles) >= (self.population - 1):
 			return False, "All citizens are already assigned"
-
 		if tile not in self.get_workable_tiles(game):
 			return False, f"Tile at ({tile.q},{tile.r}) is not valid to assign"
-		
 		return True, "Tile can be assigned"
 
 	def assign_tile(self, tile, game):
-		self.worked_tiles.add(tile)
-		return True, f"Tile assigned"
+		success, message = self.can_assign_tile(tile, game)
+		if success:
+			self.worked_tiles.add(tile)
+		return success, message
+
+	def can_unassign_tile(self, tile):
+		if tile == self.tile:
+			return False, "City tile cannot be unassigned"
+		if tile in self.worked_tiles:
+			return True, "Tile can be unassigned"
+		return False, f"Tile at ({tile.q},{tile.r}) was not worked"
+
+
+	def unassign_tile(self, tile):
+		success, message = self.can_unassign_tile(tile)
+		if success:
+			self.worked_tiles.remove(tile)
+		return success, message
 
 	def can_purchase_building(self, building_name, player):
 		building_data = dictionary.BUILDINGS.get(building_name)
@@ -388,12 +401,12 @@ class City:
 
 		if player.gold < gold_cost:
 			return False, "Not enough gold."
-		
+
 		return True, "Building can be purchased"
-	
+
 	def purchase_building(self, building_name, player):
 		success, message = self.can_purchase_building(building_name, player)
-		
+
 		if not success:
 			return success, message
 
@@ -403,10 +416,10 @@ class City:
 
 		building_obj = helper.build_building_object(building_name, building_data)
 		self.buildings.append(building_obj)
-		
+
 		if self.current_project_name == building_name:
 			self.production_system.current_project = None
-		
+
 		return True, f"Purchased {building_name}."
 
 	def can_purchase_unit(self, name, player):
@@ -415,19 +428,22 @@ class City:
 			return False, "Unit not found."
 
 		gold_cost = unit_data.get("gold_cost", 0)
+		if gold_cost <= 0:
+			return False, "This unit cannot be purchased."
+		
 		if player.gold < gold_cost:
 			return False, "Not enough gold."
-		
+
 		return True, "Can purchase unit"
 
 	def purchase_unit(self, name, player):
 		success, message = self.can_purchase_unit(name, player)
-		
+
 		if not success:
 			return success, message
 
 		player.gold -= gold_cost
-		
+
 		engine.spawn_unit(player, name, self.q, self.r)
 
 		return True, f"Purchased {name}."

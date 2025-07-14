@@ -156,41 +156,40 @@ class Player:
 					return False, "Too close to another city!"
 		return True, "City founding allowed."
 
-	def found_city(self, unit, game, verified=False):
+	def found_city(self, unit, game):
 		q, r = unit.q, unit.r
 
-		if not verified:
-			success, message = self.can_found_city(unit, game)
-			if not success:
-				return False, message
-		else:
-			city = City(q, r, game.current_player)
+		success, message = self.can_found_city(unit, game)
+		if not success:
+			return False, message
+		
+		city = City(q, r, game.current_player)
 
-			from entities import Building
+		from entities import Building
 
-			if len(self.cities) == 0:
-				palace_data = dictionary.BUILDINGS["Palace"]
-				palace = Building("Palace", **palace_data)
-				palace.completed = True
-				city.buildings.append(palace)
-				city.is_capital = True
+		if len(self.cities) == 0:
+			palace_data = dictionary.BUILDINGS["Palace"]
+			palace = Building("Palace", **palace_data)
+			palace.completed = True
+			city.buildings.append(palace)
+			city.is_capital = True
 
-			self.cities.append(city)
-			game.tiles[q][r].city = city
+		self.cities.append(city)
+		game.tiles[q][r].city = city
 
-			game.tiles[q][r].owner = self
-			for nq, nr in helper.hex_neighbors(q, r):
-				game.tiles[nq][nr].owner = self
-				
-			if game.tiles[q][r].luxury:
-				self.luxuries.append(game.tiles[q][r].resource)
+		game.tiles[q][r].owner = self
+		for nq, nr in helper.hex_neighbors(q, r):
+			game.tiles[nq][nr].owner = self
+			
+		if game.tiles[q][r].luxury:
+			self.luxuries.append(game.tiles[q][r].resource)
 
-			city.update_worked_tiles(game)
-			game.remove_unit(unit)
-			game.selected_unit = None
-			game.selected_city = city
+		city.update_worked_tiles(game)
+		game.remove_unit(unit)
+		game.selected_unit = None
+		game.selected_city = city
 
-			return True, "City founded!"
+		return True, "City founded!"
 
 	@property
 	def policy_cost(self):

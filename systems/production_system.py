@@ -86,6 +86,9 @@ class ProductionSystem:
 		if isinstance(project, Unit) and project_name == "Settler" and self.city.population < 2:
 			return False, "Settler cannot be built unless city population is at least 2."
 
+		if project_name == "Caravan" and len(player.active_trade_routes) >= player.max_trade_routes:
+			return False, "Already at max number of trade routes."
+		
 		return True, "Can choose project"
 
 	def get_available_projects(self):
@@ -167,7 +170,7 @@ class ProductionSystem:
 					self.city.owner.wonders.append(b.name) #append right func?
 
 				if building_name == "Hanging Gardens":
-					garden = helper.create_building("Garden")
+					garden = helper.create_building("Garden") #or just call this def again?
 					garden.completed = True
 					garden.progress = garden.production_cost
 					self.city.buildings.append(garden)

@@ -17,7 +17,8 @@ class HumanGame:
 		#put in init? eh.
 		screen, clock, font, big_font, terrain_overlays, resource_icons, unit_icons = helper.init_pygame_assets()
 
-		start_new_log(self.engine)
+		#make better replay flag
+		#start_new_log(self.engine)
 		hovered_tile_coords = None
 		hover_start_time = 0
 		HOVER_DELAY = 0.2  # seconds

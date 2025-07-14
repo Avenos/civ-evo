@@ -57,7 +57,7 @@ class Engine:
 		with open("maps//indianSubcontinent.json") as f:
 			map_layout = json.load(f)
 		transposed_layout = list(zip(*map_layout))
-		
+
 		for q, col in enumerate(transposed_layout):
 			tile_col = []
 			for r, tile_data in enumerate(col):
@@ -96,10 +96,6 @@ class Engine:
 
 		self.selected_unit = None
 		self.selected_city = None
-		
-	#arent we recording in action handler?
-	def record_action(self, turn, action_type, data):
-		self.recorded_actions.append([turn, action_type, data])
 
 	def show_message(self, text, duration=90):
 		self.message = text
@@ -107,7 +103,7 @@ class Engine:
 
 	def spawn_unit(self, player, name, q, r): #this is not entirely accurate
 		tile = self.get_tile(q, r)
-		
+
 		if tile.unit is None:
 			unit = Unit(name, player, q, r)
 			self.units.append(unit)
@@ -124,7 +120,7 @@ class Engine:
 					self.tiles[q][r].unit = unit
 					return True, "Unit spawned on neighboring tile"
 		return False, "No room to spawn unit!"
-		
+
 	def remove_unit(self, unit):
 		self.units = [u for u in self.units if u.id != unit.id]
 		if unit.player:
@@ -151,16 +147,29 @@ class Engine:
 
 	def get_unit_at(self, q, r):
 		return self.tiles[q][r].unit
-	
+
 	def get_city_at(self, q, r):
 		return self.tiles[q][r].city
 
 	def end_turn(self):
 		self.turn += 1
 		self.selected_unit = None
+		
+		for unit in self.current_player.units:
+			if unit.name == "Caravan" and unit.route_active:
+				unit.route_turns_remaining -= 1
+				if unit.route_turns_remaining <= 0:
+					unit.route_active = False
+					unit.route_target = None
+		
+				else:
+					# Apply effects every turn — e.g., +4 food to target city
+					unit.route_target.food_storage += 4
+		
+		
 		self.start_turn()
 		return True
-	
+
 	def start_turn(self):
 		for city in self.current_player.cities:
 			city.production_system.apply_production(self)
@@ -218,18 +227,76 @@ class Engine:
 			for tile in city.get_purchasable_tiles(self):
 				actions.append({"action": "purchase_tile", "data": {"city_id": city.id, "tile_coords": (tile.q, tile.r)}})
 
-		#for city in player.cities:
-			#for project in city.get_available_projects():
-				#actions.append({"action": "purchase_unit", "data": {"city_id": city.id}})
-				
-		#for city in player.cities:
-			#for project in city.get_available_projects():
-				#actions.append({"action": "purchase_unit", "data": {"city_id": city.id}})
+		for city in player.cities:
+			for building in city.production_system.building_projects:
+				can_purchase, _ = city.can_purchase_building(building.name, player)
+				if can_purchase:
+					actions.append({
+						"action": "purchase_building",
+						"data": {
+							"city_id": city.id,
+							"name": building.name
+						}
+					})
+
+			for unit in city.production_system.unit_projects:
+				can_purchase, _ = city.can_purchase_unit(unit.name, player)
+				if can_purchase:
+					actions.append({
+						"action": "purchase_unit",
+						"data": {
+							"city_id": city.id,
+							"name": unit.name
+						}
+					})
+
+		for city in player.cities:
+			# UNASSIGN worked tiles
+			for tile in city.worked_tiles:
+				actions.append({
+					"action": "unassign_tile",
+					"data": {"city_id": city.id, "tile": (tile.q, tile.r)}
+				})
 		
-		##tile SWAPs? settler just lock in science/prod/gold/culture/faith
-		#for city in player.cities:
-			#for 
-				
+			# ASSIGN new workable tiles if city has spare citizens
+			if len(city.worked_tiles) < city.population:
+				workable_tiles = city.get_workable_tiles(self)
+				for tile in workable_tiles:
+					if tile not in city.worked_tiles:
+						actions.append({
+							"action": "assign_tile",
+							"data": {"city_id": city.id, "tile": (tile.q, tile.r)}
+						})
+
+		for unit in player.units:
+			if unit.name == "Caravan" and not unit.route_active:
+				if unit.tile.city and unit.tile.city.has_granary:
+					for dest in player.cities:
+						if dest != unit.tile.city:
+							success, _ = unit.can_establish_trade_route(dest, self)
+							if success:
+								actions.append({
+									"action": "establish_trade_route",
+									"data": {
+										"unit_id": unit.id,
+										"dest_city_id": dest.id
+									}
+								})
+								
+		# rebase options
+		for city in player.cities:
+			tile = self.get_tile(city.q, city.r)
+			if city != tile.city:
+				success, _ = unit.can_rebase(city)
+				if success:
+					actions.append({
+						"action": "rebase_caravan",
+						"data": {
+							"unit_id": unit.id,
+							"dest_city_id": city.id
+						}
+					})
+
 		if player.can_end_turn()[0]:
 			actions.append({"action": "end_turn", "data": {}})
 
