@@ -19,7 +19,7 @@ class Unit:
 			self.id = None  # For unit templates
 
 		self.name = name
-		self.player = player
+		self.owner = player
 		self.type = "unit"
 		self.q = int(q) if q is not None else None
 		self.r = int(r) if r is not None else None
@@ -49,6 +49,9 @@ class Unit:
 
 		if self.moves_left == 0:
 			return BoolResult(False, "No moves left!")
+		
+		if self.name == "Caravan":
+			return BoolResult(False, "Caravans cannot move")		
 
 		if helper.hex_distance(self.q, self.r, to_tile.q, to_tile.r) != 1:
 			return BoolResult(False, "Can only move to adjacent tiles.")
@@ -80,7 +83,7 @@ class Unit:
 
 		if to_tile.ancient_ruin:
 			ruin = to_tile.ancient_ruin
-			ruin.trigger(self.player, to_tile)
+			ruin.trigger(self.owner, to_tile)
 
 		return BoolResult(True, "Unit moved successfully.")
 
@@ -99,18 +102,18 @@ class Unit:
 			return BoolResult(False, f"Unknown improvement '{improvement}'.")
 
 		if "tech_required" in imp_data:
-			if not self.player:
+			if not self.owner:
 				return BoolResult(False, "Player data not found.")
-			if imp_data["tech_required"] not in self.player.science_system.unlocked_techs:
+			if imp_data["tech_required"] not in self.owner.science_system.unlocked_techs:
 				return BoolResult(False, f"{improvement} requires the {imp_data['tech_required']} technology.")
 
 		turns_required = 3 #not sure about this logic
 
-		if "Citizenship" in self.player.unlocked_policies:
+		if "Citizenship" in self.owner.unlocked_policies:
 			turns_required -= 2
 
 		#we're really checking all cities for this every time...?
-		if "Pyramids" in self.player.wonders:
+		if "Pyramids" in self.owner.wonders:
 			turns_required -= 2		
 
 		if improvement == tile.improvement and tile.improvement_progress >= turns_required:
@@ -127,7 +130,7 @@ class Unit:
 					#return True, "Road completed!"
 				#return True, "Road worked on"
 
-		if tile.owner != self.player:
+		if tile.owner != self.owner:
 			return BoolResult(False, "Cannot improve tile you do not own.") #unless its a road
 
 		elif improvement == "Farm":
@@ -203,10 +206,10 @@ class Unit:
 
 		turns_required = 3 #not sure about this logic
 
-		if "Citizenship" in self.player.unlocked_policies:
+		if "Citizenship" in self.owner.unlocked_policies:
 			turns_required -= 2
 
-		if "Pyramids" in self.player.wonders:
+		if "Pyramids" in self.owner.wonders:
 			turns_required -= 2
 
 		tile.improvement_progress += 1
@@ -220,26 +223,28 @@ class Unit:
 
 			#need to check that its the right improvement though... otherwise farms can wire up luxes
 			if dictionary.RESOURCES.get(tile.resource, {}).get("luxury", False):
-				self.player.luxuries.append(tile.resource)
+				self.owner.luxuries.append(tile.resource)
 			
 			return BoolResult(True, f"{improvement} completed!")
 
 	def can_establish_trade_route(self, dest_city, engine):
 		player = self.owner
+		tile = engine.get_tile(self.q, self.r)
 		
 		if self.name != "Caravan":
 			return BoolResult(False, "Only Caravans can establish trade routes.")
 	
-		if not self.tile.city:
+		if not tile.city:
 			return BoolResult(False, "Caravan must be stationed in a city.")
 	
-		if not self.tile.city.has_granary:
-			return BoolResult(False, "Trade routes require a Granary in the origin city.")
+		#debug
+		#if not tile.city.has_granary:
+			#return BoolResult(False, "Trade routes require a Granary in the origin city.")
 	
-		if dest_city == self.tile.city:
+		if dest_city == tile.city:
 			return BoolResult(False, "Cannot establish a trade route to the same city.")
 	
-		if len(player.active_trade_routes) >= player.max_trade_routes:
+		if len(player.trade_routes) >= player.max_trade_routes:
 			return BoolResult(False, "Maximum number of trade routes reached.")
 	
 		if self.route_active:
@@ -255,20 +260,22 @@ class Unit:
 		if not (result := self.can_establish_trade_route(dest_city, engine)):
 			return result
 	
+		tile = engine.get_tile(self.q, self.r)
+	
 		self.route_active = True
 		self.route_target = dest_city
 		self.route_turns_remaining = 30
-		self.has_moved = True
 	
-		self.owner.active_trade_routes.append({
+		self.owner.trade_routes.append({
 			"unit_id": self.id,
-			"from": self.tile.city.id,
+			"from": tile.city.id,
 			"to": dest_city.id,
 			"turns": 30
 		})
 	
 		return BoolResult(True, f"Established trade route to {dest_city.name} for 30 turns.")
 
+	#cant have two unassigned caravans in a city? eh.
 	def can_rebase(self, city):
 		if self.name != "Caravan":
 			return BoolResult(False, "Only Caravans can rebase.")

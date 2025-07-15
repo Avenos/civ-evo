@@ -14,7 +14,7 @@ class BoolResult:
 		self.message = message
 
 	def __bool__(self):
-		# Automatically converts to True/False in `if` statements
+		# Automatically converts to True/False in 'if' statements
 		return self.success
 
 	def __repr__(self):
@@ -50,7 +50,6 @@ def update_city_connections(player, city):
 			# Check if this neighbor has the capital city
 			if neighbor.city == capital:
 				return True
-
 	return False
 
 def init_pygame_assets(headless=False):
@@ -123,18 +122,18 @@ def in_bounds(q, r):
 
 def hex_neighbors(q, r):
 	if r % 2 == 0:
-		directions = dictionary.EVEN_ROW_NEIGHBORS.values()
+		directions = constants.EVEN_ROW_NEIGHBORS.values()
 	else:
-		directions = dictionary.ODD_ROW_NEIGHBORS.values()
+		directions = constants.ODD_ROW_NEIGHBORS.values()
 
 	neighbors = [(q + dq, r + dr) for dq, dr in directions]
 	return [(nq, nr) for nq, nr in neighbors if in_bounds(nq, nr)]
 
 def tile_neighbors(tile):
 	if tile.r % 2 == 0:
-		directions = dictionary.EVEN_ROW_NEIGHBORS.values()
+		directions = constants.EVEN_ROW_NEIGHBORS.values()
 	else:
-		directions = dictionary.ODD_ROW_NEIGHBORS.values()
+		directions = constants.ODD_ROW_NEIGHBORS.values()
 
 	neighbors = [(tile.q + dq, tile.r + dr) for dq, dr in directions]
 	
@@ -171,23 +170,23 @@ def create_hex_mask(radius, inset=0):  # inset controls how much border to leave
 	pygame.draw.polygon(mask_surf, (255, 255, 255, 255), points)
 	return mask_surf
 
-def assign_fresh_water_flags(game):
-	for row in game.tiles:
+def assign_fresh_water_flags(engine):
+	for row in engine.tiles:
 		for tile in row:
-			tile.fresh_water = has_fresh_water(tile, game)
+			tile.fresh_water = has_fresh_water(tile, engine)
 
-def has_fresh_water(tile, game):
+def has_fresh_water(tile, engine):
 	if tile.rivers or tile.terrain_type == "l" or tile.resource == "oasis": #does oasis provide fresh water? flood plains? or just rivers for that
 		return True
 
 	for q2, r2 in hex_neighbors(tile.q, tile.r):
-		neighbor = game.tiles[q2][r2]
+		neighbor = engine.tiles[q2][r2]
 		if neighbor.terrain_type == "l" or neighbor.resource == "oasis":
 			return True
 	return False
 
-def generate_flood_plains(game):
-	for row in game.tiles:
+def generate_flood_plains(engine):
+	for row in engine.tiles:
 		for tile in row:
 			if tile.terrain_type == "desert" and tile.rivers:
 				tile.terrain_type = "flood plains"
@@ -198,7 +197,7 @@ def has_river_between(tile1, tile2):
 	dr = tile2.r - tile1.r
 
 	is_even = (tile1.r % 2 == 0)
-	neighbor_offsets = dictionary.EVEN_ROW_NEIGHBORS if is_even else dictionary.ODD_ROW_NEIGHBORS
+	neighbor_offsets = constants.EVEN_ROW_NEIGHBORS if is_even else constants.ODD_ROW_NEIGHBORS
 
 	# Find the direction that matches the offset
 	direction = None
@@ -211,23 +210,23 @@ def has_river_between(tile1, tile2):
 		raise ValueError("Tiles are not neighbors")
 
 	# Get edge index for tile1 and opposite edge index for tile2
-	edge1 = dictionary.DIRECTION_TO_EDGE[direction]
-	opposite_direction = dictionary.OPPOSITE_DIRECTION[direction]
-	edge2 = dictionary.DIRECTION_TO_EDGE[opposite_direction]
+	edge1 = constants.DIRECTION_TO_EDGE[direction]
+	opposite_direction = constants.OPPOSITE_DIRECTION[direction]
+	edge2 = constants.DIRECTION_TO_EDGE[opposite_direction]
 
 	return edge1 in tile1.rivers or edge2 in tile2.rivers
 
 def add_river(tile, edge_index, tiles_map):
 	tile.rivers.add(edge_index)
 
-	for direction, idx in dictionary.DIRECTION_TO_EDGE.items():
+	for direction, idx in constants.DIRECTION_TO_EDGE.items():
 		if idx == edge_index:
 			break
 	else:
 		raise ValueError(f"Invalid edge index: {edge_index}")
 
 	# Get offset for that direction depending on row parity
-	offsets = dictionary.EVEN_ROW_NEIGHBORS if tile.r % 2 == 0 else dictionary.ODD_ROW_NEIGHBORS
+	offsets = constants.EVEN_ROW_NEIGHBORS if tile.r % 2 == 0 else constants.ODD_ROW_NEIGHBORS
 	dq, dr = offsets[direction]
 
 	neighbor_q = tile.q + dq
@@ -235,7 +234,7 @@ def add_river(tile, edge_index, tiles_map):
 
 	try:
 		neighbor = tiles_map[neighbor_q][neighbor_r]
-		opposite_edge = dictionary.DIRECTION_TO_EDGE[dictionary.OPPOSITE_DIRECTION[direction]]
+		opposite_edge = constants.DIRECTION_TO_EDGE[constants.OPPOSITE_DIRECTION[direction]]
 		neighbor.rivers.add(opposite_edge)
 	except (IndexError, KeyError):
 		# Neighbor is off-map

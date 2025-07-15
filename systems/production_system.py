@@ -74,7 +74,7 @@ class ProductionSystem:
 
 			if project_name == "Observatory":
 				city_q, city_r = self.city.q, self.city.r
-				tiles = self.city.owner.game.tiles
+				tiles = self.city.owner.game.tiles #this wont work
 
 				adjacent_coords = helper.hex_neighbors(city_q, city_r)
 

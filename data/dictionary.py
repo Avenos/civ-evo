@@ -8,18 +8,16 @@
 
 #major:
 #building project instances and completion
-#worked tile bullshit, lock in settler prod tiles?
-#clear up actionhandler checks?
+#worked tile verify, lock in settler prod tiles?
 #finalize tile improvement system, and all dependent bonuses, flood plains? marsh?
-#forced actions? end turn just doesnt show up... but how does it know which are required
-#border growth algorithm and formula 15 25 40 north cotton then dyes them cotton
+#border growth algorithm and formula 15 25 40 north cotton then dyes them cotton, tradition retroactive?
 #roads? machinery? bridges over rivers? chopping also, then city connections too
 #verify forests at top part of minimap #define all rivers, add columns
 #tile purchasing cost algorithm, less after 1st growth?
 #select production projects each turn if they are no longer valid after all relevant actions. production applied at BEGINNING of turn. 1 turn left on NC and buiilt a city? it doesnt complete. right? restriced DURING turn too..
 #figure out gpt formula: 1war and 1 worker =  1gpt, just 2 per after that? or era dependent? improvement cost?
 #program all building effects, stoneworks, stable, verify aqeuduct, etc
-#trade routes caravans ability almost done
+#trade routes caravans ability almost done, stack caravans anad civilian units?
 
 #speed monitoring and efficiency*
 #actually get the neural network functional
@@ -46,50 +44,13 @@
 #multi civ? map importer? standard map size? 
 #hover formulas? research agreements? sell buildings? delete units? FREE policies pretend we are poland?
 
-# Edge indices: clockwise from E = 0
-DIRECTION_TO_EDGE = {
-	"E": 0,
-	"NE": 5,
-	"NW": 4,
-	"W": 3,
-	"SW": 2,
-	"SE": 1,
-}
-
-# Neighbor offsets for odd-r horizontal layout
-EVEN_ROW_NEIGHBORS = {
-	"E": (1, 0),
-	"NE": (0, -1),
-	"NW": (-1, -1),
-	"W": (-1, 0),
-	"SW": (-1, 1),
-	"SE": (0, 1),
-}
-
-ODD_ROW_NEIGHBORS = {
-	"E": (1, 0),
-	"NE": (1, -1),
-	"NW": (0, -1),
-	"W": (-1, 0),
-	"SW": (0, 1),
-	"SE": (1, 1),
-}
-
-OPPOSITE_DIRECTION = {
-	"E": "W",
-	"NE": "SW",
-	"NW": "SE",
-	"W": "E",
-	"SW": "NE",
-	"SE": "NW",
-}
-
 UNITS = {
 	"Settler": {"moves": 2, "hp": 100, "production_cost": 106, "gold_cost": 500},
 	"Worker": {"moves": 2, "production_cost": 70, "hp": 100, "gold_cost": 220},
 	"Scout": {"moves": 2, "production_cost": 25, "hp": 100, "gold_cost": 140},
 	"Warrior": {"moves": 2,  "production_cost": 40,"hp": 100, "gold_cost": 200},
 	"Caravan": {"moves": 0, "hp": 100, "techs_required": ["Animal Husbandry"], "production_cost": 75, "gold_cost": 390},
+	#Caravel
 	"Great Scientist": {"moves": 2, "hp": 100},
 	"Great Engineer": {"moves": 2, "hp": 100},
 }

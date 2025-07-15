@@ -140,30 +140,33 @@ class Player:
 
 		return income - expenses
 
-
-	def can_found_city(self, unit, game):
+	def can_found_city(self, unit, engine):
+		if not unit:
+			result = BoolResult(False, "Unit not found for founding city")
+			
 		if unit.name != "Settler":
 			return BoolResult(False, "Only Settlers can found cities!")
 
 		if unit.moves_left < 1:
 			return BoolResult(False, "Not enough movement to found a city!")
 
-		for player in game.players:
+		for player in engine.players:
 			for city in player.cities:
 				if helper.hex_distance(unit.q, unit.r, city.q, city.r) < 4:
 					return BoolResult(False, "Too close to another city!")
 		return BoolResult(True, "City founding allowed")
 
-	def found_city(self, unit, game):
-		if not (result := self.can_found_city(unit, game)):
+	def found_city(self, unit, engine):
+		if not (result := self.can_found_city(unit, engine)):
 			return result
 		
 		q, r = unit.q, unit.r
-		city = City(q, r, game.current_player)
+		city = City(q, r, engine.current_player)
 
 		from entities import Building
 
 		if len(self.cities) == 0:
+			#me no likey
 			palace_data = dictionary.BUILDINGS["Palace"]
 			palace = Building("Palace", **palace_data)
 			palace.completed = True
@@ -171,19 +174,22 @@ class Player:
 			city.is_capital = True
 
 		self.cities.append(city)
-		game.tiles[q][r].city = city
+		engine.tiles[q][r].city = city
 
-		game.tiles[q][r].owner = self
+		engine.tiles[q][r].owner = self
 		for nq, nr in helper.hex_neighbors(q, r):
-			game.tiles[nq][nr].owner = self
+			engine.tiles[nq][nr].owner = self
 			
-		if game.tiles[q][r].luxury:
-			self.luxuries.append(game.tiles[q][r].resource)
+		if engine.tiles[q][r].luxury:
+			self.luxuries.append(engine.tiles[q][r].resource)
 
-		city.update_worked_tiles(game)
-		game.remove_unit(unit)
-		game.selected_unit = None
-		game.selected_city = city
+		city.update_worked_tiles(engine)
+		engine.remove_unit(unit)
+		engine.selected_unit = None
+		engine.selected_city = city
+
+		#debug
+		engine.spawn_unit(self, "Caravan", q, r)
 
 		return BoolResult(True, "City founded!")
 
@@ -199,13 +205,14 @@ class Player:
 		if "Representation" in self.unlocked_policies:
 			city_penalty *= 0.67
 
+		#is this correct?
 		penalty_multiplier = 1 + city_penalty
 
 		base = cost_per_unlocked_policy * penalty_multiplier
 		return int(math.ceil(base / 5.0) * 5)
 	
-	def can_choose_policy(self, policy_name, game):
-		policy = game.all_policies.get(policy_name)
+	def can_choose_policy(self, policy_name, engine):
+		policy = engine.all_policies.get(policy_name)
 		
 		if not policy:
 			return BoolResult(False, "Invalid policy choice.")
@@ -233,11 +240,11 @@ class Player:
 				
 		return BoolResult(True, "Policy can be chosen.")
 
-	def choose_policy(self, policy_name, game):
-		if not (result := self.can_choose_policy(policy_name, game)):
+	def choose_policy(self, policy_name, engine):
+		if not (result := self.can_choose_policy(policy_name, engine)):
 			return result
 
-		policy = game.all_policies[policy_name]
+		policy = engine.all_policies[policy_name]
 		self.culture -= self.policy_cost
 		self.unlocked_policies.append(policy.name)
 		
@@ -299,10 +306,12 @@ class Player:
 		self.pantheon = pantheon_name
 		return BoolResult(True, f"Pantheon '{pantheon_name}' chosen successfully!")
 	
+	@property
 	def max_trade_routes(self):
 		techs = self.science_system.get_unlocked_names()
 		trade_techs = {"Compass", "Engineering", "Banking", "Animal Husbandry", "Sailing"}
-		return sum(1 for tech in trade_techs if tech in self.science_system.get_unlocked_names())
+		#debug
+		return 10 + sum(1 for tech in trade_techs if tech in self.science_system.get_unlocked_names())
 
 	def start_golden_age(self):
 		self.in_golden_age = True
@@ -376,3 +385,4 @@ class Player:
 		engine.end_turn()
 
 		return BoolResult(True, "Turn ended successfully.")
+	

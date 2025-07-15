@@ -2,7 +2,7 @@
 #here is engine.py - remember, we are just feeding you context for now. lots of files. I do NOT want you to do any actual analysis yet, I will let you know when I want that. just acknowledge that this file is now in your brain and wait for the next one.
 
 import json
-from utils import helper
+from utils import helper, BoolResult
 from data import constants, dictionary
 
 from entities import Tile, Unit, City, Player, AncientRuins
@@ -54,7 +54,7 @@ class Engine:
 		self.tiles = []
 		self.units = []
 
-		with open("maps//indianSubcontinent.json") as f:
+		with open("maps//indian_subcontinent.json") as f:
 			map_layout = json.load(f)
 		transposed_layout = list(zip(*map_layout))
 
@@ -90,7 +90,7 @@ class Engine:
 
 		self.spawn_unit(self.players[0], "Worker", 10, 8)
 		self.spawn_unit(self.players[0], "Settler", 11, 8)
-		self.spawn_unit(self.players[0], "Warrior", 12, 8)
+		self.spawn_unit(self.players[0], "Settler", 12, 8)
 
 		self.tiles[6][6].ancient_ruin = AncientRuins(2)
 
@@ -109,22 +109,22 @@ class Engine:
 			self.units.append(unit)
 			player.units.append(unit)
 			self.tiles[q][r].unit = unit
-			return True, "Unit spawned"
+			return BoolResult(True, "Unit spawned")
 		else:
-			for nq, nr in hex_neighbors(q, r):
-				tile = game.tiles[nq][nr]
+			for nq, nr in helper.hex_neighbors(q, r):
+				tile = self.tiles[nq][nr]
 				if tile.unit is None:
 					unit = Unit(name, player, q, r)
 					self.units.append(unit)
 					player.units.append(unit)
 					self.tiles[q][r].unit = unit
-					return True, "Unit spawned on neighboring tile"
-		return False, "No room to spawn unit!"
+					return BoolResult(True, "Unit spawned on neighboring tile")
+		return BoolResult(False, "No room to spawn unit!")
 
 	def remove_unit(self, unit):
 		self.units = [u for u in self.units if u.id != unit.id]
-		if unit.player:
-			unit.player.units = [u for u in unit.player.units if u.id != unit.id]
+		if unit.owner:
+			unit.owner.units = [u for u in unit.owner.units if u.id != unit.id]
 		tile = self.get_tile(unit.q, unit.r)
 		if tile and tile.unit and tile.unit.id == unit.id:
 			tile.unit = None
@@ -190,12 +190,11 @@ class Engine:
 								"improvement": improvement_name
 							}
 						})
-
-		#all policies already researched check? also....this should only check at the BEGINNING of a turn... not during...
-		if self.current_player.culture < self.current_player.policy_cost:
-			for policy_name in self.all_policies:
-				if player.can_choose_policy(policy_name, self):
-					actions.append({"action": "choose_policy", "data": {"policy_name": policy_name}})
+		
+		#expensive?
+		for policy_name in self.all_policies:
+			if player.can_choose_policy(policy_name, self):
+				actions.append({"action": "choose_policy", "data": {"policy_name": policy_name}})
 
 		if not player.science_system.current_research: #disallow swapping, its pointless - except for that minor civil service exploit
 			for tech in player.science_system.get_available_techs():
@@ -242,23 +241,24 @@ class Engine:
 						"action": "unassign_tile",
 						"data": {"city_id": city.id, "tile": (tile.q, tile.r)}
 					})
-		
-			#if len(city.worked_tiles) < city.population + 1:
-				#workable_tiles = city.get_workable_tiles(self)
-				#for tile in workable_tiles:
-					#if tile not in city.worked_tiles:
-						#actions.append({
-							#"action": "assign_tile",
-							#"data": {"city_id": city.id, "tile": (tile.q, tile.r)}
-						#})
+					
+		for city in player.cities:	
+			if len(city.worked_tiles) < city.population + 1:
+				workable_tiles = city.get_workable_tiles(self)
+				for tile in workable_tiles:
+					if tile not in city.worked_tiles:
+						actions.append({
+							"action": "assign_tile",
+							"data": {"city_id": city.id, "tile": (tile.q, tile.r)}
+						})
 
 		for unit in player.units:
+			tile = self.get_tile(unit.q, unit.r)
 			if unit.name == "Caravan" and not unit.route_active:
-				if unit.tile.city and unit.tile.city.has_granary:
+				if tile.city: # and "Granary" in tile.city.buildings:
 					for dest in player.cities:
-						if dest != unit.tile.city:
-							success, _ = unit.can_establish_trade_route(dest, self)
-							if success:
+						if dest != tile.city:
+							if unit.can_establish_trade_route(dest, self):
 								actions.append({
 									"action": "establish_trade_route",
 									"data": {
@@ -267,7 +267,6 @@ class Engine:
 									}
 								})
 								
-		# rebase options
 		for city in player.cities:
 			tile = self.get_tile(city.q, city.r)
 			if city != tile.city:
@@ -280,6 +279,8 @@ class Engine:
 							"dest_city_id": city.id
 						}
 					})
+
+		#choose ancient ruins bonus
 
 		if player.can_end_turn():
 			actions.append({"action": "end_turn", "data": {}})

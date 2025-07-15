@@ -17,14 +17,13 @@ class City:
 
 	def __init__(self, q, r, player):
 		self.id = City._id_counter
-		City._id_counter += 1 #need to set back to 0 on game start?		
-
+		City._id_counter += 1
+		
 		if City._id_counter < len(constants.CITY_NAMES):
 			self.name = constants.CITY_NAMES[City._id_counter]
-			City._id_counter += 1
 		else:
 			self.name = f"City{City._id_counter}"
-			City._id_counter += 1
+			
 		self.q = q
 		self.r = r
 		self.is_capital = False
@@ -274,13 +273,13 @@ class City:
 
 		return purchasable_tiles
 
-	def update_worked_tiles(self, game):
-		city_tile = game.tiles[self.q][self.r]
+	def update_worked_tiles(self, engine):
+		city_tile = engine.tiles[self.q][self.r]
 
 		self.worked_tiles = set()
 
 		workable_tiles = [
-			tile for row in game.tiles for tile in row
+			tile for row in engine.tiles for tile in row
 			if tile.owner == self.owner and
 			(tile.q, tile.r) != (self.q, self.r) and
 			helper.hex_distance(self.q, self.r, tile.q, tile.r) <= 3
@@ -308,9 +307,9 @@ class City:
 		self.worked_tiles.add(city_tile)
 		city_tile.worked_by = self
 
-	def get_workable_tiles(self, game):
+	def get_workable_tiles(self, engine):
 		territory_tiles = [
-			tile for row in game.tiles for tile in row
+			tile for row in engine.tiles for tile in row
 			if tile.owner == self.owner and
 			(tile.q, tile.r) != (self.q, self.r) and
 			helper.hex_distance(self.q, self.r, tile.q, tile.r) <= 3
@@ -318,7 +317,7 @@ class City:
 
 		# Exclude tiles worked by other cities
 		other_worked_tiles = set()
-		for player in game.players:
+		for player in engine.players:
 			for city in player.cities:
 				if city is not self:
 					other_worked_tiles.update(city.worked_tiles)
@@ -332,19 +331,19 @@ class City:
 	def can_assign_tile(self, tile, engine):
 		if tile.q == self.q and tile.r == self.r:
 			return BoolResult(False, "City tile is always worked and cannot be assigned")
-		if len(self.worked_tiles) >= (self.population - 1):
+		if len(self.worked_tiles) >= (self.population + 1):
 			return BoolResult(False, "All citizens are already assigned")
 		if tile not in self.get_workable_tiles(engine):
 			return BoolResult(False, f"Tile at ({tile.q},{tile.r}) is not valid to assign")
 		return BoolResult(True, "Tile can be assigned")
 
 	def assign_tile(self, tile, engine):
-		if not (result := self.can_purchase_tile(tile, engine)):
+		if not (result := self.can_assign_tile(tile, engine)):
 			return result
 
 		#theres the tile flag worked by, AND the city list...
 		self.worked_tiles.add(tile)
-		tle.worked_by = self
+		tile.worked_by = self
 		return BoolResult(True, "Tile assigned")
 
 	def can_unassign_tile(self, tile):
@@ -425,7 +424,7 @@ class City:
 
 		return BoolResult(True, f"Purchased {name}.")
 
-	def compute_influence_distance(city, game, max_range=5):
+	def compute_influence_distance(city, engine, max_range=5):
 		visited = set()
 		distances = {}
 		start_coords = (city.q, city.r)
@@ -440,7 +439,7 @@ class City:
 			if helper.hex_distance(city.q, city.r, q, r) > max_range:
 				continue
 
-			tile = game.tiles[q][r]
+			tile = engine.tiles[q][r]
 			cost = INFLUENCE_COST.get(tile.terrain_type, 1)
 			mod_cost = max(1, min(3, cost))  # Clamp between 1 and 3
 			total = dist + mod_cost
@@ -451,7 +450,7 @@ class City:
 					heapq.heappush(heap, (total, (nq, nr)))
 		return distances
 
-	def compute_tile_priority(tile, dist, game, city):
+	def compute_tile_priority(tile, dist, engine, city):
 		priority = dist * MULTIPLIERS["DISTANCE"]
 
 		if tile.resource and tile.resource not in tile.unworkable_resources:
@@ -482,11 +481,11 @@ class City:
 			return self.expand_borders()
 		return BoolResult(False, "Not enough culture for border expansion yet.")	
 
-	def expand_borders(self, game):
+	def expand_borders(self, engine):
 		if self.stored_culture < self.border_growth_threshold:
 			return BoolResult(False, "Insufficient culture to expand borders.")
 
-		tile = self._select_best_border_tile(game)
+		tile = self._select_best_border_tile(engine)
 		if not tile:
 			return BoolResult(False, "No valid tile to expand into.")
 

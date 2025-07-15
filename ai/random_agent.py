@@ -11,7 +11,7 @@ from renderer import Renderer
 from utils import helper
 
 class RandomAgent:
-	def __init__(self, engine, headless):
+	def __init__(self, engine, headless=True):
 		self.engine = engine
 		self.renderer = Renderer()
 		self.headless = headless

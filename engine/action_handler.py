@@ -18,6 +18,7 @@ def handle_action(engine, action_type, data, log_actions=False):
 	if action_type == "move_unit":
 		unit = engine.get_unit_by_id(data["unit_id"])
 		to_q, to_r = data["to"]
+		
 		if not unit:
 			result = BoolResult(False, "Unit not found")
 		else:
@@ -27,20 +28,16 @@ def handle_action(engine, action_type, data, log_actions=False):
 
 	elif action_type == "found_city":
 		unit = engine.get_unit_by_id(data["unit_id"])
-		if not unit:
-			result = BoolResult(False, "Unit not found for founding city")
-		else:
-			result = engine.current_player.found_city(unit, engine)
+		result = engine.current_player.found_city(unit, engine)
 
 	elif action_type == "improve_tile":
+		q, r = data["tile_coords"]
 		unit = engine.get_unit_by_id(data["unit_id"])
-		tile = engine.get_tile(data["tile_coords"])
+		tile = engine.get_tile(q, r)
 
 		if not unit:
 			result = BoolResult(False, "Unit not found.")
-		if not tile:
-			result = BoolResult(False, "Invalid tile.")
-
+			
 		result = unit.improve_tile(tile, data["improvement"], engine)
 
 	elif action_type in ["assign_tile", "unassign_tile"]:
@@ -50,8 +47,10 @@ def handle_action(engine, action_type, data, log_actions=False):
 		city = engine.get_city_by_id(city_id)
 		if not city:
 			result = BoolResult(False, "City not found")
-		elif not helper.in_bounds(q, r):
-			result = BoolResult(False, f"Tile coords ({q},{r}) out of bounds")
+
+		elif q is None or r is None:
+			return BoolResult(False, "Invalid tile coordinates")		
+		
 		else:
 			tile = engine.tiles[q][r]
 			if action_type == "assign_tile":
@@ -132,10 +131,10 @@ def handle_action(engine, action_type, data, log_actions=False):
 	status = "VALID" if result else f"INVALID ({result.message})"
 	print(f"ACTION: {json.dumps(action_summary, separators=(',', ':'))} --> {status}")
 
-	legal_actions = engine.get_legal_actions(engine.current_player)
-	print("Legal actions:")
-	for action in legal_actions:
-		print(f" - {action['action']} | { {k: v for k, v in action.items() if k != 'action'} }")
+	#legal_actions = engine.get_legal_actions(engine.current_player)
+	#print("Legal actions:")
+	#for action in legal_actions:
+		#print(f" - {action['action']} | { {k: v for k, v in action.items() if k != 'action'} }")
 
 	print("\n")
 	return result

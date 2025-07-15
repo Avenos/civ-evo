@@ -23,6 +23,45 @@ YELLOW = (255, 255, 0)
 GOLD_DARK_GREEN = (34, 139, 34)
 DARK_YELLOW = (204, 153, 0)
 
+# Edge indices: clockwise from E = 0
+DIRECTION_TO_EDGE = {
+	"E": 0,
+	"NE": 5,
+	"NW": 4,
+	"W": 3,
+	"SW": 2,
+	"SE": 1,
+}
+
+# Neighbor offsets for odd-r horizontal layout
+EVEN_ROW_NEIGHBORS = {
+	"E": (1, 0),
+	"NE": (0, -1),
+	"NW": (-1, -1),
+	"W": (-1, 0),
+	"SW": (-1, 1),
+	"SE": (0, 1),
+}
+
+ODD_ROW_NEIGHBORS = {
+	"E": (1, 0),
+	"NE": (1, -1),
+	"NW": (0, -1),
+	"W": (-1, 0),
+	"SW": (0, 1),
+	"SE": (1, 1),
+}
+
+OPPOSITE_DIRECTION = {
+	"E": "W",
+	"NE": "SW",
+	"NW": "SE",
+	"W": "E",
+	"SW": "NE",
+	"SE": "NW",
+}
+
+#why differing brackets? { vs [
 ERAS = [
     "Ancient",
     "Classical",
