@@ -15,7 +15,7 @@ def main():
 	#Train().train()
 	
 	HumanGame(engine).run()
-	#RandomAgent(engine, True).run()
+	#RandomAgent(engine, False).run()
 	#Replay("replay_2025-07-09_05-43-38.json", engine, speed=9999999).run()
 
 if __name__ == "__main__":

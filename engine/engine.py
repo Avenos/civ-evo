@@ -26,7 +26,7 @@ class EnvWrapper:
 		reward = 50 * sum(city.population for city in current_player.cities) + getattr(current_player, "total_science_accrued", 0)
 
 		# Check if episode done, e.g. after fixed turns or game over condition
-		done = self.engine.turn >= 40  # example stopping condition
+		done = self.engine.turn >= 40
 
 		# Optionally include error info or other info
 		info = {"success": success, "error": error}
@@ -155,18 +155,6 @@ class Engine:
 		self.turn += 1
 		self.selected_unit = None
 		
-		for unit in self.current_player.units:
-			if unit.name == "Caravan" and unit.route_active:
-				unit.route_turns_remaining -= 1
-				if unit.route_turns_remaining <= 0:
-					unit.route_active = False
-					unit.route_target = None
-		
-				else:
-					# Apply effects every turn — e.g., +4 food to target city
-					unit.route_target.food_storage += 4
-		
-		
 		self.start_turn()
 		return True
 
@@ -180,11 +168,11 @@ class Engine:
 		for unit in player.units:
 			for dq, dr in helper.hex_neighbors(unit.q, unit.r):
 				to_tile = self.get_tile(dq, dr)
-				if unit.can_move_to(to_tile)[0]:
+				if unit.can_move_to(to_tile):
 					actions.append({"action": "move_unit", "data": {"unit_id": unit.id, "to": [dq, dr]}})
 
 		for unit in player.units:
-			if player.can_found_city(unit, self)[0]:
+			if player.can_found_city(unit, self):
 				actions.append({"action": "found_city", "data": {"unit_id": unit.id}})
 
 		for unit in player.units:
@@ -193,8 +181,7 @@ class Engine:
 				for improvement_name in dictionary.IMPROVEMENTS.keys():
 					if improvement_name in ["Road", "None"]:
 						continue  # Skip non-improvement types here if needed
-					success, _ = unit.can_improve_tile(tile, improvement_name, self)
-					if success:
+					if unit.can_improve_tile(tile, improvement_name, self):
 						actions.append({
 							"action": "improve_tile",
 							"data": {
@@ -207,14 +194,14 @@ class Engine:
 		#all policies already researched check? also....this should only check at the BEGINNING of a turn... not during...
 		if self.current_player.culture < self.current_player.policy_cost:
 			for policy_name in self.all_policies:
-				if player.can_choose_policy(policy_name, self)[0]:
+				if player.can_choose_policy(policy_name, self):
 					actions.append({"action": "choose_policy", "data": {"policy_name": policy_name}})
 
 		if not player.science_system.current_research: #disallow swapping, its pointless - except for that minor civil service exploit
 			for tech in player.science_system.get_available_techs():
 				actions.append({"action": "choose_research", "data": {"tech_name": tech}})
 
-		if player.can_choose_pantheon()[0]:
+		if player.can_choose_pantheon():
 			for pantheon in self.all_pantheons:
 				actions.append({"action": "choose_pantheon", "data": {"pantheon": pantheon}})
 
@@ -229,8 +216,7 @@ class Engine:
 
 		for city in player.cities:
 			for building in city.production_system.building_projects:
-				can_purchase, _ = city.can_purchase_building(building.name, player)
-				if can_purchase:
+				if city.can_purchase_building(building.name, player):
 					actions.append({
 						"action": "purchase_building",
 						"data": {
@@ -240,8 +226,7 @@ class Engine:
 					})
 
 			for unit in city.production_system.unit_projects:
-				can_purchase, _ = city.can_purchase_unit(unit.name, player)
-				if can_purchase:
+				if city.can_purchase_unit(unit.name, player):
 					actions.append({
 						"action": "purchase_unit",
 						"data": {
@@ -251,22 +236,21 @@ class Engine:
 					})
 
 		for city in player.cities:
-			# UNASSIGN worked tiles
 			for tile in city.worked_tiles:
-				actions.append({
-					"action": "unassign_tile",
-					"data": {"city_id": city.id, "tile": (tile.q, tile.r)}
-				})
+				if city.can_unassign_tile(tile):
+					actions.append({
+						"action": "unassign_tile",
+						"data": {"city_id": city.id, "tile": (tile.q, tile.r)}
+					})
 		
-			# ASSIGN new workable tiles if city has spare citizens
-			if len(city.worked_tiles) < city.population:
-				workable_tiles = city.get_workable_tiles(self)
-				for tile in workable_tiles:
-					if tile not in city.worked_tiles:
-						actions.append({
-							"action": "assign_tile",
-							"data": {"city_id": city.id, "tile": (tile.q, tile.r)}
-						})
+			#if len(city.worked_tiles) < city.population + 1:
+				#workable_tiles = city.get_workable_tiles(self)
+				#for tile in workable_tiles:
+					#if tile not in city.worked_tiles:
+						#actions.append({
+							#"action": "assign_tile",
+							#"data": {"city_id": city.id, "tile": (tile.q, tile.r)}
+						#})
 
 		for unit in player.units:
 			if unit.name == "Caravan" and not unit.route_active:
@@ -297,7 +281,7 @@ class Engine:
 						}
 					})
 
-		if player.can_end_turn()[0]:
+		if player.can_end_turn():
 			actions.append({"action": "end_turn", "data": {}})
 
 		return actions

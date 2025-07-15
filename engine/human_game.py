@@ -65,8 +65,8 @@ class HumanGame:
 					for btn in self.engine.ui_tech_buttons:
 						if btn["rect"].collidepoint(pos):
 							tech_name = btn["tech_name"]
-							success, message = handle_action(self.engine, "choose_research", {"tech_name": tech_name})
-							self.engine.show_message(message if not success else f"Selected tech: {tech_name}", 90)
+							result = handle_action(self.engine, "choose_research", {"tech_name": tech_name})
+							self.engine.show_message(result.message)
 							logical_click_handled = True
 							break
 
@@ -74,8 +74,8 @@ class HumanGame:
 						for btn in self.engine.ui_policy_buttons:
 							if btn["rect"].collidepoint(pos):
 								policy_name = btn["policy"]
-								success, message = handle_action(self.engine, "choose_policy", {"policy_name": policy_name})
-								self.engine.show_message(message if not success else f"Policy chosen: {policy_name}", 90)
+								result = handle_action(self.engine, "choose_policy", {"policy_name": policy_name})
+								self.engine.show_message(result.message)
 								logical_click_handled = True
 								break
 
@@ -92,10 +92,10 @@ class HumanGame:
 										"tile_coords": tile_coords,
 										"improvement": improvement
 									}
-									success, message = handle_action(self.engine, "improve_tile", action_data)
-									self.engine.show_message(message, 90)
+									result = handle_action(self.engine, "improve_tile", action_data)
+									self.engine.show_message(result.message)
 								else:
-									self.engine.show_message("No unit selected.", 90)
+									self.engine.show_message("No unit selected.")
 								logical_click_handled = True
 								break
 
@@ -103,14 +103,13 @@ class HumanGame:
 					if not logical_click_handled and self.engine.ui_found_city_button and self.engine.ui_found_city_button.collidepoint(pos):
 						if self.engine.selected_unit:
 							unit_id = self.engine.selected_unit.id
-							success, message = handle_action(self.engine, "found_city", {"unit_id": unit_id})
-							self.engine.show_message(message if not success else "City founded!", 90)
+							result = handle_action(self.engine, "found_city", {"unit_id": unit_id})
+							self.engine.show_message(result.message)
 						logical_click_handled = True
 
 					elif not logical_click_handled and self.engine.ui_next_turn_button and self.engine.ui_next_turn_button.collidepoint(pos):
-						success, message = handle_action(self.engine, "end_turn", {"player": "placeholder"} )
-						self.engine.show_message(message if not success else f"Turn ended", 90)
-
+						result = handle_action(self.engine, "end_turn", {"player": "placeholder"} )
+						self.engine.show_message(result.message)
 						logical_click_handled = True
 
 					if not logical_click_handled:
@@ -121,13 +120,13 @@ class HumanGame:
 								city_id = self.engine.selected_city.id if self.engine.selected_city else None
 								if city_id is not None:
 									action_type = "purchase_building" if itype == "building" else "purchase_unit"
-									success, message = handle_action(self.engine, action_type, {
+									result = handle_action(self.engine, action_type, {
 										"city_id": city_id,
 										"name": name
 									})
-									self.engine.show_message(message if not success else f"Purchased {name}", 90)
+									self.engine.show_message(result.message)
 								else:
-									self.engine.show_message("No city selected.", 90)
+									self.engine.show_message("No city selected.")
 								logical_click_handled = True
 								break
 
@@ -137,13 +136,13 @@ class HumanGame:
 								project = btn["project"]
 								city_id = self.engine.selected_city.id if self.engine.selected_city else None
 								if city_id is not None:
-									success, message = handle_action(self.engine, "choose_project", {
+									result = handle_action(self.engine, "choose_project", {
 										"city_id": city_id,
 										"project_name": project.name
 									})
-									self.engine.show_message(message if not success else f"Started building {project.name}", 90)
+									self.engine.show_message(result.message)
 								else:
-									self.engine.show_message("No city selected.", 90)
+									self.engine.show_message("No city selected.")
 								logical_click_handled = True
 								break
 
@@ -151,8 +150,8 @@ class HumanGame:
 						for btn in self.engine.ui_pantheon_buttons:
 							if btn["rect"].collidepoint(pos):
 								pantheon_name = btn["pantheon_name"]
-								success, message = handle_action(self.engine, "choose_pantheon", {"pantheon_name": pantheon_name})
-								self.engine.show_message(message if not success else f"Chose pantheon: {pantheon_name}", 120)
+								result = handle_action(self.engine, "choose_pantheon", {"pantheon_name": pantheon_name})
+								self.engine.show_message(result.message)
 								logical_click_handled = True
 								break
 
@@ -179,21 +178,19 @@ class HumanGame:
 									if self.engine.selected_unit:
 										unit_id = self.engine.selected_unit.id
 										action_data = {"unit_id": unit_id, "to": (q, r)}
-										success, message = handle_action(self.engine, "move_unit", action_data)
-										if not success:
-											self.engine.show_message(message, 90)
-										else:
-											pass
-											#helper.check_city_state_proximity(self.engine, self.engine.current_player)
+										result = handle_action(self.engine, "move_unit", action_data)
+										self.engine.show_message(result.message)
+										#helper.check_city_state_proximity(self.engine, self.engine.current_player)
+										
 									elif self.engine.selected_city:
 										city_id = self.engine.selected_city.id
 										action_data = {"city_id": city_id, "tile_coords": (q, r)}
-										success, message = handle_action(engine, "purchase_tile", action_data)
-										self.engine.show_message(message if not success else f"Tile purchased!", 90)
+										result = handle_action(self.engine, "purchase_tile", action_data)
+										self.engine.show_message(result.message)
 								else:
-									self.engine.show_message("Clicked outside map bounds.", 90)
+									self.engine.show_message("Clicked outside map bounds.")
 						else:
-							self.engine.show_message("Invalid tile.", 90)
+							self.engine.show_message("Invalid tile.")
 
 			base_surface = pygame.Surface((BASE_WIDTH, BASE_HEIGHT))
 			base_surface.fill((255, 255, 255))

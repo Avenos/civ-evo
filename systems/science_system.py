@@ -1,5 +1,5 @@
 
-from utils import helper
+from utils import helper, BoolResult
 from data import dictionary
 
 class ScienceSystem:
@@ -51,26 +51,27 @@ class ScienceSystem:
 		tech = self.techs.get(tech_name)
 
 		if not tech:
-			return False, f"Tech '{tech_name}' not found."
+			return BoolResult(False, f"Tech '{tech_name}' not found.")
 
 		if tech.unlocked:
-			return False, f"{tech_name} is already unlocked."
+			return BoolResult(False, f"{tech_name} is already unlocked.")
 
 		if not tech.can_research(self.get_unlocked_names()):
-			return False, f"Missing prerequisites for {tech_name}."
+			return BoolResult(False, f"Missing prerequisites for {tech_name}.")
 
 		self.current_research = tech_name
 
+		#why is this here?
 		if player and self.overflow > 0:
 			tech.progress += self.overflow
 			if tech.progress >= tech.get_effective_cost(player):
 				tech.unlocked = True
 				self.overflow = tech.progress - tech.get_effective_cost(player)
 				self.current_research = None
-				return True, None
+				return BoolResult(True, "Tech unlocked")
 			self.overflow = 0  # Apply overflow only once
 
-		return True, f"Selected tech: {tech_name}"
+		return BoolResult(True, f"Selected tech: {tech_name}")
 
 	@property
 	def unlocked_techs(self):

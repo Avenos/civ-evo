@@ -9,6 +9,7 @@
 #major:
 #building project instances and completion
 #worked tile bullshit, lock in settler prod tiles?
+#clear up actionhandler checks?
 #finalize tile improvement system, and all dependent bonuses, flood plains? marsh?
 #forced actions? end turn just doesnt show up... but how does it know which are required
 #border growth algorithm and formula 15 25 40 north cotton then dyes them cotton

@@ -3,7 +3,7 @@
 
 from data import dictionary, constants
 from . import City
-from utils import helper
+from utils import helper, BoolResult
 from systems import ScienceSystem
 
 import math
@@ -142,27 +142,23 @@ class Player:
 
 
 	def can_found_city(self, unit, game):
-		q, r = unit.q, unit.r
-
 		if unit.name != "Settler":
-			return False, "Only Settlers can found cities!"
+			return BoolResult(False, "Only Settlers can found cities!")
 
 		if unit.moves_left < 1:
-			return False, "Not enough movement to found a city!"
+			return BoolResult(False, "Not enough movement to found a city!")
 
 		for player in game.players:
 			for city in player.cities:
-				if helper.hex_distance(q, r, city.q, city.r) < 4:
-					return False, "Too close to another city!"
-		return True, "City founding allowed."
+				if helper.hex_distance(unit.q, unit.r, city.q, city.r) < 4:
+					return BoolResult(False, "Too close to another city!")
+		return BoolResult(True, "City founding allowed")
 
 	def found_city(self, unit, game):
-		q, r = unit.q, unit.r
-
-		success, message = self.can_found_city(unit, game)
-		if not success:
-			return False, message
+		if not (result := self.can_found_city(unit, game)):
+			return result
 		
+		q, r = unit.q, unit.r
 		city = City(q, r, game.current_player)
 
 		from entities import Building
@@ -189,7 +185,7 @@ class Player:
 		game.selected_unit = None
 		game.selected_city = city
 
-		return True, "City founded!"
+		return BoolResult(True, "City founded!")
 
 	@property
 	def policy_cost(self):
@@ -212,17 +208,17 @@ class Player:
 		policy = game.all_policies.get(policy_name)
 		
 		if not policy:
-			return False, "Invalid policy choice."
+			return BoolResult(False, "Invalid policy choice.")
 	
 		if policy.is_unlocked(self):
-			return False, "Policy already unlocked."
+			return BoolResult(False, "Policy already unlocked.")
 	
 		if self.culture < self.policy_cost:
-			return False, "Not enough culture accrued to unlock this policy."
+			return BoolResult(False, "Not enough culture accrued to unlock this policy.")
 	
 		#should be called have necessary prereqs
 		if not policy.can_unlock(self):
-			return False, "You don't meet the prerequisites for this policy."
+			return BoolResult(False, "You don't meet the prerequisites for this policy.")
 		
 		if policy.era:
 			try:
@@ -230,24 +226,21 @@ class Player:
 				player_era_index = era_order.index(self.current_era)
 				required_era_index = era_order.index(policy.era)
 			except ValueError:
-				return False, f"Internal error: Unknown era '{policy.era}' in policy {policy.name}"
+				return BoolResult(False, f"Internal error: Unknown era '{policy.era}' in policy {policy.name}")
 	
 			if player_era_index < required_era_index:
-				return False, f"{policy.name} requires the {policy.era} Era (you are in {self.current_era})."
+				return BoolResult(False, f"{policy.name} requires the {policy.era} Era (you are in {self.current_era}).")
 				
-
-		return True, "Policy can be chosen."
+		return BoolResult(True, "Policy can be chosen.")
 
 	def choose_policy(self, policy_name, game):
-		success, message = self.can_choose_policy(policy_name, game)
-		if not success:
-			return False, message
+		if not (result := self.can_choose_policy(policy_name, game)):
+			return result
 
 		policy = game.all_policies[policy_name]
 		self.culture -= self.policy_cost
 		self.unlocked_policies.append(policy.name)
-
-
+		
 		if policy.name == "Collective Rule":
 			capital = next((c for c in self.cities if c.is_capital), None)
 			engine.spawn_unit(self, "Settler", capital.q, capital.r)
@@ -285,7 +278,7 @@ class Player:
 		if all(req in self.unlocked_policies for req in liberty_policies):
 			engine.spawn_unit(self, "Great Scientist", capital.q, capital.r) #verify this, also make sure these trigger only ONCE?
 			
-		return True, f"Unlocked policy: {policy.name}!"
+		return BoolResult(True, f"Unlocked policy: {policy.name}!")
 
 	@property
 	def pantheon_threshold(self):
@@ -293,20 +286,18 @@ class Player:
 
 	def can_choose_pantheon(self):
 		if self.pantheon:
-			return False, "Pantheon already chosen."
+			return BoolResult(False, "Pantheon already chosen.")
 		if self.faith < self.pantheon_threshold:
-			return False, "Not enough faith to found a Pantheon."
-		return True, "Pantheon can be chosen."
+			return BoolResult(False, "Not enough faith to found a Pantheon.")
+		return BoolResult(True, "Pantheon can be chosen.")
 
 	def choose_pantheon(self, pantheon_name):
-		success, msg = self.can_choose_pantheon()
-
-		if not success:
-			return False, msg
+		if not (result := self.can_choose_pantheon()):
+			return result
 
 		self.faith = 0
 		self.pantheon = pantheon_name
-		return True, f"Pantheon '{pantheon_name}' chosen successfully!"
+		return BoolResult(True, f"Pantheon '{pantheon_name}' chosen successfully!")
 	
 	def max_trade_routes(self):
 		techs = self.science_system.get_unlocked_names()
@@ -338,25 +329,23 @@ class Player:
 
 	def can_end_turn(self):
 		if self.culture >= self.policy_cost and len(self.unlocked_policies) < len(self.all_policies):
-			return False, "You must select a social policy before ending your turn!"
+			return BoolResult(False, "You must select a social policy before ending your turn!")
 
 		if not self.science_system.current_research:
-			return False, "You must choose a technology to research before ending your turn!"
+			return BoolResult(False, "You must choose a technology to research before ending your turn!")
 
 		for city in self.cities:
 			if not city.production_system.current_project:
-				return False, f"{city.name} needs a production project!"
+				return BoolResult(False, f"{city.name} needs a production project!")
 
 		if self.faith >= self.pantheon_threshold and not self.pantheon:
-			return False, "You must select a pantheon before ending your turn!"
+			return BoolResult(False, "You must select a pantheon before ending your turn!")
 
-		return True, "Turn may be ended."
+		return BoolResult(True, "Turn may be ended.")
 
-	def end_turn(self, game):
-		success, message = self.can_end_turn()
-
-		if not success:
-			return success, message
+	def end_turn(self, engine):
+		if not (result := self.can_end_turn()):
+			return result
 
 		unlocked = self.science_system.process_turn_science(self.science_per_turn, self)
 
@@ -364,21 +353,26 @@ class Player:
 		self.culture += self.culture_per_turn
 		self.total_science_accrued += self.science_per_turn
 		self.faith += self.faith_per_turn
+		
+		for unit in self.units:
+			if unit.name == "Caravan" and unit.route_active:
+				unit.route_turns_remaining -= 1
+				if unit.route_turns_remaining <= 0:
+					unit.route_active = False
+					unit.route_target = None
+				else:
+					unit.route_target.food += 4 #i dont think this is affected by modifiers?	
 
-		# Process city growth and tile updates
 		for city in self.cities:
-			city.process_growth()
-			city.update_worked_tiles(game) #?
+			city.process_growth(engine)
 
-		# Reset units' turns
 		for u in self.units:
 			u.reset_movement()
 
-		# Update golden age state
 		self.update_golden_age()
 
 		#culture growth logic?
 
-		game.end_turn()
+		engine.end_turn()
 
-		return True, "Turn ended successfully."	
+		return BoolResult(True, "Turn ended successfully.")

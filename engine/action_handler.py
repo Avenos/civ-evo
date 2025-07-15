@@ -3,23 +3,23 @@
 
 import json
 import os
+from utils import helper, BoolResult
 from datetime import datetime
 from data import constants
 
-#returning tuples??
 def handle_action(engine, action_type, data, log_actions=False):
 	"""
 	Game Engine API
 	Handles a single action applied to the engine.
 	Returns (success: bool, error_msg: str or None)
 	"""
-	result = (False, "Unknown action type")
+	result = BoolResult(False, "Unknown action type")
 
 	if action_type == "move_unit":
 		unit = engine.get_unit_by_id(data["unit_id"])
 		to_q, to_r = data["to"]
 		if not unit:
-			result = (False, "Unit not found")
+			result = BoolResult(False, "Unit not found")
 		else:
 			from_tile = engine.tiles[unit.q][unit.r]
 			to_tile = engine.tiles[to_q][to_r]
@@ -28,35 +28,30 @@ def handle_action(engine, action_type, data, log_actions=False):
 	elif action_type == "found_city":
 		unit = engine.get_unit_by_id(data["unit_id"])
 		if not unit:
-			result = (False, "Unit not found for founding city")
+			result = BoolResult(False, "Unit not found for founding city")
 		else:
 			result = engine.current_player.found_city(unit, engine)
 
 	elif action_type == "improve_tile":
-		unit_id = data["unit_id"]
-		q, r = data["tile_coords"]
-		improvement = data["improvement"]
-
-		unit = engine.get_unit_by_id(unit_id)
-		tile = engine.get_tile(q, r)
+		unit = engine.get_unit_by_id(data["unit_id"])
+		tile = engine.get_tile(data["tile_coords"])
 
 		if not unit:
-			return False, "Unit not found."
+			result = BoolResult(False, "Unit not found.")
 		if not tile:
-			return False, "Invalid tile."
+			result = BoolResult(False, "Invalid tile.")
 
-		success, msg = unit.improve_tile(tile, improvement, engine)
-		return success, msg
+		result = unit.improve_tile(tile, data["improvement"], engine)
 
-	if action_type in ["assign_tile", "unassign_tile"]:
+	elif action_type in ["assign_tile", "unassign_tile"]:
 		city_id = data.get("city_id")
 		q, r = data.get("tile")
 	
 		city = engine.get_city_by_id(city_id)
 		if not city:
-			result = (False, "City not found")
+			result = BoolResult(False, "City not found")
 		elif not helper.in_bounds(q, r):
-			result = (False, f"Tile coords ({q},{r}) out of bounds")
+			result = BoolResult(False, f"Tile coords ({q},{r}) out of bounds")
 		else:
 			tile = engine.tiles[q][r]
 			if action_type == "assign_tile":
@@ -67,7 +62,7 @@ def handle_action(engine, action_type, data, log_actions=False):
 	elif action_type == "choose_project":
 		city = engine.get_city_by_id(data["city_id"])
 		if not city:
-			result = (False, "City not found for production choice")
+			result = BoolResult(False, "City not found for production choice")
 		else:
 			result = city.production_system.choose_project(data["project_name"])
 
@@ -86,11 +81,11 @@ def handle_action(engine, action_type, data, log_actions=False):
 		city = engine.get_city_by_id(data["city_id"])
 		q, r = data.get("tile_coords", (None, None))
 		if q is None or r is None:
-			return False, "Invalid tile coordinates"
+			return BoolResult(False, "Invalid tile coordinates")
 
 		tile = engine.get_tile(q, r)
 
-		result = city.purchase_tile(tile, engine) if city else (False, "City not found")
+		result = city.purchase_tile(tile, engine) if city else BoolResult(False, "City not found")
 
 	elif action_type == "choose_pantheon":
 		pantheon_name = data.get("pantheon_name")
@@ -104,9 +99,9 @@ def handle_action(engine, action_type, data, log_actions=False):
 		unit = engine.get_unit_by_id(data["unit_id"])
 		dest_city = engine.get_city_by_id(data["dest_city_id"])
 		if not unit:
-			result = (False, "Unit not found.")
+			result = BoolResult(False, "Unit not found.")
 		elif not dest_city:
-			result = (False, "Destination city not found.")
+			result = BoolResult(False, "Destination city not found.")
 		else:
 			result = unit.establish_trade_route(dest_city, engine)
 	
@@ -114,18 +109,17 @@ def handle_action(engine, action_type, data, log_actions=False):
 		unit = engine.get_unit_by_id(data["unit_id"])
 		dest_city = engine.get_city_by_id(data["dest_city_id"])
 		if not unit:
-			result = (False, "Unit not found.")
+			result = BoolResult(False, "Unit not found.")
 		elif not dest_city:
-			result = (False, "City not found.")
+			result = BoolResult(False, "City not found.")
 		else:
 			result = unit.rebase_to(dest_city)
-
 
 	elif action_type == "end_turn":
 		result = engine.current_player.end_turn(engine)
 		print(f"Turn: {engine.turn}")
 
-	if log_actions and result[0]:
+	if log_actions and result:
 		replay_path = getattr(engine, "replay_log_filepath", None)
 		if replay_path:
 			log_action(engine.turn, action_type, data, replay_path)
@@ -135,7 +129,7 @@ def handle_action(engine, action_type, data, log_actions=False):
 		"data": data
 	}
 
-	status = "VALID" if result[0] else f"INVALID ({result[1]})"
+	status = "VALID" if result else f"INVALID ({result.message})"
 	print(f"ACTION: {json.dumps(action_summary, separators=(',', ':'))} --> {status}")
 
 	legal_actions = engine.get_legal_actions(engine.current_player)

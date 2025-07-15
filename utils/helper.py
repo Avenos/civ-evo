@@ -8,6 +8,18 @@ import heapq
 from collections import deque
 from data import dictionary, constants
 
+class BoolResult:
+	def __init__(self, success: bool, message: str = ""):
+		self.success = success
+		self.message = message
+
+	def __bool__(self):
+		# Automatically converts to True/False in `if` statements
+		return self.success
+
+	def __repr__(self):
+		return f"<BoolResult {self.success}: '{self.message}'>"
+
 #call when we complete a road, for all cities that do NOT already have connections.
 def update_city_connections(player, city):
 	if city == capital:

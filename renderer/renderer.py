@@ -143,7 +143,7 @@ class Renderer():
 	def draw_units(self, screen, engine, font, big_font, unit_icons):
 		ICON_SIZE = 40  # or smaller, e.g., 16
 
-		for unit in engine.players[0].units:
+		for unit in engine.current_player.units:
 			x, y = helper.hex_to_pixel(unit.q, unit.r)
 			selected = (unit == engine.selected_unit)
 

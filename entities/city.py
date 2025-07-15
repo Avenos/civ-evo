@@ -3,7 +3,7 @@
 
 from data import dictionary, constants
 from entities import Building
-from utils import helper
+from utils import helper, BoolResult
 from systems import ProductionSystem
 
 import math
@@ -32,13 +32,14 @@ class City:
 		self.owner = player
 		self.population = 1
 		self.food = 0  # accrued food basket
+		self.worked_tiles = set()
+		self.aqueduct_basket = 0
+		
 		self.production_system = ProductionSystem(self)
 		self.local_happiness = 0
 		self.buildings = []
 		self.stored_culture = 0
-		self.border_expansions = 0
-		self.worked_tiles = set()
-		self.aqueduct_basket = 0
+		self.border_expansions = 0		
 
 	@property
 	def food_per_turn(self):
@@ -97,7 +98,7 @@ class City:
 		n = self.population
 		return 15 + 8 * (n - 1) + (n - 1) ** 1.5 #floored?
 
-	def process_growth(self):
+	def process_growth(self, engine):
 		if self.current_project_name == "Settler":
 			pass
 
@@ -112,6 +113,7 @@ class City:
 			while self.food >= self.food_needed_for_growth:
 				self.food -= self.food_needed_for_growth
 				self.population += 1
+				self.update_worked_tiles(engine)
 
 				if any("Aqueduct" in b.name for b in self.buildings):
 					self.food += self.aqueduct_basket
@@ -132,7 +134,6 @@ class City:
 
 	@property
 	def production_per_turn(self):
-		#city itself?
 		worked_production = sum(tile.production for tile in self.worked_tiles)
 		unassigned_workers = self.population - len(self.worked_tiles)
 		bonus_from_unemployed = max(0, unassigned_workers) * 1
@@ -233,35 +234,31 @@ class City:
 		return percent_modifier * total_gold
 
 	def can_purchase_tile(self, tile, engine):
-		player = self.owner
-		q, r = tile.q, tile.r
-
-		if not helper.in_bounds(q, r):
-			return False, "Tile out of bounds."
+		if not helper.in_bounds(tile.q, tile.r):
+			return BoolResult(False, "Tile out of bounds.")
 
 		if tile.owner is not None:
-			return False, "Tile already owned by someone"
+			return BoolResult(False, "Tile already owned by someone")
 
-		if helper.hex_distance(self.q, self.r, q, r) > 3:
-			return False, "Tile is too far from the city (must be within 3 tiles)."
+		if helper.hex_distance(self.q, self.r, tile.q, tile.r) > 3:
+			return BoolResult(False, "Tile is too far from the city (must be within 3 tiles).")
 
-		if not helper.is_adjacent_to_owned_tile(tile, player, engine):
-			return False, "Tile must be adjacent to your city's borders."
+		if not helper.is_adjacent_to_owned_tile(tile, self.owner, engine):
+			return BoolResult(False, "Tile must be adjacent to your city's borders.")
 
-		if player.gold < self.PURCHASE_COST:
-			return False, f"Not enough gold to purchase tile (cost: {self.PURCHASE_COST})."
+		if self.owner.gold < self.PURCHASE_COST:
+			return BoolResult(False, f"Not enough gold to purchase tile (cost: {self.PURCHASE_COST}).")
 
-		return True, None
+		return BoolResult(True, "Can purchase tile")
 
 	def purchase_tile(self, tile, engine):
-		success, msg = self.can_purchase_tile(tile, engine)
-		if not success:
-			return False, msg
+		if not (result := self.can_purchase_tile(tile, engine)):
+			return result
 
 		self.owner.gold -= self.PURCHASE_COST
 		tile.owner = self.owner
 
-		return True, f"Tile purchased for {self.PURCHASE_COST}g!"
+		return BoolResult(True, f"Tile purchased for {self.PURCHASE_COST}g!")
 
 	def get_purchasable_tiles(self, engine):
 		purchasable_tiles = []
@@ -272,69 +269,50 @@ class City:
 
 				if 0 <= q < len(engine.tiles) and 0 <= r < len(engine.tiles[0]):
 					tile = engine.tiles[q][r]
-					can_buy, _ = self.can_purchase_tile(tile, engine)
-					if can_buy:
+					if self.can_purchase_tile(tile, engine):
 						purchasable_tiles.append(tile)
 
 		return purchasable_tiles
 
 	def update_worked_tiles(self, game):
 		city_tile = game.tiles[self.q][self.r]
-		city_coords = (self.q, self.r)
 
-		# 1. Start fresh (leave city_tile out of this set!)
 		self.worked_tiles = set()
 
-		# 2. Determine number of assignable citizens (city tile is automatic)
-		assignable_citizens = max(0, self.population - 1)
-
-		# 3. Get all valid owned tiles within 3 hexes (excluding city tile)
-		territory_tiles = [
+		workable_tiles = [
 			tile for row in game.tiles for tile in row
 			if tile.owner == self.owner and
-			(tile.q, tile.r) != city_coords and
+			(tile.q, tile.r) != (self.q, self.r) and
 			helper.hex_distance(self.q, self.r, tile.q, tile.r) <= 3
 		]
 
-		# 4. Exclude tiles already worked by other cities
+		#would need to add other players here
 		other_worked_tiles = set()
-		for player in game.players:
-			for city in player.cities:
-				if city is not self:
-					other_worked_tiles.update(city.worked_tiles)
+		for city in self.owner.cities:
+			if city is not self:
+				other_worked_tiles.update(city.worked_tiles) #append?
 
 		available_tiles = [
-			tile for tile in territory_tiles if tile not in other_worked_tiles
+			tile for tile in workable_tiles if tile not in other_worked_tiles
 		]
 
-		# 5. Sort by best yields (custom logic per project type)
-		if self.current_project_name == "Settler":
-			available_tiles.sort(key=lambda t: t.production + t.science, reverse=True)
-		else:
-			available_tiles.sort(key=lambda t: t.food + t.production, reverse=True)
+		available_tiles.sort(key=lambda t: t.food + t.production, reverse=True)
 
-		# 6. Pick best N tiles to work
-		tiles_to_work = available_tiles[:assignable_citizens]
+		tiles_to_work = available_tiles[:self.population]
 
-		# 7. Assign them
 		for tile in tiles_to_work:
 			tile.worked_by = self
 			self.worked_tiles.add(tile)
-
-		# 8. Always mark the city tile as "worked by this city" for yield purposes
-		city_tile.worked_by = self  # even though not in self.worked_tiles
+			
+		#theres the tile flag worked by, AND the city list...
+		self.worked_tiles.add(city_tile)
+		city_tile.worked_by = self
 
 	def get_workable_tiles(self, game):
-		"""Returns tiles within 3 hexes, owned by this player, and not worked by others.
-		Excludes the city tile — which is always worked automatically and not assignable.
-		"""
-		city_coords = (self.q, self.r)
-
-		# Get territory within range (excluding city tile)
 		territory_tiles = [
 			tile for row in game.tiles for tile in row
 			if tile.owner == self.owner and
-			(tile.q, tile.r) != city_coords and
+			(tile.q, tile.r) != (self.q, self.r) and
 			helper.hex_distance(self.q, self.r, tile.q, tile.r) <= 3
 		]
 
@@ -351,64 +329,66 @@ class City:
 
 		return workable
 
-
-	def can_assign_tile(self, tile, game):
-		if tile == self.tile:
-			return False, "City tile is always worked and cannot be assigned"
+	def can_assign_tile(self, tile, engine):
+		if tile.q == self.q and tile.r == self.r:
+			return BoolResult(False, "City tile is always worked and cannot be assigned")
 		if len(self.worked_tiles) >= (self.population - 1):
-			return False, "All citizens are already assigned"
-		if tile not in self.get_workable_tiles(game):
-			return False, f"Tile at ({tile.q},{tile.r}) is not valid to assign"
-		return True, "Tile can be assigned"
+			return BoolResult(False, "All citizens are already assigned")
+		if tile not in self.get_workable_tiles(engine):
+			return BoolResult(False, f"Tile at ({tile.q},{tile.r}) is not valid to assign")
+		return BoolResult(True, "Tile can be assigned")
 
-	def assign_tile(self, tile, game):
-		success, message = self.can_assign_tile(tile, game)
-		if success:
-			self.worked_tiles.add(tile)
-		return success, message
+	def assign_tile(self, tile, engine):
+		if not (result := self.can_purchase_tile(tile, engine)):
+			return result
+
+		#theres the tile flag worked by, AND the city list...
+		self.worked_tiles.add(tile)
+		tle.worked_by = self
+		return BoolResult(True, "Tile assigned")
 
 	def can_unassign_tile(self, tile):
-		if tile == self.tile:
-			return False, "City tile cannot be unassigned"
-		if tile in self.worked_tiles:
-			return True, "Tile can be unassigned"
-		return False, f"Tile at ({tile.q},{tile.r}) was not worked"
-
+		if tile.q == self.q and tile.r == self.r:
+			return BoolResult(False, "City tile cannot be unassigned")
+		elif tile in self.worked_tiles:
+			return BoolResult(True, "Tile can be unassigned")
+		return BoolResult(False, f"Tile at ({tile.q},{tile.r}) was not worked")
 
 	def unassign_tile(self, tile):
-		success, message = self.can_unassign_tile(tile)
-		if success:
-			self.worked_tiles.remove(tile)
-		return success, message
+		if not (result := self.can_unassign_tile(tile)):
+			return result
+		
+		#theres the tile flag worked by, AND the city list...
+		self.worked_tiles.remove(tile)
+		tile.worked_by = None
+		return BoolResult(True, "Tile unassigned")
 
 	def can_purchase_building(self, building_name, player):
 		building_data = dictionary.BUILDINGS.get(building_name)
 		if not building_data:
-			return False, "Building not found."
+			return BoolResult(False, "Building not found.")
 
 		if any(b.name == building_name for b in self.buildings):
-			return False, "Building already constructed."                
+			return BoolResult(False, "Building already constructed.")               
 
 		required_techs = building_data.get("techs_required", [])
 		player_techs = player.science_system.unlocked_techs
 
 		if any(tech not in player_techs for tech in required_techs):
-			return False, f"You don't have the required technology to build {building_name}."
+			return BoolResult(False, f"You don't have the required technology to build {building_name}.")
 
 		gold_cost = building_data.get("gold_cost", 0)
 		if gold_cost <= 0:
-			return False, "This building cannot be purchased."
+			return BoolResult(False, "This building cannot be purchased.")
 
 		if player.gold < gold_cost:
-			return False, "Not enough gold."
+			return BoolResult(False, "Not enough gold.")
 
-		return True, "Building can be purchased"
+		return BoolResult(True, "Building can be purchased")
 
 	def purchase_building(self, building_name, player):
-		success, message = self.can_purchase_building(building_name, player)
-
-		if not success:
-			return success, message
+		if not (result := self.can_purchase_building(building_name, player)):
+			return result
 
 		building_data = dictionary.BUILDINGS.get(building_name) #lookup twice...
 		gold_cost = building_data.get("gold_cost", 0)
@@ -420,33 +400,30 @@ class City:
 		if self.current_project_name == building_name:
 			self.production_system.current_project = None
 
-		return True, f"Purchased {building_name}."
+		return BoolResult(True, f"Purchased {building_name}.")
 
 	def can_purchase_unit(self, name, player):
 		unit_data = dictionary.UNITS.get(name)
 		if not unit_data:
-			return False, "Unit not found."
+			return BoolResult(False, "Unit not found.")
 
 		gold_cost = unit_data.get("gold_cost", 0)
 		if gold_cost <= 0:
-			return False, "This unit cannot be purchased."
+			return BoolResult(False, "This unit cannot be purchased.")
 		
 		if player.gold < gold_cost:
-			return False, "Not enough gold."
+			return BoolResult(False, "Not enough gold.")
 
-		return True, "Can purchase unit"
+		return BoolResult(True, "Can purchase unit")
 
 	def purchase_unit(self, name, player):
-		success, message = self.can_purchase_unit(name, player)
-
-		if not success:
-			return success, message
+		if not (result := self.can_purchase_unit(name, player)):
+			return result
 
 		player.gold -= gold_cost
-
 		engine.spawn_unit(player, name, self.q, self.r)
 
-		return True, f"Purchased {name}."
+		return BoolResult(True, f"Purchased {name}.")
 
 	def compute_influence_distance(city, game, max_range=5):
 		visited = set()
@@ -503,21 +480,21 @@ class City:
 		self.stored_culture += amount
 		if self.stored_culture >= self.border_growth_threshold:
 			return self.expand_borders()
-		return (False, "Not enough culture for border expansion yet.")	
+		return BoolResult(False, "Not enough culture for border expansion yet.")	
 
 	def expand_borders(self, game):
 		if self.stored_culture < self.border_growth_threshold:
-			return (False, "Insufficient culture to expand borders.")
+			return BoolResult(False, "Insufficient culture to expand borders.")
 
 		tile = self._select_best_border_tile(game)
 		if not tile:
-			return (False, "No valid tile to expand into.")
+			return BoolResult(False, "No valid tile to expand into.")
 
 		self.territory.add((tile.q, tile.r))
 		self.stored_culture -= self.border_growth_threshold
 		self.border_expansions += 1
 
-		return (True, None)
+		return BoolResult(True, "Borders expanded")
 
 	@property
 	def border_growth_threshold(self):
