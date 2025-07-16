@@ -7,7 +7,10 @@
 #900 + 97 gold per turn
 
 #major:
-#building project instances and completion
+#building project instances and completion, done?
+#passing in entire engine for tile lookups...
+#wtf is going on with randomagent food, rendering? or what
+#do resources update mid turn or is the renderer just not showing it
 #worked tile verify, lock in settler prod tiles?
 #finalize tile improvement system, and all dependent bonuses, flood plains? marsh?
 #border growth algorithm and formula 15 25 40 north cotton then dyes them cotton, tradition retroactive?
@@ -129,7 +132,7 @@ IMPROVEMENTS = {
 	"Quarry": { "tech_required": "Masonry" },
 	"Camp": { "tech_required": "Trapping" },
 	"Trading Post": { "tech_required": "Guilds" },
-	"Road": {"tech_required": "The Wheel"},
+	#"Road": {"tech_required": "The Wheel"},
 	"None": {},
 }
 

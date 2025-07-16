@@ -89,7 +89,7 @@ class Unit:
 
 	#to get a LIST of all legal tile improvements do i have to poll every single one...? I guess
 	#also roads are a separate thing really...
-	def can_improve_tile(self, tile, improvement, game):
+	def can_improve_tile(self, tile, improvement):
 		if self.name != "Worker":
 			return BoolResult(False, "Only Workers can improve tiles.")
 		if self.moves_left < 1:
@@ -118,17 +118,6 @@ class Unit:
 
 		if improvement == tile.improvement and tile.improvement_progress >= turns_required:
 			return BoolResult(False, "Improvement already complete!")
-
-		#this is the check def, not the DO def... probably separate chopping at least
-		#if improvement == "Road":
-			#if tile.road_progress >= turns_required:
-				#return False, "Road already complete!"
-			#else:
-				#tile.road_progress += 1
-				#if tile.road_progress >= turns_required:
-					#tile.road_complete = True
-					#return True, "Road completed!"
-				#return True, "Road worked on"
 
 		if tile.owner != self.owner:
 			return BoolResult(False, "Cannot improve tile you do not own.") #unless its a road
@@ -196,36 +185,87 @@ class Unit:
 		else:
 			return BoolResult(False, "Something went wrong")	
 
-	def improve_tile(self, tile, improvement, game):
-		if not (result := self.can_improve_tile(tile, improvement, game)):
+	def improve_tile(self, tile, improvement):
+		if not (result := self.can_improve_tile(tile, improvement)):
 			return result
 
 		if tile.improvement != improvement:
 			tile.improvement = improvement
 			tile.improvement_progress = 0
 
-		turns_required = 3 #not sure about this logic
+		turns_required = 6 #not sure about this logic
 
 		if "Citizenship" in self.owner.unlocked_policies:
 			turns_required -= 2
 
 		if "Pyramids" in self.owner.wonders:
 			turns_required -= 2
-
+			
 		tile.improvement_progress += 1
 		self.moves_left = 0
-
-		if tile.improvement_progress < turns_required:
-			return BoolResult(True, "Improvement worked on.")
-
+				
 		if tile.improvement_progress >= turns_required:
 			tile.improvement_complete = True
-
+			
 			#need to check that its the right improvement though... otherwise farms can wire up luxes
 			if dictionary.RESOURCES.get(tile.resource, {}).get("luxury", False):
-				self.owner.luxuries.append(tile.resource)
+				self.owner.luxuries.append(tile.resource)			
 			
-			return BoolResult(True, f"{improvement} completed!")
+			return BoolResult(True, "Improvement completed!")
+		else:
+			return BoolResult(True, "Improvement worked on")
+		
+	def can_build_road(self, tile):
+		if self.name != "Worker":
+			return BoolResult(False, "Only Workers can improve tiles.")
+		elif self.moves_left < 1:
+			return BoolResult(False, "Not enough movement points.")		
+		elif tile.road_completed:
+			return BoolResult(False, "Road already complete")
+		elif "The Wheel" not in self.owner.unlocked_techs:
+			return BoolResult(False, "Need The Wheel technology")
+		else:
+			return BoolResult(True, "Can build road")
+		
+	def build_road(self, tile):
+		if not (result := self.can_bulid_road(self, tile)):
+			return result
+		
+		turns_required = 6 #not sure about this logic
+
+		if "Citizenship" in self.owner.unlocked_policies:
+			turns_required -= 2
+
+		if "Pyramids" in self.owner.wonders:
+			turns_required -= 2
+			
+		tile.road_progress += 1
+		self.moves_left = 0
+		
+		if tile.road_progress >= turns_required:
+			tile.road_complete = True
+			return BoolResult(True, "Road completed!")
+		else:
+			return BoolResult(True, "Road worked on")
+		
+	def can_chop(self, tile):
+		if self.name != "Worker":
+			return BoolResult(False, "Only Workers can chop tiles.")
+		elif self.moves_left < 1:
+			return BoolResult(False, "Not enough movement points.")
+		elif tile.trees == 1 and "Mining" in self.owner.unlocked_techs:
+			return BoolResult(True, "Can chop trees")
+		elif tile.trees == 2 and "Bronze Working" in self.owner.unlocked_techs:
+			return BoolResult(True, "Can chop jungle")
+		else:
+			return BoolResult(False, "No trees to chop")		
+
+	def chop(self, tile):
+		if not (result := self.can_chop(self, tile)):
+			return result		
+		
+		tile.chop_progress += 1
+		return BoolResult(True, "Chopped tile")
 
 	def can_establish_trade_route(self, dest_city, engine):
 		player = self.owner

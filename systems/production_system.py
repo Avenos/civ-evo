@@ -83,12 +83,15 @@ class ProductionSystem:
 				if not has_adjacent_hill:
 					return BoolResult(False, "Observatory can only be built if the city is adjacent to a hill (elevation 2) tile.")
 
-		if isinstance(project, Unit) and project_name == "Settler" and self.city.population < 2:
-			return BoolResult(False, "Settler cannot be built unless city population is at least 2.")
-
-		if project_name == "Caravan" and len(player.trade_routes) >= player.max_trade_routes:
-			return BoolResult(False, "Already at max number of trade routes.")
-		
+		elif isinstance(project, Unit):
+			if project_name == "Settler" and self.city.population < 2:
+				return BoolResult(False, "Settler cannot be built unless city population is at least 2.")
+	
+			if project_name == "Caravan" and len(player.trade_routes) >= player.max_trade_routes:
+				return BoolResult(False, "Already at max number of trade routes.")
+		else:
+			return BoolResult(False, "Something went wrong")
+			
 		return BoolResult(True, "Can choose project")
 
 	def get_available_projects(self):
@@ -168,13 +171,14 @@ class ProductionSystem:
 					engine.spawn_unit(self.city.owner, "Worker", self.city.q, self.city.r)
 
 				if building_name == "Hanging Gardens":
-					garden = helper.create_building("Garden") #or just call this def again?
-					garden.completed = True
-					garden.progress = garden.production_cost
-					self.city.buildings.append(garden)
+					self.city.buildings.append("Garden")
 					
 				return BoolResult(True, "Building completed")
 
 	def complete_unit(self, unit_name, engine):
-		engine.spawn_unit(self.city.owner, unit_name, self.city.q, self.city.r)
-		#do something to complete PROJECT here?
+		for u in self.unit_projects:
+			if u.name == unit_name:
+				u.completed = True
+				u.progress = u.production_cost
+				engine.spawn_unit(self.city.owner, unit_name, self.city.q, self.city.r)
+				

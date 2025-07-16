@@ -38,7 +38,7 @@ def handle_action(engine, action_type, data, log_actions=False):
 		if not unit:
 			result = BoolResult(False, "Unit not found.")
 			
-		result = unit.improve_tile(tile, data["improvement"], engine)
+		result = unit.improve_tile(tile, data["improvement"])
 
 	elif action_type in ["assign_tile", "unassign_tile"]:
 		city_id = data.get("city_id")

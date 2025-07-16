@@ -61,7 +61,6 @@ OPPOSITE_DIRECTION = {
 	"SE": "NW",
 }
 
-#why differing brackets? { vs [
 ERAS = [
     "Ancient",
     "Classical",
@@ -70,7 +69,7 @@ ERAS = [
     "Industrial",
     "Modern",
     "Atomic",
-    "Information",
+    "Information"
 ]
 
 CITY_NAMES = [

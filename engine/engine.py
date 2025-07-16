@@ -17,19 +17,21 @@ class EnvWrapper:
 		return self.engine.get_state()
 
 	def step(self, action):
-		# Action is a dict like {"action": ..., "data": {...}}
-		success, error = action_handler.handle_action(self.engine, action["action"], action.get("data", {}))
+		result = action_handler.handle_action(self.engine, action["action"], action.get("data", {}))
 
-		# Calculate reward (you must define your reward logic here)
-		# Example: reward = current_population + current_science (or whatever you want)
+		#should this reward func really be in the wrapper?
 		current_player = self.engine.current_player
 		reward = 50 * sum(city.population for city in current_player.cities) + getattr(current_player, "total_science_accrued", 0)
+		#if self.current_player.happiness < 0: #check if its been negative for more than a few turns maybe?
+			#reward -= 500
+		if "Forbidden Palace" in self.current_player.wonders: #probably not completable by 121 quite
+			reward += 3000
+		if "Caravel" in self.current_player.units: #or just hard code that it HAS to do these things? how?
+			reward += 3000
+		
+		done = self.engine.turn >= 121
 
-		# Check if episode done, e.g. after fixed turns or game over condition
-		done = self.engine.turn >= 40
-
-		# Optionally include error info or other info
-		info = {"success": success, "error": error}
+		info = {"success": result.success, "message": result.message}
 
 		next_state = self.engine.get_state()
 
@@ -90,7 +92,7 @@ class Engine:
 
 		self.spawn_unit(self.players[0], "Worker", 10, 8)
 		self.spawn_unit(self.players[0], "Settler", 11, 8)
-		self.spawn_unit(self.players[0], "Settler", 12, 8)
+		self.spawn_unit(self.players[0], "Warrior", 12, 8)
 
 		self.tiles[6][6].ancient_ruin = AncientRuins(2)
 
@@ -181,7 +183,7 @@ class Engine:
 				for improvement_name in dictionary.IMPROVEMENTS.keys():
 					if improvement_name in ["Road", "None"]:
 						continue  # Skip non-improvement types here if needed
-					if unit.can_improve_tile(tile, improvement_name, self):
+					if unit.can_improve_tile(tile, improvement_name):
 						actions.append({
 							"action": "improve_tile",
 							"data": {
@@ -270,8 +272,7 @@ class Engine:
 		for city in player.cities:
 			tile = self.get_tile(city.q, city.r)
 			if city != tile.city:
-				success, _ = unit.can_rebase(city)
-				if success:
+				if unit.can_rebase(city):
 					actions.append({
 						"action": "rebase_caravan",
 						"data": {

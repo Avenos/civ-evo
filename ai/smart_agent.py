@@ -230,22 +230,22 @@ class SmartAgent:
 				legal_actions = engine.get_legal_actions(engine.current_player)
 				if not legal_actions:
 					print("No legal actions left, forcing end_turn")
-					handle_action(engine, "end_turn", {}, log_actions=False)
+					handle_action(engine, "end_turn", {})
 					break
 
 				print(f"Legal actions available ({len(legal_actions)}): {[action['action'] for action in legal_actions]}")
 
 				best_action = self.select_best_action_from(legal_actions, engine)
 				if best_action["action"] == "end_turn":
-					handle_action(engine, "end_turn", {}, log_actions=False)
+					handle_action(engine, "end_turn", {})
 					print("End turn chosen")
 					break
 
-				success, err = handle_action(engine, best_action["action"], best_action["data"], log_actions=False)
-				if success:
+				result = handle_action(engine, best_action["action"], best_action["data"])
+				if result:
 					print(f"Executed action: {best_action}")
 				else:
-					print(f"Failed to execute action: {best_action}, reason: {err}")
+					print(f"Failed to execute action: {best_action}, reason: {result.message}")
 
 			total_population = sum(city.population for city in engine.current_player.cities)
 			total_science = getattr(engine.current_player, "total_science", 0)
