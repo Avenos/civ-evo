@@ -7,14 +7,9 @@
 #900 + 97 gold per turn
 
 #major:
-#building project instances and completion, done?
-#passing in entire engine for tile lookups...
-#wtf is going on with randomagent food, rendering? or what
-#do resources update mid turn or is the renderer just not showing it
-#worked tile verify, lock in settler prod tiles?
 #finalize tile improvement system, and all dependent bonuses, flood plains? marsh?
 #border growth algorithm and formula 15 25 40 north cotton then dyes them cotton, tradition retroactive?
-#roads? machinery? bridges over rivers? chopping also, then city connections too
+#roads? machinery? bridges over rivers? chopping also, then city connection verify
 #verify forests at top part of minimap #define all rivers, add columns
 #tile purchasing cost algorithm, less after 1st growth?
 #select production projects each turn if they are no longer valid after all relevant actions. production applied at BEGINNING of turn. 1 turn left on NC and buiilt a city? it doesnt complete. right? restriced DURING turn too..
@@ -26,6 +21,11 @@
 #actually get the neural network functional
 
 #minor:
+#do resources update mid turn or is the renderer just not showing it
+#worked tile verify, lock in settler prod tiles?
+#building project instances and completion, done? hmmm... also prod rollover
+#passing in entire engine for tile lookups...
+#wtf is going on with randomagent food, rendering? or what... golden age happiness application
 #city hill tile yield values? think i got it. what about snow?
 #luxes verify
 #do we let the AI CHOOSE between pop and culture and free tech? yeah. whatever it wants. #does pop growth ancient ruins help expand borders?
@@ -216,28 +216,6 @@ PANTHEONS = {
 	"Sun God": {"desc": "+1 Food for each Bananas, Citrus, and Wheat resource"}, #Implemented
 	"One with Nature": {"desc": "+4 faith from natural wonders"}, #Implemented for kailash only
 	"Desert Folklore": {"desc": "+1 faith from each desert tile"}, #Implemented
-}
-
-# Influence cost lookup by terrain/feature
-INFLUENCE_COST = {
-	"Atoll": -1, "Coast": 2, "Desert": 2, "Floodplains": -1, "Forest": 1,
-	"Grassland": 1, "Hill": 1, "Ice": 3, "Jungle": 1, "Lake": 2, "Mountain": 3,
-	"Natural Wonder": 3, "Oasis": -1, "Ocean": 3, "Plains": 1, "Snow": 2,
-	"Swamp": 1, "Tundra": 2
-}
-
-# Priority multipliers
-MULTIPLIERS = {
-	"DISTANCE": 100,
-	"RESOURCE": -105,
-	"WATER": 25,
-	"UNWORKABLE": 100,
-	"IMPROVEMENT": -5,
-	"BARB_CAMP": 100,
-	"ROAD": 0,
-	"NATURAL_WONDER": -105,
-	"YIELD_POINT": -1,
-	"NO_ADJACENT_OWNED": 1000
 }
 
 TERRAIN_TYPES =  {

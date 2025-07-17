@@ -161,6 +161,7 @@ class Player:
 			return result
 		
 		q, r = unit.q, unit.r
+		tile = engine.get_tile(q, r)
 		city = City(q, r, engine.current_player)
 
 		from entities import Building
@@ -174,14 +175,17 @@ class Player:
 			city.is_capital = True
 
 		self.cities.append(city)
-		engine.tiles[q][r].city = city
+		tile.city = city
 
-		engine.tiles[q][r].owner = self
+		tile.owner = self
 		for nq, nr in helper.hex_neighbors(q, r):
-			engine.tiles[nq][nr].owner = self
+			tile.owner = self
 			
-		if engine.tiles[q][r].luxury:
+		if tile.luxury:
 			self.luxuries.append(engine.tiles[q][r].resource)
+			
+		tile.road_complete = True
+		#tile.road_progress = 6
 
 		city.update_worked_tiles(engine)
 		engine.remove_unit(unit)

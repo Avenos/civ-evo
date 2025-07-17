@@ -178,7 +178,7 @@ class ProductionSystem:
 	def complete_unit(self, unit_name, engine):
 		for u in self.unit_projects:
 			if u.name == unit_name:
-				u.completed = True
-				u.progress = u.production_cost
+				#u.completed = True
+				#u.progress = 0 #necessary or no?
 				engine.spawn_unit(self.city.owner, unit_name, self.city.q, self.city.r)
 				

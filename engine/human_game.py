@@ -108,7 +108,7 @@ class HumanGame:
 						logical_click_handled = True
 
 					elif not logical_click_handled and self.engine.ui_next_turn_button and self.engine.ui_next_turn_button.collidepoint(pos):
-						result = handle_action(self.engine, "end_turn", {"player": "placeholder"} )
+						result = handle_action(self.engine, "end_turn", {})
 						self.engine.show_message(result.message)
 						logical_click_handled = True
 

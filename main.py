@@ -12,8 +12,8 @@ def main():
 	engine = Engine()
 
 	#Train().train()
-	#HumanGame(engine).run()
-	RandomAgent(engine, headless=False).run()
+	HumanGame(engine).run()
+	#RandomAgent(engine, headless=False).run()
 	#SmartAgent(engine, headless=False).run() #add rendering.... make rendering more extensible?
 	#Replay("replay_2025-07-09_05-43-38.json", engine, speed=9999999).run()
 

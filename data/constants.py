@@ -61,6 +61,31 @@ OPPOSITE_DIRECTION = {
 	"SE": "NW",
 }
 
+# Influence cost lookup by terrain/feature
+TERRAIN_INFLUENCE_COST = {
+	"c": 2, "d": 2, "g": 1, "l": 2, "o": 3, "p": 1, "s": 2, "t": 2, "n": 3
+}
+
+FEATURE_INFLUENCE_COST = {
+	"Atoll": -1, "Floodplains": -1, "Forest": 1, "Hill": 1, 
+	"Ice": 3, "Jungle": 1, "Mountain": 3, "Natural Wonder": 3,
+	"Oasis": -1, "Swamp": 1,
+}
+
+# Priority multipliers
+MULTIPLIERS = {
+	"DISTANCE": 100,
+	"RESOURCE": -105,
+	"WATER": 25,
+	"UNWORKABLE": 100,
+	"IMPROVEMENT": -5,
+	"BARB_CAMP": 100,
+	"ROAD": 0,
+	"NATURAL_WONDER": -105,
+	"YIELD_POINT": -1,
+	"NO_ADJACENT_OWNED": 1000
+}
+
 ERAS = [
     "Ancient",
     "Classical",

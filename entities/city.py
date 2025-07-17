@@ -450,30 +450,41 @@ class City:
 					heapq.heappush(heap, (total, (nq, nr)))
 		return distances
 
-	def compute_tile_priority(tile, dist, engine, city):
-		priority = dist * MULTIPLIERS["DISTANCE"]
+	def compute_tile_priority(tile, engine):
+		dist = helper.hex_distance(tile.q, tile.r, self.q, self.r) * MULTIPLIERS["DISTANCE"]
 
-		if tile.resource and tile.resource not in tile.unworkable_resources:
-			priority += MULTIPLIERS["RESOURCE"]
-		if tile.is_water and not tile.resource:
-			priority += MULTIPLIERS["WATER"]
-		if tile.unworkable and not tile.resource:
-			priority += MULTIPLIERS["UNWORKABLE"]
-		if tile.improvement and tile.improvement != "Barbarian Camp":
-			priority += MULTIPLIERS["IMPROVEMENT"]
-		if tile.improvement == "Barbarian Camp":
-			priority += MULTIPLIERS["BARB_CAMP"]
-		if tile.has_road:
-			priority += MULTIPLIERS["ROAD"]
-		if tile.natural_wonder:
-			priority += MULTIPLIERS["NATURAL_WONDER"]
-		priority += (tile.food + tile.production + tile.gold) * MULTIPLIERS["YIELD_POINT"]
+		influence_base = constants.TERRAIN_INFLUENCE_COST[tile.terrain_type]
+		
+		#pull values from constants?
+		if tile.trees == 1 or tile.trees == 2 or tile.elevation == 1 or tile.resource == "swamp":
+			influence_base = 1
+		elif tile.elevation == 2 or tile.resource == "ice":
+			influence_base = 3
+		elif tile.resource == "oasis" or tile.resource == "atoll" or tile.resource == "flood plains": #fp resource or feature?
+			influence_base = -1
+			
+		influence_base *= dist * constants.MULTIPLIERS["RESOURCE"]
+		
+		if tile.resource: #an ACTUAL resource not swamp or flood plains i think... or nat wonders...
+			influence_base *= constants.MULTIPLIERS["RESOURCE"]
+		if tile.terrain_type in ("c", "l", "o"):
+			influence_base *= constants.MULTIPLIERS["WATER"]
+		if tile.elevation == 2:
+			influence_base *= constants.MULTIPLIERS["UNWORKABLE"]
+		if tile.improvement: #like forts?
+			influence_base *= constants.MULTIPLIERS["IMPROVEMENT"]
+		#if tile.barbarian_camp:
+			#infleunce_base *= constants.MULTIPLIERS["BARB_CAMP"]	
+		if tile.road_complete:
+			influence_base *= constants.MULTIPLIERS["ROAD"]		
+		if tile.resource == "kailash":
+			influence_base *= constants.MULTIPLIERS["NATURAL_WONDER"]
+		if sum(tile.food, tile.production, tile.science, tile.gold, tile.culture, tile.faith) > 0: #unsure about logic
+			influence_base *= sum(tile.food, tile.production, tile.science, tile.gold, tile.culture, tile.faith) * constants.MULTIPLIERS["YEILD POINT"]
+		if not helper.is_adjacent_to_owned_tile(tile, self.owner, engine):
+			influence_base *= constants.MULTIPLIERS["NO_ADJACENT_OWNED"]
 
-		# Check adjacency
-		if not any((nq, nr) in city.territory for nq, nr in helper.hex_neighbors(tile.q, tile.r)):
-			priority += MULTIPLIERS["NO_ADJACENT_OWNED"]
-
-		return priority
+		return influence_base
 
 	def gain_culture(self, amount):
 		self.stored_culture += amount
@@ -482,22 +493,27 @@ class City:
 		return BoolResult(False, "Not enough culture for border expansion yet.")	
 
 	def expand_borders(self, engine):
-		if self.stored_culture < self.border_growth_threshold:
-			return BoolResult(False, "Insufficient culture to expand borders.")
+		#if self.stored_culture < self.border_growth_threshold:
+			#return BoolResult(False, "Insufficient culture to expand borders.")
 
-		tile = self._select_best_border_tile(engine)
-		if not tile:
-			return BoolResult(False, "No valid tile to expand into.")
+		#tile_priorities = []
+		#for tile within 6 distance of city? expensive...:
+			#tile_priorities.append(tile, self.compute_tile_priority(tile, engine))
+		
+		#if tile_priorities.length == 0:
+			#return BoolResult(False, "No valid tile to expand into.")
 
-		self.territory.add((tile.q, tile.r))
-		self.stored_culture -= self.border_growth_threshold
-		self.border_expansions += 1
+		#best_tile = lowest priority in tile_priorities
+
+		#best_tile.owner = self.owner
+		#self.stored_culture -= self.border_growth_threshold
+		#self.border_expansions += 1
 
 		return BoolResult(True, "Borders expanded")
 
 	@property
 	def border_growth_threshold(self):
-		base_threshold = 15 * (self.border_expansions + 1)
+		base_threshold = 15 * (self.border_expansions + 1) #probably not accurate
 
 		if "Tradition" in self.owner.social_policies:
 			return base_threshold // 2 #probably not accurate

@@ -244,6 +244,9 @@ class Unit:
 		
 		if tile.road_progress >= turns_required:
 			tile.road_complete = True
+			for city in self.owner.cities:
+				if not city.has_city_connection and not city.is_capital:
+					helper.update_city_connection(self.owner, city)
 			return BoolResult(True, "Road completed!")
 		else:
 			return BoolResult(True, "Road worked on")

@@ -21,7 +21,7 @@ class BoolResult:
 		return f"<BoolResult {self.success}: '{self.message}'>"
 
 #call when we complete a road, for all cities that do NOT already have connections.
-def update_city_connections(player, city):
+def update_city_connection(player, city):
 	if city == capital:
 		return False #i dont think capital counts?
 
