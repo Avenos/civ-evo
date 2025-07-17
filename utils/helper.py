@@ -129,16 +129,19 @@ def hex_neighbors(q, r):
 	neighbors = [(q + dq, r + dr) for dq, dr in directions]
 	return [(nq, nr) for nq, nr in neighbors if in_bounds(nq, nr)]
 
-def tile_neighbors(tile):
+def tile_neighbors(tile, engine):
 	if tile.r % 2 == 0:
 		directions = constants.EVEN_ROW_NEIGHBORS.values()
 	else:
 		directions = constants.ODD_ROW_NEIGHBORS.values()
 
-	neighbors = [(tile.q + dq, tile.r + dr) for dq, dr in directions]
-	
-	#fix
-	return [(nq, nr) for nq, nr in neighbors if in_bounds(nq, nr)]
+	neighbors = []
+	for dq, dr in directions:
+		nq, nr = tile.q + dq, tile.r + dr
+		if in_bounds(nq, nr):
+			neighbors.append(engine.tiles[nq][nr])
+
+	return neighbors
 
 def get_hex_at_pixel(x, y):
 	for q in range(constants.GRID_WIDTH):

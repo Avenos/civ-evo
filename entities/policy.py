@@ -1,10 +1,10 @@
 
 class Policy:
-	def __init__(self, name, era = 'ancient', prerequisites=None, desc=""):
+	def __init__(self, name, era, prerequisites=None, desc=""):
 		self.name = name
+		self.era = era
 		self.prerequisites = prerequisites if prerequisites else []
 		self.desc = desc
-		self.era = era
 
 	def is_unlocked(self, player):
 		return self.name in player.unlocked_policies

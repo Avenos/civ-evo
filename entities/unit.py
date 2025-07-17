@@ -281,8 +281,8 @@ class Unit:
 			return BoolResult(False, "Caravan must be stationed in a city.")
 	
 		#debug
-		#if not tile.city.has_granary:
-			#return BoolResult(False, "Trade routes require a Granary in the origin city.")
+		if not tile.city.has_granary:
+			return BoolResult(False, "Trade routes require a granary in the origin city.")
 	
 		if dest_city == tile.city:
 			return BoolResult(False, "Cannot establish a trade route to the same city.")

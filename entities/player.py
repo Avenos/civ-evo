@@ -178,13 +178,13 @@ class Player:
 		tile.city = city
 
 		tile.owner = self
-		for nq, nr in helper.hex_neighbors(q, r):
-			tile.owner = self
+		for neighbor in helper.tile_neighbors(tile, engine):
+			neighbor.owner = self
 			
 		if tile.luxury:
-			self.luxuries.append(engine.tiles[q][r].resource)
+			self.luxuries.append(tile.resource)
 			
-		tile.road_complete = True
+		tile.road_complete = True #does this cost?
 		#tile.road_progress = 6
 
 		city.update_worked_tiles(engine)
@@ -193,7 +193,7 @@ class Player:
 		engine.selected_city = city
 
 		#debug
-		engine.spawn_unit(self, "Caravan", q, r)
+		#engine.spawn_unit(self, "Caravan", q, r)
 
 		return BoolResult(True, "City founded!")
 
@@ -315,7 +315,7 @@ class Player:
 		techs = self.science_system.get_unlocked_names()
 		trade_techs = {"Compass", "Engineering", "Banking", "Animal Husbandry", "Sailing"}
 		#debug
-		return 10 + sum(1 for tech in trade_techs if tech in self.science_system.get_unlocked_names())
+		return sum(1 for tech in trade_techs if tech in self.science_system.get_unlocked_names())
 
 	def start_golden_age(self):
 		self.in_golden_age = True

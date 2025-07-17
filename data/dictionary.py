@@ -7,6 +7,8 @@
 #900 + 97 gold per turn
 
 #major:
+#add rendering to smartagent, make rendering more extensible?
+#do we append building PROJECTs to city building lists or just the name?
 #finalize tile improvement system, and all dependent bonuses, flood plains? marsh?
 #border growth algorithm and formula 15 25 40 north cotton then dyes them cotton, tradition retroactive?
 #roads? machinery? bridges over rivers? chopping also, then city connection verify
@@ -15,7 +17,7 @@
 #select production projects each turn if they are no longer valid after all relevant actions. production applied at BEGINNING of turn. 1 turn left on NC and buiilt a city? it doesnt complete. right? restriced DURING turn too..
 #figure out gpt formula: 1war and 1 worker =  1gpt, just 2 per after that? or era dependent? improvement cost?
 #program all building effects, stoneworks, stable, verify aqeuduct, etc
-#trade routes caravans ability almost done, stack caravans anad civilian units?
+#trade routes caravans ability almost done, stack caravans and civilian units?
 
 #speed monitoring and efficiency*
 #actually get the neural network functional
@@ -28,7 +30,7 @@
 #wtf is going on with randomagent food, rendering? or what... golden age happiness application
 #city hill tile yield values? think i got it. what about snow?
 #luxes verify
-#do we let the AI CHOOSE between pop and culture and free tech? yeah. whatever it wants. #does pop growth ancient ruins help expand borders?
+#do we let the AI CHOOSE between pop and culture and free tech? yeah. whatever it wants. #does pop growth Ancient ruins help expand borders?
 #if we click outside grid, no invalid tile error msg...
 #luxuries, also trading??
 #era advancement
@@ -137,48 +139,48 @@ IMPROVEMENTS = {
 }
 
 TECHS = {
-	"Agriculture": {"base_cost": 20, "prerequisites": []},
-	"Pottery": {"base_cost": 35, "prerequisites": ["Agriculture"]}, #allows granary and shrine
-	"Animal Husbandry": {"base_cost": 35, "prerequisites": ["Agriculture"]}, #reveals horses on map, allows caravans, pastures, +1 trade route
-	"Archery": {"base_cost": 35, "prerequisites": ["Agriculture"]}, #allows toa and archer
-	"Mining": {"base_cost": 35, "prerequisites": ["Agriculture"]}, #mines and chopping forests
+	"Agriculture": {"base_cost": 20, "prerequisites": [], "era": "Ancient"},
+	"Pottery": {"base_cost": 35, "prerequisites": ["Agriculture"], "era": "Ancient"}, #allows granary and shrine
+	"Animal Husbandry": {"base_cost": 35, "prerequisites": ["Agriculture"], "era": "Ancient"}, #reveals horses on map, allows caravans, pastures, +1 trade route
+	"Archery": {"base_cost": 35, "prerequisites": ["Agriculture"], "era": "Ancient"}, #allows toa and archer
+	"Mining": {"base_cost": 35, "prerequisites": ["Agriculture"], "era": "Ancient"}, #mines and chopping forests
 
-	"Sailing": {"base_cost": 55, "prerequisites": ["Pottery"], "era": "ancient"}, #extra trade route
-	"Calendar": {"base_cost": 55, "prerequisites": ["Pottery"], "era": "ancient"}, #stone works and plantations
-	"Writing": {"base_cost": 55, "prerequisites": ["Pottery"], "era": "ancient"}, #library
-	"Trapping": {"base_cost": 55, "prerequisites": ["Animal Husbandry"], "era": "ancient"}, #camps and circus
-	"The Wheel": {"base_cost": 55, "prerequisites": ["Animal Husbandry", "Archery"], "era": "ancient"}, #water mill and roads
-	"Masonry": {"base_cost": 55, "prerequisites": ["Mining"], "era": "ancient"}, #pyramids, quarry, clear marsh
-	"Bronze Working": {"base_cost": 55, "prerequisites": ["Mining"], "era": "ancient"}, #reveal iron, remove jungle
+	"Sailing": {"base_cost": 55, "prerequisites": ["Pottery"], "era": "Ancient"}, #extra trade route
+	"Calendar": {"base_cost": 55, "prerequisites": ["Pottery"], "era": "Ancient"}, #stone works and plantations
+	"Writing": {"base_cost": 55, "prerequisites": ["Pottery"], "era": "Ancient"}, #library
+	"Trapping": {"base_cost": 55, "prerequisites": ["Animal Husbandry"], "era": "Ancient"}, #camps and circus
+	"The Wheel": {"base_cost": 55, "prerequisites": ["Animal Husbandry", "Archery"], "era": "Ancient"}, #water mill and roads
+	"Masonry": {"base_cost": 55, "prerequisites": ["Mining"], "era": "Ancient"}, #pyramids, quarry, clear marsh
+	"Bronze Working": {"base_cost": 55, "prerequisites": ["Mining"], "era": "Ancient"}, #reveal iron, remove jungle
 
-	"Optics": {"base_cost": 85, "prerequisites": ["Sailing"], "era": "classical"}, #lighthouse
-	"Horseback Riding": {"base_cost": 105, "prerequisites": ["Trapping", "The Wheel"], "era": "classical"}, #stable, circus maximus
-	"Mathematics": {"base_cost": 105, "prerequisites": ["The Wheel"], "era": "classical"}, #hanging gardens
-	"Construction": {"base_cost": 105, "prerequisites": ["The Wheel", "Masonry"], "era": "classical"}, #colosseum, lumber mill
+	"Optics": {"base_cost": 85, "prerequisites": ["Sailing"], "era": "Classical"}, #lighthouse
+	"Horseback Riding": {"base_cost": 105, "prerequisites": ["Trapping", "The Wheel"], "era": "Classical"}, #stable, circus maximus
+	"Mathematics": {"base_cost": 105, "prerequisites": ["The Wheel"], "era": "Classical"}, #hanging gardens
+	"Construction": {"base_cost": 105, "prerequisites": ["The Wheel", "Masonry"], "era": "Classical"}, #colosseum, lumber mill
 
-	"Philosophy": {"base_cost": 175, "prerequisites": ["Calendar", "Writing"], "era": "classical"}, #nat college, oracle
-	"Drama and Poetry": {"base_cost": 175, "prerequisites": ["Writing"], "era": "classical"}, #writers guild
-	"Currency": {"base_cost": 175, "prerequisites": ["Mathematics"], "era": "classical"}, #mint, market
-	"Engineering": {"base_cost": 175, "prerequisites": ["Mathematics", "Construction"], "era": "classical"}, #aqueduct, bridge over river, extra trade route
-	"Iron Working": {"base_cost": 175, "prerequisites": ["Bronze Working"], "era": "classical"}, #check cost
+	"Philosophy": {"base_cost": 175, "prerequisites": ["Calendar", "Writing"], "era": "Classical"}, #nat college, oracle
+	"Drama and Poetry": {"base_cost": 175, "prerequisites": ["Writing"], "era": "Classical"}, #writers guild
+	"Currency": {"base_cost": 175, "prerequisites": ["Mathematics"], "era": "Classical"}, #mint, market
+	"Engineering": {"base_cost": 175, "prerequisites": ["Mathematics", "Construction"], "era": "Classical"}, #aqueduct, bridge over river, extra trade route
+	"Iron Working": {"base_cost": 175, "prerequisites": ["Bronze Working"], "era": "Classical"}, #check cost
 
-	"Theology": {"base_cost": 275, "prerequisites": ["Philosophy", "Drama and Poetry"], "era": "medieval"},
-	"Civil Service": {"base_cost": 275, "prerequisites": ["Drama and Poetry", "Horseback Riding", "Currency"], "era": "medieval"}, #fresh water farms +1
-	"Guilds": {"base_cost": 275, "prerequisites": ["Currency"], "era": "medieval"}, #trading posts
-	"Metal Casting": {"base_cost": 275, "prerequisites": ["Engineering", "Iron Working"], "era": "medieval"}, #forge and workshop
+	"Theology": {"base_cost": 275, "prerequisites": ["Philosophy", "Drama and Poetry"], "era": "Medieval"},
+	"Civil Service": {"base_cost": 275, "prerequisites": ["Drama and Poetry", "Horseback Riding", "Currency"], "era": "Medieval"}, #fresh water farms +1
+	"Guilds": {"base_cost": 275, "prerequisites": ["Currency"], "era": "Medieval"}, #trading posts
+	"Metal Casting": {"base_cost": 275, "prerequisites": ["Engineering", "Iron Working"], "era": "Medieval"}, #forge and workshop
 
-	"Compass": {"base_cost": 375, "prerequisites": ["Optics"], "era": "medieval"}, #Extra trade route, check cost?
-	"Education": {"base_cost": 485, "prerequisites": ["Theology", "Civil Service"], "era": "medieval"}, #university, allow research agreements
-	"Chivalry": {"base_cost": 485, "prerequisites": ["Civil Service", "Guilds"], "era": "medieval"}, #mughal fort eh...
-	"Machinery": {"base_cost": 485, "prerequisites": ["Guilds", "Engineering"], "era": "medieval"}, #ironworks, faster road movement
-	"Physics": {"base_cost": 485, "prerequisites": ["Metal Casting"], "era": "medieval"}, #Notre Dame
-	"Steel": {"base_cost": 485, "prerequisites": ["Metal Casting"], "era": "medieval"},
+	"Compass": {"base_cost": 375, "prerequisites": ["Optics"], "era": "Medieval"}, #Extra trade route, check cost?
+	"Education": {"base_cost": 485, "prerequisites": ["Theology", "Civil Service"], "era": "Medieval"}, #university, allow research agreements
+	"Chivalry": {"base_cost": 485, "prerequisites": ["Civil Service", "Guilds"], "era": "Medieval"}, #mughal fort eh...
+	"Machinery": {"base_cost": 485, "prerequisites": ["Guilds", "Engineering"], "era": "Medieval"}, #ironworks, faster road movement
+	"Physics": {"base_cost": 485, "prerequisites": ["Metal Casting"], "era": "Medieval"}, #Notre Dame
+	"Steel": {"base_cost": 485, "prerequisites": ["Metal Casting"], "era": "Medieval"},
 
-	"Astronomy": {"base_cost": 780, "prerequisites": ["Compass", "Education"], "era": "renaissance"}, #observatory
-	"Acoustics": {"base_cost": 780, "prerequisites": ["Education"], "era": "renaissance"}, #sistine chapel
-	"Banking": {"base_cost": 780, "prerequisites": ["Education", "Chivalry"], "era": "renaissance"}, #bank, forbidden palace, trade route
-	"Printing Press": {"base_cost": 780, "prerequisites": ["Chivalry", "Machinery", "Physics"], "era": "renaissance"}, #zoo, leaning tower
-	"Gunpowder": {"base_cost": 780, "prerequisites": ["Physics", "Steel"], "era": "renaissance"}
+	"Astronomy": {"base_cost": 780, "prerequisites": ["Compass", "Education"], "era": "Renaissance"}, #observatory
+	"Acoustics": {"base_cost": 780, "prerequisites": ["Education"], "era": "Renaissance"}, #sistine chapel
+	"Banking": {"base_cost": 780, "prerequisites": ["Education", "Chivalry"], "era": "Renaissance"}, #bank, forbidden palace, trade route
+	"Printing Press": {"base_cost": 780, "prerequisites": ["Chivalry", "Machinery", "Physics"], "era": "Renaissance"}, #zoo, leaning tower
+	"Gunpowder": {"base_cost": 780, "prerequisites": ["Physics", "Steel"], "era": "Renaissance"}
 }
 
 POLICIES = {

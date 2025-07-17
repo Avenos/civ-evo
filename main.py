@@ -12,9 +12,9 @@ def main():
 	engine = Engine()
 
 	#Train().train()
-	HumanGame(engine).run()
-	#RandomAgent(engine, headless=False).run()
-	#SmartAgent(engine, headless=False).run() #add rendering.... make rendering more extensible?
+	#HumanGame(engine).run()
+	RandomAgent(engine, headless=False).run()
+	#SmartAgent(engine, headless=False).run()
 	#Replay("replay_2025-07-09_05-43-38.json", engine, speed=9999999).run()
 
 if __name__ == "__main__":

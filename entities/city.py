@@ -450,8 +450,12 @@ class City:
 					heapq.heappush(heap, (total, (nq, nr)))
 		return distances
 
+	#only call on any border browth or tile purchases
 	def compute_tile_priority(tile, engine):
 		dist = helper.hex_distance(tile.q, tile.r, self.q, self.r) * MULTIPLIERS["DISTANCE"]
+
+		if tile.owner:
+			return None
 
 		influence_base = constants.TERRAIN_INFLUENCE_COST[tile.terrain_type]
 		

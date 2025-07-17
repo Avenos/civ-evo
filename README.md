@@ -17,7 +17,7 @@ Civ-Evo: A Civ V Build Order Optimizer with Reinforcement Learning AI
 This is a fan-made, non-commercial project inspired by Civilization V. All assets and mechanics are used for educational purposes only. I am not affiliated with Firaxis or 2K.
 
 Hey all - I've been working on this side project and figured I'd share it here in case anyone's into AI, automation, or just wants to mess around with Civ V from a different angle.
-Civ-Evo is a full simulation of Civilization V's systems up to the renaissance era, where the AI doesn't follow hard-coded rules.
+Civ-Evo is a full simulation of Civilization V's systems up to the Renaissance era, where the AI doesn't follow hard-coded rules.
 I built an reinforcement learning algorithm that runs the game over and over, tweaking its own strategies to maximize yields - food, hammers, and science - over a specified number of turns.
 You can throw it a hex map, and it'll play through thousands of games until it figures out what works. City placements, build orders, tile assignments, etc.
 
