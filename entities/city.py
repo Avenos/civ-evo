@@ -424,71 +424,57 @@ class City:
 
 		return BoolResult(True, f"Purchased {name}.")
 
-	def compute_influence_distance(city, engine, max_range=5):
-		visited = set()
-		distances = {}
-		start_coords = (city.q, city.r)
-		heap = [(0, start_coords)]
-
-		while heap:
-			dist, (q, r) = heapq.heappop(heap)
-			if (q, r) in visited:
-				continue
-
-			visited.add((q, r))
-			if helper.hex_distance(city.q, city.r, q, r) > max_range:
-				continue
-
-			tile = engine.tiles[q][r]
-			cost = INFLUENCE_COST.get(tile.terrain_type, 1)
-			mod_cost = max(1, min(3, cost))  # Clamp between 1 and 3
-			total = dist + mod_cost
-			distances[(q, r)] = total
-
-			for nq, nr in helper.hex_neighbors(q, r):
-				if (nq, nr) not in visited:
-					heapq.heappush(heap, (total, (nq, nr)))
-		return distances
-
-	#only call on any border browth or tile purchases
-	def compute_tile_priority(tile, engine):
-		dist = helper.hex_distance(tile.q, tile.r, self.q, self.r) * MULTIPLIERS["DISTANCE"]
-
+	def compute_tile_priority(city, tile, influence_distance):
 		if tile.owner:
-			return None
-
-		influence_base = constants.TERRAIN_INFLUENCE_COST[tile.terrain_type]
-		
-		#pull values from constants?
-		if tile.trees == 1 or tile.trees == 2 or tile.elevation == 1 or tile.resource == "swamp":
-			influence_base = 1
-		elif tile.elevation == 2 or tile.resource == "ice":
-			influence_base = 3
-		elif tile.resource == "oasis" or tile.resource == "atoll" or tile.resource == "flood plains": #fp resource or feature?
-			influence_base = -1
-			
-		influence_base *= dist * constants.MULTIPLIERS["RESOURCE"]
-		
-		if tile.resource: #an ACTUAL resource not swamp or flood plains i think... or nat wonders...
-			influence_base *= constants.MULTIPLIERS["RESOURCE"]
-		if tile.terrain_type in ("c", "l", "o"):
-			influence_base *= constants.MULTIPLIERS["WATER"]
-		if tile.elevation == 2:
-			influence_base *= constants.MULTIPLIERS["UNWORKABLE"]
-		if tile.improvement: #like forts?
-			influence_base *= constants.MULTIPLIERS["IMPROVEMENT"]
-		#if tile.barbarian_camp:
-			#infleunce_base *= constants.MULTIPLIERS["BARB_CAMP"]	
-		if tile.road_complete:
-			influence_base *= constants.MULTIPLIERS["ROAD"]		
-		if tile.resource == "kailash":
-			influence_base *= constants.MULTIPLIERS["NATURAL_WONDER"]
-		if sum(tile.food, tile.production, tile.science, tile.gold, tile.culture, tile.faith) > 0: #unsure about logic
-			influence_base *= sum(tile.food, tile.production, tile.science, tile.gold, tile.culture, tile.faith) * constants.MULTIPLIERS["YEILD POINT"]
-		if not helper.is_adjacent_to_owned_tile(tile, self.owner, engine):
-			influence_base *= constants.MULTIPLIERS["NO_ADJACENT_OWNED"]
-
-		return influence_base
+			return None  # already owned
+	
+		priority = influence_distance * MULTIPLIERS["PLOT_INFLUENCE_DISTANCE_MULTIPLIER"]
+	
+		if tile.resource and tile.is_workable():
+			priority += MULTIPLIERS["PLOT_INFLUENCE_RESOURCE_COST"]
+	
+		if tile.is_water() and not tile.resource:
+			priority += MULTIPLIERS["PLOT_INFLUENCE_WATER_COST"]
+	
+		if not tile.is_workable() and not tile.resource:
+			priority += MULTIPLIERS["PLOT_INFLUENCE_RING_COST"]
+	
+		if tile.improvement == "barbarian_camp":
+			priority += MULTIPLIERS["PLOT_INFLUENCE_RING_COST"]
+	
+		if tile.improvement and tile.improvement != "barbarian_camp" and tile.improvement != "road":
+			priority += MULTIPLIERS["PLOT_INFLUENCE_IMPROVEMENT_COST"]
+	
+		if tile.has_road:
+			priority += MULTIPLIERS["PLOT_INFLUENCE_ROUTE_COST"]
+	
+		if tile.is_natural_wonder:
+			priority += MULTIPLIERS["PLOT_INFLUENCE_NW_COST"]
+	
+		yield_points = sum([
+		    tile.food, tile.production, tile.science,
+		tile.gold, tile.culture, tile.faith
+	    ])
+		priority += yield_points * MULTIPLIERS["PLOT_INFLUENCE_YIELD_POINT_COST"]
+	
+		if not helper.is_adjacent_to_owned_tile(tile, city.owner, engine):
+			priority += MULTIPLIERS["PLOT_INFLUENCE_NO_ADJACENT_OWNED_COST"]
+	
+		if tile.resource and tile.is_bonus_resource() and tile.is_workable():
+			priority += 1
+	
+		for adj_tile in helper.hex_neighbors(tile.q, tile.r):
+			adj = engine.tiles.get(adj_tile)
+			if adj and not adj.owner:
+				if adj.resource and not (adj.is_bonus_resource() and not adj.is_workable()):
+					priority -= 1
+				if adj.is_natural_wonder:
+					priority -= 1
+	
+		if any(engine.tiles.get(n).is_natural_wonder for n in helper.hex_neighbors(tile.q, tile.r)):
+			priority -= 1
+	
+		return priority
 
 	def gain_culture(self, amount):
 		self.stored_culture += amount
@@ -497,23 +483,26 @@ class City:
 		return BoolResult(False, "Not enough culture for border expansion yet.")	
 
 	def expand_borders(self, engine):
-		#if self.stored_culture < self.border_growth_threshold:
-			#return BoolResult(False, "Insufficient culture to expand borders.")
-
-		#tile_priorities = []
-		#for tile within 6 distance of city? expensive...:
-			#tile_priorities.append(tile, self.compute_tile_priority(tile, engine))
-		
-		#if tile_priorities.length == 0:
-			#return BoolResult(False, "No valid tile to expand into.")
-
-		#best_tile = lowest priority in tile_priorities
-
-		#best_tile.owner = self.owner
-		#self.stored_culture -= self.border_growth_threshold
-		#self.border_expansions += 1
-
-		return BoolResult(True, "Borders expanded")
+		influence_distances = compute_influence_distance(self, engine)
+	
+		priorities = []
+		for coords, distance in influence_distances.items():
+			tile = engine.tiles[coords[0]][coords[1]]
+			priority = compute_tile_priority(self, tile, distance)
+			if priority is not None:
+				priorities.append((priority, tile))
+	
+		if not priorities:
+			return BoolResult(False, "No valid tile to expand into.")
+	
+		best_priority = min(priorities, key=lambda x: x[0])[0]
+		best_tiles = [t for p, t in priorities if p == best_priority]
+		chosen_tile = random.choice(best_tiles)
+	
+		chosen_tile.owner = self.owner
+		self.stored_culture -= self.border_growth_threshold
+		self.border_expansions += 1
+		return BoolResult(True, f"Borders expanded to tile at ({chosen_tile.q}, {chosen_tile.r})")
 
 	@property
 	def border_growth_threshold(self):

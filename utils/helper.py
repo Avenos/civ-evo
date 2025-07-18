@@ -52,52 +52,6 @@ def update_city_connection(player, city):
 				return True
 	return False
 
-def init_pygame_assets(headless=False):
-	import ctypes
-	import os
-	import pygame
-
-	if headless:
-		pygame.display.init()
-		clock = pygame.time.Clock()
-		return None, clock, None, None, None, None, None
-
-	pygame.display.init()
-	pygame.font.init()
-
-	screen = pygame.display.set_mode((800, 600), pygame.RESIZABLE)
-	pygame.display.set_caption("Civ V Build Order Optimizer")
-
-	# Maximize the window (Windows only)
-	hwnd = pygame.display.get_wm_info()["window"]
-	ctypes.windll.user32.ShowWindow(hwnd, 3)
-
-	clock = pygame.time.Clock()
-	font = pygame.font.SysFont(None, 20)
-	big_font = pygame.font.SysFont(None, 24)
-
-	terrain_overlays = {}
-	for filename in os.listdir("assets"):
-		if filename.endswith(".png"):
-			key = filename[:-4]
-			image = pygame.image.load(os.path.join("assets", filename)).convert_alpha()
-			terrain_overlays[key] = image
-
-	yield_types = ["food", "production", "gold", "science", "culture", "faith", "happiness", "unhappiness"]
-	icon_images = {}
-	for yield_type in yield_types:
-		icon_images[yield_type] = pygame.image.load(f"assets/icons/{yield_type}.png").convert_alpha()
-
-	unit_icons = {}
-	for filename in os.listdir("assets/units"):
-		if filename.lower().endswith(".png"):
-			unit_name = os.path.splitext(filename)[0].lower()
-			full_path = os.path.join("assets/units", filename)
-			unit_icon = pygame.image.load(full_path).convert_alpha()
-			unit_icons[unit_name] = unit_icon
-
-	return screen, clock, font, big_font, terrain_overlays, icon_images, unit_icons
-
 def hex_to_pixel(q, r):
 	x = constants.HEX_RADIUS * math.sqrt(3) * (q + 0.5 * (r & 1))
 	y = constants.HEX_RADIUS * 3/2 * r
@@ -478,3 +432,55 @@ def a_star_path(start, goal, game_map, move_points_per_turn=2):
 
 	print("No path found.")
 	return None
+
+#dijkstra
+def compute_influence_distance(city, game_map, max_range=5):
+	"""
+	Calculates the influence distance (minimum modified movement cost)
+	from the city to all tiles within `max_range` using multi-source Dijkstra.
+
+	Args:
+	    city: City object with `.q`, `.r`
+	    game_map: Dict of (q, r) → Tile
+	    max_range: Max allowed range from the city
+
+	Returns:
+	    Dict of (q, r) → influence distance
+	"""
+	frontier = []
+	visited = set()
+	distances = {}
+
+	# Start from tiles adjacent to the city
+	for nq, nr in helper.hex_neighbors(city.q, city.r):
+		if (nq, nr) in game_map:
+			heapq.heappush(frontier, (0, (nq, nr)))
+
+	while frontier:
+		cost_so_far, (q, r) = heapq.heappop(frontier)
+		if (q, r) in visited:
+			continue
+		visited.add((q, r))
+
+		if helper.hex_distance(city.q, city.r, q, r) > max_range:
+			continue
+
+		distances[(q, r)] = cost_so_far
+		current_tile = game_map[(q, r)]
+
+		for nq, nr in helper.hex_neighbors(q, r):
+			if (nq, nr) not in game_map:
+				continue
+			if (nq, nr) in visited:
+				continue
+
+			neighbor_tile = game_map[(nq, nr)]
+			base_cost = constants.TERRAIN_INFLUENCE_COST.get(neighbor_tile.terrain_type, 1)
+
+			river_penalty = 1 if helper.has_river_between(current_tile, neighbor_tile) else 0
+			mod_cost = max(1, min(3, base_cost + river_penalty))
+			total_cost = cost_so_far + mod_cost
+
+			heapq.heappush(frontier, (total_cost, (nq, nr)))
+
+	return distances

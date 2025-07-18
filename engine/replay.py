@@ -31,8 +31,6 @@ class Replay:
 			self.actions_by_turn[turn].append((action_type, data))
 
 	def run(self):
-		screen, clock, font, big_font, terrain_overlays, resource_icons, unit_icons = helper.init_pygame_assets()
-
 		for turn in sorted(self.actions_by_turn.keys()):
 			for action_type, data in self.actions_by_turn[turn]:
 				handle_action(self.engine, action_type, data, False)

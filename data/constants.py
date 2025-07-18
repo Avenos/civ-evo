@@ -10,6 +10,7 @@ HEIGHT = 1100
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 GRAY = (180, 180, 180)
+LIGHT_GRAY = (210, 210, 210)
 GREEN = (0, 200, 0)
 BLUE = (0, 0, 255)
 GREEN = (0, 255, 0),
@@ -61,18 +62,15 @@ OPPOSITE_DIRECTION = {
 	"SE": "NW",
 }
 
-# Influence cost lookup by terrain/feature
 TERRAIN_INFLUENCE_COST = {
 	"c": 2, "d": 2, "g": 1, "l": 2, "o": 3, "p": 1, "s": 2, "t": 2, "n": 3
 }
 
 FEATURE_INFLUENCE_COST = {
-	"Atoll": -1, "Floodplains": -1, "Forest": 1, "Hill": 1, 
-	"Ice": 3, "Jungle": 1, "Mountain": 3, "Natural Wonder": 3,
-	"Oasis": -1, "Swamp": 1,
+	"Atoll": -1, "Floodplains": -1, "Forest": 1, "Hill": 1, "Ice": 3, "Jungle": 1, 
+	"Mountain": 3, "Natural Wonder": 3, "Oasis": -1, "Swamp": 1,
 }
 
-# Priority multipliers
 MULTIPLIERS = {
 	"DISTANCE": 100,
 	"RESOURCE": -105,
