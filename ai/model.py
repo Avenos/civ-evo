@@ -4,7 +4,7 @@
 import torch.nn as nn
 
 class Model(nn.Module):
-	def __init__(self, input_size=2389):  # Fixed input size
+	def __init__(self, input_size=7630):  # Fixed input size
 		super(Model, self).__init__()  # <-- This is the correct super call
 		self.model = nn.Sequential(
 			nn.Linear(input_size, 512),

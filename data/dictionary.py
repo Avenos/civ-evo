@@ -1,4 +1,9 @@
 
+#https://forums.civfanatics.com/threads/local-happiness-vs-global-happiness.502889/
+#https://old.reddit.com/r/civ/comments/4o4o6j/civ_v_border_expansion_algorithm/
+#https://forums.civfanatics.com/threads/civ-v-aqueduct-not-saving-food.457541/
+#https://gaming.stackexchange.com/questions/64765/what-factors-affect-tile-purchase-cost
+
 #turn 121 to beat:
 #science +195, 6 turns till banking
 #crop yield 200, 10 cities total
@@ -8,6 +13,7 @@
 
 #major:
 #add rendering to smartagent, make rendering more extensible?
+#select city while unit is on it
 #do we append building PROJECTs to city building lists or just the name?
 #finalize tile improvement system, and all dependent bonuses, flood plains? marsh?
 #border growth algorithm and formula 15 25 40 north cotton then dyes them cotton, tradition retroactive?

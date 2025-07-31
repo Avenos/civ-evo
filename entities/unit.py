@@ -119,6 +119,9 @@ class Unit:
 		if improvement == tile.improvement and tile.improvement_progress >= turns_required:
 			return BoolResult(False, "Improvement already complete!")
 
+		if tile.city:
+			return BoolResult(False, "Cannot improve city tiles")
+
 		if tile.owner != self.owner:
 			return BoolResult(False, "Cannot improve tile you do not own.") #unless its a road
 

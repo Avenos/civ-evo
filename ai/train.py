@@ -42,7 +42,7 @@ class Train:
 
 				next_state, reward, done, info = self.env.step(action)
 
-				self.agent.remember(encoded_state, action, reward, next_state, done)
+				self.agent.remember(state, action, reward, next_state, done)
 
 				state = next_state
 				total_reward += reward

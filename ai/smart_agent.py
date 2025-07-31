@@ -14,7 +14,7 @@ ACTION_TYPES = [
 	"move_unit", "found_city", "choose_project", "choose_research",
 	"purchase_unit", "purchase_building", "purchase_tile",
 	"choose_pantheon", "choose_policy", "improve_tile",
-	"swap_tile", "end_turn" #caravan, 
+	"assign_tile", "unassign_tile", "end_turn" #caravan, 
 ]
 
 MAX_ID = 1000
@@ -92,8 +92,10 @@ class SmartAgent:
 		self.max_worked_tiles = 32  # max tiles for choose_worked_tiles		
 
 	def remember(self, state, action, reward, next_state, done):
+		state_tensor = self.state_encoder.encode_game_state(state).to(self.device)
+		next_state_tensor = self.state_encoder.encode_game_state(next_state).to(self.device)
 		action_tensor = self.encode_action(action)
-		self.memory.append((state, action_tensor, reward, next_state, done))
+		self.memory.append((state_tensor, action_tensor, reward, next_state_tensor, done))
 		if len(self.memory) > self.max_memory:
 			self.memory.pop(0)
 
@@ -224,7 +226,7 @@ class SmartAgent:
 		self.model = model
 		self.device = device
 
-		while engine.turn < 40:
+		while engine.turn < 121:
 			print(f"Turn {engine.turn} starting")
 			while True:
 				legal_actions = engine.get_legal_actions(engine.current_player)
@@ -262,7 +264,7 @@ class SmartAgent:
 		best_score = float("-inf")
 
 		for action in legal_actions:
-			action_tensor = encode_action(action).to(self.device)
+			action_tensor = self.encode_action(action).to(self.device)
 			full_input = torch.cat([input_tensor, action_tensor], dim=0).unsqueeze(0)
 
 			with torch.no_grad():

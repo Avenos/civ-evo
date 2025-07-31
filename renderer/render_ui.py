@@ -113,7 +113,7 @@ class RenderUI():
 			for action in worker_actions:
 				action_rect = pygame.Rect(col1_x, action_y, action_width, action_height)
 				pygame.draw.rect(self.renderer.base_surface, constants.GRAY, action_rect)
-				txt = self.font.render(action["label"], True, constants.BLACK)
+				txt = self.renderer.font.render(action["label"], True, constants.BLACK)
 				self.renderer.base_surface.blit(txt, (action_rect.x + 5, action_rect.y + 5))
 				self.engine.ui_tile_improvement_buttons.append({
 					"rect": action_rect,

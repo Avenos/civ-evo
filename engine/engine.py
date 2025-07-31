@@ -11,31 +11,52 @@ from engine import action_handler
 class EnvWrapper:
 	def __init__(self):
 		self.engine = Engine()
+		self.last_action = None
 
 	def reset(self):
 		self.engine.reset_game()
 		return self.engine.get_state()
 
 	def step(self, action):
-		result = action_handler.handle_action(self.engine, action["action"], action.get("data", {}))
-
-		#should this reward func really be in the wrapper?
 		current_player = self.engine.current_player
-		reward = 50 * sum(city.population for city in current_player.cities) + getattr(current_player, "total_science_accrued", 0)
-		#if self.current_player.happiness < 0: #check if its been negative for more than a few turns maybe?
-			#reward -= 500
-		if "Forbidden Palace" in self.current_player.wonders: #probably not completable by 121 quite
-			reward += 3000
-		if "Caravel" in self.current_player.units: #or just hard code that it HAS to do these things? how?
-			reward += 3000
-		
-		done = self.engine.turn >= 121
-
-		info = {"success": result.success, "message": result.message}
-
+	
+		# Detect toggling on the same tile as last action
+		toggling_same_tile = False
+		if self.last_action and (
+		    (action["action"] == "assign_tile" and self.last_action["action"] == "unassign_tile" and action["data"] == self.last_action["data"]) or
+		(action["action"] == "unassign_tile" and self.last_action["action"] == "assign_tile" and action["data"] == self.last_action["data"])
+		):
+			toggling_same_tile = True
+	
+		# Handle action
+		result = action_handler.handle_action(self.engine, action["action"], action.get("data", {}))
+	
+		# If toggling the same tile repeatedly: heavy penalty + end episode immediately
+		if toggling_same_tile:
+			reward = -100  # huge negative reward to discourage toggling
+			done = True    # end episode immediately to reset agent state
+			info = {"success": False, "message": "Repeated toggling of same tile detected. Episode ended."}
+			self.last_action = action
+			next_state = self.engine.get_state()
+			return next_state, reward, done, info
+	
+		# Normal end_turn reward
+		if action["action"] == "end_turn":
+			reward = (
+			50 * sum(city.population for city in current_player.cities)
+		    + getattr(current_player, "total_science_accrued", 0)
+		)
+			done = self.engine.turn >= 121
+		else:
+			# small penalty for other actions
+			reward = -1
+			done = self.engine.turn >= 121
+	
+		self.last_action = action
 		next_state = self.engine.get_state()
-
+		info = {"success": result.success, "message": result.message}
 		return next_state, reward, done, info
+
 
 class Engine:
 	def __init__(self):
@@ -236,50 +257,50 @@ class Engine:
 						}
 					})
 
-		for city in player.cities:
-			for tile in city.worked_tiles:
-				if city.can_unassign_tile(tile):
-					actions.append({
-						"action": "unassign_tile",
-						"data": {"city_id": city.id, "tile": (tile.q, tile.r)}
-					})
+		#for city in player.cities:
+			#for tile in city.worked_tiles:
+				#if city.can_unassign_tile(tile):
+					#actions.append({
+						#"action": "unassign_tile",
+						#"data": {"city_id": city.id, "tile": (tile.q, tile.r)}
+					#})
 					
-		for city in player.cities:	
-			if len(city.worked_tiles) < city.population + 1:
-				workable_tiles = city.get_workable_tiles(self)
-				for tile in workable_tiles:
-					if tile not in city.worked_tiles:
-						actions.append({
-							"action": "assign_tile",
-							"data": {"city_id": city.id, "tile": (tile.q, tile.r)}
-						})
+		#for city in player.cities:	
+			#if len(city.worked_tiles) < city.population + 1:
+				#workable_tiles = city.get_workable_tiles(self)
+				#for tile in workable_tiles:
+					#if tile not in city.worked_tiles:
+						#actions.append({
+							#"action": "assign_tile",
+							#"data": {"city_id": city.id, "tile": (tile.q, tile.r)}
+						#})
 
-		for unit in player.units:
-			tile = self.get_tile(unit.q, unit.r)
-			if unit.name == "Caravan" and not unit.route_active:
-				if tile.city: # and "Granary" in tile.city.buildings:
-					for dest in player.cities:
-						if dest != tile.city:
-							if unit.can_establish_trade_route(dest, self):
-								actions.append({
-									"action": "establish_trade_route",
-									"data": {
-										"unit_id": unit.id,
-										"dest_city_id": dest.id
-									}
-								})
+		#for unit in player.units:
+			#tile = self.get_tile(unit.q, unit.r)
+			#if unit.name == "Caravan" and not unit.route_active:
+				#if tile.city: # and "Granary" in tile.city.buildings:
+					#for dest in player.cities:
+						#if dest != tile.city:
+							#if unit.can_establish_trade_route(dest, self):
+								#actions.append({
+									#"action": "establish_trade_route",
+									#"data": {
+										#"unit_id": unit.id,
+										#"dest_city_id": dest.id
+									#}
+								#})
 								
-		for city in player.cities:
-			tile = self.get_tile(city.q, city.r)
-			if city != tile.city:
-				if unit.can_rebase(city):
-					actions.append({
-						"action": "rebase_caravan",
-						"data": {
-							"unit_id": unit.id,
-							"dest_city_id": city.id
-						}
-					})
+		#for city in player.cities:
+			#tile = self.get_tile(city.q, city.r)
+			#if city != tile.city:
+				#if unit.can_rebase(city):
+					#actions.append({
+						#"action": "rebase_caravan",
+						#"data": {
+							#"unit_id": unit.id,
+							#"dest_city_id": city.id
+						#}
+					#})
 
 		#choose ancient ruins bonus
 
@@ -307,9 +328,9 @@ class Engine:
 				"unlocked_techs": self.current_player.science_system.unlocked_techs,
 				"current_research": self.current_player.science_system.current_research,
 				"current_research_progress": self.current_player.science_system.current_research_progress,
-				"era": self.current_player.era,
+				"era": self.current_player.current_era,
 				"golden_age_turns_left": self.current_player.golden_age_turns_left,
-				"trade_routes": self.current_player.trade_routes,
+				#"trade_routes": self.current_player.trade_routes,
 				},
 			"units": [
 				{
@@ -333,7 +354,7 @@ class Engine:
 					"faith": c.faith,
 					"worked_tiles": c.worked_tiles,
 					"current_production": c.production_system.current_project,
-					#building list?
+					"buildings": c.buildings,
 				}
 				for c in self.current_player.cities
 				],
@@ -354,6 +375,7 @@ class Engine:
 						"faith": t.faith,
 						"improvement": t.improvement,
 						"city": t.city.name if t.city else None,
+						"worked_by": t.worked_by if t.worked_by else None,
 						"unit": t.unit.name if t.unit else None,
 						"owner": t.owner,
 					}

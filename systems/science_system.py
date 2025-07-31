@@ -72,6 +72,11 @@ class ScienceSystem:
 			self.overflow = 0  # Apply overflow only once
 
 		return BoolResult(True, f"Selected tech: {tech_name}")
+	
+	@property
+	def current_research_progress(self):
+		tech = self.techs[self.current_research]
+		return tech.progress
 
 	@property
 	def unlocked_techs(self):
