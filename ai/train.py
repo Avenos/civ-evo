@@ -1,13 +1,12 @@
 
-#here is train.py - remember, we are just feeding you context for now. lots of files. I do NOT want you to do any actual analysis yet, I will let you know when I want that. just acknowledge that this file is now in your brain and wait for the next one.
-
 import os
 import torch
-from engine import EnvWrapper
+import random
+from engine import EnvWrapper, start_new_log
 from . import SmartAgent, Model, StateEncoder
 
 class Train:
-	def __init__(self, num_episodes=1000, save_every=50):
+	def __init__(self, num_episodes=100, save_every=100):
 		self.num_episodes = num_episodes
 		self.save_every = save_every
 		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -29,30 +28,60 @@ class Train:
 			state = self.env.reset()
 			done = False
 			total_reward = 0
-
-			print(f"[DEBUG] Starting Episode {episode + 1}")
-
+			turn_counter = 0
+	
+			# Epsilon for exploration, decay over episodes
+			epsilon = max(0.1, 1.0 - episode / (self.num_episodes * 0.8))
+	
+			print(f"[DEBUG] Starting Episode {episode + 1} with epsilon={epsilon:.2f}")
+	
 			while not done:
+				turn_counter += 1
+	
+				# Encode current state
 				encoded_state = self.state_encoder.encode_game_state(state).to(self.device)
-
+	
+				# Get legal actions
 				legal_actions = self.engine.get_legal_actions(self.engine.current_player)
-				action = self.agent.select_best_action_from(legal_actions, self.engine)
-
-				print(f"[DEBUG] Selected action: {action}")
-
+	
+				# --- Forced exploration for founding city ---
+				action = None
+				if turn_counter <= 3:
+					found_city_actions = [a for a in legal_actions if a["action"] == "found_city"]
+					if found_city_actions and random.random() < 0.7:  # 70% chance to force it
+						action = found_city_actions[0]
+	
+				# --- Otherwise epsilon-greedy ---
+				if action is None:
+					if random.random() < epsilon:
+						action = random.choice(legal_actions)
+					else:
+						action = self.agent.select_best_action_from(legal_actions, self.engine)
+	
+				# Step environment
 				next_state, reward, done, info = self.env.step(action)
-
-				self.agent.remember(state, action, reward, next_state, done)
-
+				encoded_next_state = self.state_encoder.encode_game_state(next_state).to(self.device)
+	
+				# --- Ensure exact tensor size ---
+				if encoded_state.numel() != 7630:
+					pad = torch.zeros(7630 - encoded_state.numel(), device=self.device)
+					encoded_state = torch.cat([encoded_state, pad])[:7630]
+				if encoded_next_state.numel() != 7630:
+					pad = torch.zeros(7630 - encoded_next_state.numel(), device=self.device)
+					encoded_next_state = torch.cat([encoded_next_state, pad])[:7630]
+	
+				# Store experience
+				self.agent.remember(encoded_state, action, reward, encoded_next_state, done)
+	
 				state = next_state
 				total_reward += reward
-
-				print(f"[DEBUG] Step reward: {reward}, Total reward: {total_reward}")
-
+	
+			# Learn after episode
 			self.agent.learn()
-
+	
 			print(f"Episode {episode + 1}/{self.num_episodes} — Total Reward: {total_reward}")
-
+	
+			# Save model periodically
 			if (episode + 1) % self.save_every == 0:
 				print(f"[DEBUG] Saving model at episode {episode + 1}")
 				torch.save(self.model.state_dict(), f"models/model_ep{episode + 1}.pth")

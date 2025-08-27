@@ -8,7 +8,7 @@ import random
 
 from .model import Model
 from .state_encoder import StateEncoder
-from engine import Engine, action_handler
+from engine import Engine, handle_action
 
 ACTION_TYPES = [
 	"move_unit", "found_city", "choose_project", "choose_research",
@@ -92,12 +92,22 @@ class SmartAgent:
 		self.max_worked_tiles = 32  # max tiles for choose_worked_tiles		
 
 	def remember(self, state, action, reward, next_state, done):
-		state_tensor = self.state_encoder.encode_game_state(state).to(self.device)
-		next_state_tensor = self.state_encoder.encode_game_state(next_state).to(self.device)
+		# Only encode if input is not already a Tensor
+		if not isinstance(state, torch.Tensor):
+			state_tensor = self.state_encoder.encode_game_state(state).to(self.device)
+		else:
+			state_tensor = state  # already encoded
+	
+		if not isinstance(next_state, torch.Tensor):
+			next_state_tensor = self.state_encoder.encode_game_state(next_state).to(self.device)
+		else:
+			next_state_tensor = next_state  # already encoded
+	
 		action_tensor = self.encode_action(action)
 		self.memory.append((state_tensor, action_tensor, reward, next_state_tensor, done))
 		if len(self.memory) > self.max_memory:
 			self.memory.pop(0)
+
 
 	def encode_action(self, action_dict):
 		action_name = action_dict.get("action")
@@ -211,20 +221,13 @@ class SmartAgent:
 		loss.backward()
 		self.optimizer.step()
 
-	def run_agent(self, headless=True):
-		device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-		model = Model().to(device)
-
+	def run(self, engine, headless=False):
 		try:
-			model.load_state_dict(torch.load("model.pth", map_location=device))
-			model.eval()
-			print("[INFO] Loaded trained model from model.pth")
+			self.model.load_state_dict(torch.load("models/model_ep100.pth", map_location=self.device))
+			self.model.eval()
+			print("[INFO] Loaded trained model from model_ep100.pth")
 		except FileNotFoundError:
-			print("[WARN] model.pth not found. Running with untrained model.")
-
-		engine = build_engine()
-		self.model = model
-		self.device = device
+			print("[WARN] model_ep100.pth not found. Running with untrained model.")
 
 		while engine.turn < 121:
 			print(f"Turn {engine.turn} starting")
@@ -250,28 +253,29 @@ class SmartAgent:
 					print(f"Failed to execute action: {best_action}, reason: {result.message}")
 
 			total_population = sum(city.population for city in engine.current_player.cities)
-			total_science = getattr(engine.current_player, "total_science", 0)
-			fitness = total_population + total_science
+			total_science = getattr(engine.current_player, "total_science_accrued", 0)
+			fitness = 50 * total_population + total_science
 			print(f"Turn {engine.turn} ended. Fitness: {fitness}")
 
-		print("Reached turn 40, stopping.")
+		print(f"Reached turn {engine.turn}, stopping.")
 
 	def select_best_action_from(self, legal_actions, engine):
 		state = engine.get_state()
 		input_tensor = self.state_encoder.encode_game_state(state).to(self.device)
-
+	
+		# --- Otherwise, pick the best predicted action ---
 		best_action = None
 		best_score = float("-inf")
-
+	
 		for action in legal_actions:
 			action_tensor = self.encode_action(action).to(self.device)
 			full_input = torch.cat([input_tensor, action_tensor], dim=0).unsqueeze(0)
-
+	
 			with torch.no_grad():
 				score = self.model(full_input).item()
-
+	
 			if score > best_score:
 				best_score = score
 				best_action = action
-
+	
 		return best_action

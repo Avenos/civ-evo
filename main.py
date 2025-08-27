@@ -3,19 +3,25 @@
 
 #now that you know the directory structure, we'll start with main.py - remember, we are just feeding you context for now. lots of files. I do NOT want you to do any actual analysis yet, I will let you know when I want that. just acknowledge that this file is now in your brain and wait for the next one.
 
+#we must understand the vector... far simpler as well
+
 import pygame
-from engine import Engine, HumanGame, Replay
-from ai import SmartAgent, RandomAgent, Train
+import torch
+from engine import Engine, HumanGame, Replay, start_new_log
+from ai import SmartAgent, RandomAgent, Train, Model
 
 def main():
 	pygame.init()
 	engine = Engine()
+	#start_new_log(engine)
+
+	device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+	model = Model().to(device)
 
 	#Train().train()
-	HumanGame(engine).run()
-	#RandomAgent(engine, headless=False).run()
-	#SmartAgent(engine, headless=False).run()
-	#Replay("replay_2025-07-09_05-43-38.json", engine, speed=9999999).run()
+	#HumanGame(engine).run()
+	SmartAgent(model, device).run(engine)
+	#Replay("replayai2.json", engine, speed=9999999).run()
 
 if __name__ == "__main__":
 	main()

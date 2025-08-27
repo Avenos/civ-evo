@@ -75,12 +75,15 @@ class ScienceSystem:
 	
 	@property
 	def current_research_progress(self):
-		tech = self.techs[self.current_research]
-		return tech.progress
+		if self.current_research is None:
+			return 0
+		else:
+			tech = self.techs[self.current_research]
+			return tech.progress
 
 	@property
 	def unlocked_techs(self):
-		return {name for name, tech in self.techs.items() if tech.unlocked}        
+		return {name for name, tech in self.techs.items() if tech.unlocked}
 
 	#should we return a list of objects not names?
 	def get_unlocked_names(self): #objects or names?

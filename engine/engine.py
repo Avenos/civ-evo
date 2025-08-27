@@ -20,37 +20,16 @@ class EnvWrapper:
 	def step(self, action):
 		current_player = self.engine.current_player
 	
-		# Detect toggling on the same tile as last action
-		toggling_same_tile = False
-		if self.last_action and (
-		    (action["action"] == "assign_tile" and self.last_action["action"] == "unassign_tile" and action["data"] == self.last_action["data"]) or
-		(action["action"] == "unassign_tile" and self.last_action["action"] == "assign_tile" and action["data"] == self.last_action["data"])
-		):
-			toggling_same_tile = True
-	
 		# Handle action
 		result = action_handler.handle_action(self.engine, action["action"], action.get("data", {}))
-	
-		# If toggling the same tile repeatedly: heavy penalty + end episode immediately
-		if toggling_same_tile:
-			reward = -100  # huge negative reward to discourage toggling
-			done = True    # end episode immediately to reset agent state
-			info = {"success": False, "message": "Repeated toggling of same tile detected. Episode ended."}
-			self.last_action = action
-			next_state = self.engine.get_state()
-			return next_state, reward, done, info
-	
-		# Normal end_turn reward
-		if action["action"] == "end_turn":
-			reward = (
+
+		#added EVERY TIME
+		reward = (
 			50 * sum(city.population for city in current_player.cities)
 		    + getattr(current_player, "total_science_accrued", 0)
 		)
-			done = self.engine.turn >= 121
-		else:
-			# small penalty for other actions
-			reward = -1
-			done = self.engine.turn >= 121
+		
+		done = self.engine.turn >= 12
 	
 		self.last_action = action
 		next_state = self.engine.get_state()
@@ -228,7 +207,7 @@ class Engine:
 				actions.append({"action": "choose_pantheon", "data": {"pantheon": pantheon}})
 
 		for city in player.cities:
-			if not city.production_system.current_project: #disallow production swapping for now?
+			if not city.production_system.current_project: #disallow production swapping for now
 				for project in city.production_system.get_available_projects():
 					actions.append({"action": "choose_project", "data": {"city_id": city.id, "project_name": project.name}})
 

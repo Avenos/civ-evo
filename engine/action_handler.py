@@ -6,6 +6,7 @@ import os
 from utils import helper, BoolResult
 from datetime import datetime
 from data import constants
+import time
 
 def handle_action(engine, action_type, data, log_actions=False):
 	"""
@@ -118,10 +119,11 @@ def handle_action(engine, action_type, data, log_actions=False):
 		result = engine.current_player.end_turn(engine)
 		print(f"Turn: {engine.turn}")
 
-	if log_actions and result:
-		replay_path = getattr(engine, "replay_log_filepath", None)
-		if replay_path:
-			log_action(engine.turn, action_type, data, replay_path)
+	if log_actions and result and action_type == "end_turn":
+		log_action(engine.turn-1, action_type, data)
+
+	elif log_actions and result:
+		log_action(engine.turn, action_type, data)
 
 	action_summary = {
 		"type": action_type,
@@ -129,20 +131,21 @@ def handle_action(engine, action_type, data, log_actions=False):
 	}
 
 	status = "VALID" if result else f"INVALID ({result.message})"
-	print(f"ACTION: {json.dumps(action_summary, separators=(',', ':'))} --> {status}")
+	# print(f"ACTION: {json.dumps(action_summary, separators=(',', ':'))} --> {status}")
 
 	#legal_actions = engine.get_legal_actions(engine.current_player)
 	#print("Legal actions:")
 	#for action in legal_actions:
 		#print(f" - {action['action']} | { {k: v for k, v in action.items() if k != 'action'} }")
 
-	print("\n")
+	#print("\n")
+	## DEBUG
+	#time.sleep(1)
 	return result
 
 def start_new_log(engine, prefix="replay", folder="replays"):
 	os.makedirs(folder, exist_ok=True)
-	timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-	filename = f"{prefix}_{timestamp}.json"
+	filename = f"{prefix}.json"
 	filepath = os.path.join(folder, filename)
 	engine.replay_log_filepath = filepath
 

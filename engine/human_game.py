@@ -14,9 +14,6 @@ class HumanGame:
 		self.renderer = Renderer(engine)
 
 	def run(self):
-		#make better replay flag
-		#start_new_log(self.engine)
-
 		self.clock = clock = pygame.time.Clock()
 		running = True
 		

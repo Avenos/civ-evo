@@ -348,7 +348,7 @@ class Player:
 			return BoolResult(False, "You must choose a technology to research before ending your turn!")
 
 		for city in self.cities:
-			if not city.production_system.current_project:
+			if city.production_system.current_project is None:
 				return BoolResult(False, f"{city.name} needs a production project!")
 
 		if self.faith >= self.pantheon_threshold and not self.pantheon:

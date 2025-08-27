@@ -17,7 +17,7 @@ class Replay:
 		self.speed = speed
 		self.actions_by_turn = defaultdict(list)
 		self.current_turn = 0
-		self.renderer = Renderer()  # Moved here
+		self.renderer = Renderer(self.engine)  # Moved here
 
 		# Load replay file
 		replay_path = os.path.join('replays', replay_filename)
@@ -55,26 +55,5 @@ class Replay:
 				logical_my = max(0, min(BASE_HEIGHT - 1, logical_my))
 				pos = (int(logical_mx), int(logical_my))
 
-				base_surface = pygame.Surface((BASE_WIDTH, BASE_HEIGHT))
-				base_surface.fill((255, 255, 255))
-				hex_mask = helper.create_hex_mask(constants.HEX_RADIUS)
-				self.renderer.draw_grid(base_surface, self.engine, font, big_font, terrain_overlays, hex_mask, resource_icons)
-				self.renderer.draw_territory_shading(base_surface, self.engine, font, big_font)
-				self.renderer.draw_cities(base_surface, self.engine, font, big_font)
-				self.renderer.draw_units(base_surface, self.engine, font, big_font, unit_icons)
-				self.renderer.draw_ui(base_surface, self.engine, font, big_font, resource_icons)
-				self.renderer.draw_message(base_surface, self.engine)
-
-				scaled_surface = pygame.transform.smoothscale(base_surface, (scaled_width, scaled_height))
-				screen.fill((0, 0, 0))
-				screen.blit(scaled_surface, (x_offset, y_offset))
-
-				pygame.display.flip()
+				self.renderer.render()
 				time.sleep(0.05 / self.speed)
-
-			success = self.engine.end_turn()
-			if not success:
-				print(f"Replay error: Could not end turn {turn} — required choices missing")
-				break
-
-			time.sleep(1.0 / self.speed)
