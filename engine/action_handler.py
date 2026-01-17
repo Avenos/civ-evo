@@ -8,7 +8,7 @@ from datetime import datetime
 from data import constants
 import time
 
-def handle_action(engine, action_type, data, log_actions=False):
+def handle_action(engine, action_type, data, log_actions=True):
 	"""
 	Game Engine API
 	Handles a single action applied to the engine.

@@ -1,27 +1,83 @@
-
-#hello chatgpt, I am needing some assistance with creating an AI for my civ V build order optimizer. the goal here is to create a 1:1 copy of the civ V game engine with pygame (which is mostly done), and then encode the gamestate as a vector along with possible legal actions, and use reinforcement learning to maximize both our empire's total population and total science accumulated by turn 121 (may start with lesser turn count like 40), by somehow training the model to choose the best legal action to that end with the gamestate it is given. There is only one player, no combat, and a fixed 23x23 hex map we are working with. The player may take ANY number of legal actions each turn, and each action has the potential to change the gamestate (end turn is also considered an action). Can you assist? Below is the directory structure of the project. Also a VERY important note - I am going to start feeding you a dozen or so files so that you can have context and know more about the project, PLEASE do not provide ANY analysis or advice until I EXPLICITLY ask you.
-
-#now that you know the directory structure, we'll start with main.py - remember, we are just feeding you context for now. lots of files. I do NOT want you to do any actual analysis yet, I will let you know when I want that. just acknowledge that this file is now in your brain and wait for the next one.
-
-#we must understand the vector... far simpler as well
-
+import os
 import pygame
 import torch
+
 from engine import Engine, HumanGame, Replay, start_new_log
-from ai import SmartAgent, RandomAgent, Train, Model
+from ai import SmartAgent, Model
+
+# --------------------------------------------
+# Main mode switch
+# --------------------------------------------
+MODE = "ai"       # "ai" | "train" | "human" | "replay"
+REPLAY_FILE = "replay.json"
+REPLAY_SPEED = 1
+
+CKPT_PATH = os.path.join("checkpoints", "model_latest.pt")
+
+MAX_TURNS = 80  # consistent with your objective horizon
+
 
 def main():
 	pygame.init()
-	engine = Engine()
-	#start_new_log(engine)
 
 	device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-	model = Model().to(device)
 
-	#Train().train()
-	#HumanGame(engine).run()
-	SmartAgent(model, device).run(engine)
-	#Replay("replayai2.json", engine, speed=9999999).run()
+	# -------------------------
+	# REPLAY MODE
+	# -------------------------
+	if MODE == "replay":
+		engine = Engine()
+		Replay(REPLAY_FILE, engine, speed=REPLAY_SPEED).run()
+		return
+
+	# -------------------------
+	# HUMAN MODE
+	# -------------------------
+	if MODE == "human":
+		engine = Engine()
+		HumanGame(engine).run()
+		return
+
+	# -------------------------
+	# TRAIN MODE (headless)
+	# -------------------------
+	if MODE == "train":
+		# No pygame loop needed; keep it fast.
+		os.makedirs("checkpoints", exist_ok=True)
+
+		from rl.train_ppo import train_ppo  # imported here to avoid pygame coupling
+		from rl.civ_env import EnvConfig
+
+		train_ppo(
+	        ckpt_path=CKPT_PATH,
+	    env_cfg=EnvConfig(horizon_turns=MAX_TURNS),
+	    device=device,
+	)
+		return
+
+	# -------------------------
+	# AI PLAY MODE (pygame)
+	# -------------------------
+	if MODE == "ai":
+		engine = Engine()
+
+		# record a replay of this run
+		start_new_log(engine, prefix="replayai", folder="replays")
+
+		model = Model().to(device)
+
+		# load checkpoint if present
+		if os.path.exists(CKPT_PATH):
+			model.load_state_dict(torch.load(CKPT_PATH, map_location=device))
+			print(f"[main] loaded checkpoint: {CKPT_PATH}")
+		else:
+			print("[main] no checkpoint found; using random weights")
+
+		SmartAgent(model, device, deterministic=False).run(engine)
+		return
+
+	raise ValueError(f"Unknown MODE={MODE!r}. Use 'ai', 'train', 'human', or 'replay'.")
+
 
 if __name__ == "__main__":
 	main()
