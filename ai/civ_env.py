@@ -1,4 +1,6 @@
-# rl/civ_env.py
+
+#ai/civ_env.py
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -16,19 +18,9 @@ Obs = Dict[str, Any]
 @dataclass
 class EnvConfig:
     horizon_turns: int = 80
-
-    # Keep movement in, but cap branching
-    max_move_actions_per_unit: int = 6
-
     # Also cap total legal actions per decision to avoid blowups
     max_legal_actions: int = 128
-
-    # Objective weights (tune later)
-    w_science_accrued: float = 1.0
-    w_science_per_turn: float = 5.0
-    w_food_surplus_per_turn: float = 3.0
-    w_population: float = 20.0
-
+    max_move_actions_per_unit: int = 256
 
 class CivEnv:
     """
@@ -79,7 +71,7 @@ class CivEnv:
 
     def step(self, action: Action) -> Tuple[Obs, float, bool, Dict[str, Any]]:
         assert self.engine is not None
-
+    
         # Apply action
         result = action_handler.handle_action(
             self.engine,
@@ -88,56 +80,46 @@ class CivEnv:
             # Keep training headless; set True if you want replays from training later
             log_actions=False,
         )
-
+    
+        # HARD ASSERT: legal_actions() must only produce valid actions
+        assert getattr(result, "success", True), f"Illegal action emitted: {action}"
+    
         obs = self.engine.get_state()
-
+    
         # Dense delta reward
         obj = self._objective(self.engine)
         reward = float(obj - self._last_obj)
         self._last_obj = obj
-
+    
         done = bool(self.engine.turn > self.cfg.horizon_turns)
-
+    
         info = {
-            "success": getattr(result, "success", True),
-            "message": getattr(result, "message", ""),
+            "success": True,
+            "message": "",
             "turn": self.engine.turn,
             "objective": obj,
         }
         return obs, reward, done, info
+
 
     # -------------------------
     # Objective: food + science
     # -------------------------
     def _objective(self, engine: Engine) -> float:
         """
-        Optimize early-game economy.
-        This is a single scalar so PPO can learn.
-
-        Components:
-        - science accrued (what you already track)
-        - science per turn (pushes compounding)
-        - food surplus per turn across cities (pushes growth compounding)
-        - population (simple proxy for "food done right")
+        Simple objective:
+        - total science accrued
+        - total population
         """
         p = engine.current_player
-
+    
         science_accrued = float(getattr(p, "total_science_accrued", 0.0))
-        science_per_turn = float(getattr(p, "science_per_turn", 0.0))
-
+    
         pop = 0.0
-        food_surplus = 0.0
         for c in p.cities:
             pop += float(getattr(c, "population", 0.0))
-            # City.food_per_turn exists and already accounts for consumption
-            food_surplus += float(getattr(c, "food_per_turn", 0.0))
-
-        return (
-            self.cfg.w_science_accrued * science_accrued
-            + self.cfg.w_science_per_turn * science_per_turn
-            + self.cfg.w_food_surplus_per_turn * food_surplus
-            + self.cfg.w_population * pop
-        )
+    
+        return science_accrued + 20.0 * pop
 
     # -------------------------
     # Branching control

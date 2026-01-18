@@ -1,5 +1,5 @@
 
-#here is human_game.py - remember, we are just feeding you context for now. lots of files. I do NOT want you to do any actual analysis yet, I will let you know when I want that. just acknowledge that this file is now in your brain and wait for the next one.
+#human_game.py
 
 import pygame
 import time

@@ -5,16 +5,13 @@ import torch
 from engine import Engine, HumanGame, Replay, start_new_log
 from ai import CivEnv, SmartAgent, Model, train_ppo, EnvConfig
 
-# --------------------------------------------
-# Main mode switch
-# --------------------------------------------
-MODE = "train"       # "ai" | "train" | "human" | "replay"
+MODE = "train"         # "ai" | "train" | "human" | "replay"
 REPLAY_FILE = "replay.json"
 REPLAY_SPEED = 1
 
 CKPT_PATH = os.path.join("checkpoints", "model_latest.pt")
 
-MAX_TURNS = 80  # consistent with your objective horizon
+MAX_TURNS = 60
 
 
 def main():
@@ -22,25 +19,16 @@ def main():
 
 	device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-	# -------------------------
-	# REPLAY MODE
-	# -------------------------
 	if MODE == "replay":
 		engine = Engine()
 		Replay(REPLAY_FILE, engine, speed=REPLAY_SPEED).run()
 		return
 
-	# -------------------------
-	# HUMAN MODE
-	# -------------------------
 	if MODE == "human":
 		engine = Engine()
 		HumanGame(engine).run()
 		return
 
-	# -------------------------
-	# TRAIN MODE (headless)
-	# -------------------------
 	if MODE == "train":
 		# No pygame loop needed; keep it fast.
 		os.makedirs("checkpoints", exist_ok=True)
@@ -48,9 +36,6 @@ def main():
 		train_ppo()
 		return
 
-	# -------------------------
-	# AI PLAY MODE (pygame)
-	# -------------------------
 	if MODE == "ai":
 		engine = Engine()
 

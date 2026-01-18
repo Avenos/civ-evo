@@ -6,6 +6,8 @@
 A Civilization V strategy simulation with AI support for optimizing build orders.  
 Features full UI, replay support, and JSON-based action scripting.
 
+Todo: Add map import using OpenCV
+
 ## Installation
 ```bash
 pip install requirements.txt

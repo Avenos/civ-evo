@@ -1,2 +1,4 @@
-pygame
-numpy
+
+Python 3.12 (for pygame)
+
+pip install pygame, numpy, torch

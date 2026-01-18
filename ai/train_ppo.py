@@ -1,25 +1,16 @@
-# rl/train_ppo.py
+
+# ai/train_ppo.py
+
 from __future__ import annotations
 
-import math
 import random
 from dataclasses import dataclass
-from typing import Any, Dict, List, Tuple
-
+from typing import Any, Dict, Tuple
 import numpy as np
-
-try:
-    import torch
-    import torch.nn as nn
-    import torch.optim as optim
-except ImportError as e:
-    raise SystemExit(
-        "PyTorch is required. Install with:\n"
-        "  pip install torch\n"
-        "Then rerun this script."
-    ) from e
-
 from .civ_env import CivEnv, EnvConfig
+import torch
+import torch.nn as nn
+import torch.optim as optim
 
 Action = Dict[str, Any]
 Obs = Dict[str, Any]
@@ -29,10 +20,6 @@ Obs = Dict[str, Any]
 # Feature hashing (fresh encoder)
 # -----------------------------
 class FeatureHasher:
-    """
-    Turns nested dict/list observations and action dicts into fixed-size vectors
-    using feature hashing (no hand-written encoder needed initially).
-    """
     def __init__(self, dim: int = 4096):
         self.dim = int(dim)
 
@@ -47,8 +34,6 @@ class FeatureHasher:
         return v
 
     def _h(self, s: str) -> int:
-        # Stable-ish hash across runs (avoid Python's randomized hash)
-        # This is simple and good enough for a first iteration.
         h = 2166136261
         for ch in s:
             h ^= ord(ch)
@@ -63,34 +48,26 @@ class FeatureHasher:
         if x is None:
             self._add(v, f"{prefix}=None", 1.0)
             return
-
-        if isinstance(x, (int, float, np.number)):
-            self._add(v, prefix, float(x))
-            return
-
         if isinstance(x, bool):
             self._add(v, f"{prefix}={int(x)}", 1.0)
             return
-
+        if isinstance(x, (int, float, np.number)):
+            self._add(v, prefix, float(x))
+            return
         if isinstance(x, str):
             self._add(v, f"{prefix}={x}", 1.0)
             return
-
         if isinstance(x, dict):
             for k, vv in x.items():
                 self._accumulate(v, vv, f"{prefix}.{k}")
             return
-
         if isinstance(x, (list, tuple)):
-            # Keep it light: include up to first N elements to prevent huge loops
             N = 128
             for i, vv in enumerate(x[:N]):
                 self._accumulate(v, vv, f"{prefix}[{i}]")
             if len(x) > N:
                 self._add(v, f"{prefix}.trunc", 1.0)
             return
-
-        # Fallback: type tag
         self._add(v, f"{prefix}.type={type(x).__name__}", 1.0)
 
 
@@ -113,9 +90,6 @@ class ValueNet(nn.Module):
 
 
 class ActionScoreNet(nn.Module):
-    """
-    Scores (state, action) -> scalar logit. Used to softmax over legal actions.
-    """
     def __init__(self, dim: int):
         super().__init__()
         self.net = nn.Sequential(
@@ -152,7 +126,6 @@ class PPOConfig:
     entropy_coef: float = 0.01
     max_grad_norm: float = 1.0
 
-    # How many PPO iterations to run
     iters: int = 200
 
 
@@ -163,7 +136,6 @@ def set_seeds(seed: int):
 
 
 def softmax_sample(logits: np.ndarray) -> Tuple[int, float]:
-    # logits: [N]
     m = float(np.max(logits))
     ex = np.exp(logits - m)
     p = ex / np.sum(ex)
@@ -186,14 +158,30 @@ def compute_gae(rewards, dones, values, last_value, gamma, lam):
     return adv, returns
 
 
+def _fitness_from_obs(obs: Obs) -> float:
+    if not isinstance(obs, dict):
+        return 0.0
+
+    p = obs.get("player", {})
+    cities = obs.get("cities", [])
+
+    science_accrued = float(p.get("total_science_accrued", 0.0))
+
+    pop = 0.0
+    for c in cities:
+        pop += float(c.get("population", 0.0))
+
+    return science_accrued + 20.0 * pop
+
+
+
 def train_ppo():
     ppo = PPOConfig()
     set_seeds(ppo.seed)
 
     env = CivEnv(
         EnvConfig(
-            horizon_turns=75,
-            max_move_actions_per_unit=6,  # keep movement in, but bounded
+            horizon_turns=75
         )
     )
     fe = FeatureHasher(dim=ppo.feature_dim)
@@ -213,33 +201,32 @@ def train_ppo():
     values = np.zeros((ppo.rollout_steps,), dtype=np.float32)
 
     obs = env.reset(seed=ppo.seed)
-    ep_return = 0.0
-    ep_len = 0
     episodes = 0
 
     for it in range(1, ppo.iters + 1):
+        # One header line per training iteration (what you asked for)
+        print(f"\nStarting training loop {it}/{ppo.iters}")
+
         # -------- Rollout --------
         for t in range(ppo.rollout_steps):
             s_vec = fe.obs_vec(obs)
+
             legal = env.legal_actions()
             if not legal:
-                # If this ever happens, treat as terminal
-                done = True
-                reward = 0.0
+                # force a legal-ish transition
                 obs, _, _, _ = env.step({"action": "end_turn", "data": {}})
                 legal = env.legal_actions()
 
-            # Build action feature matrix
-            a_vecs = np.stack([fe.act_vec(a) for a in legal], axis=0)  # [N, D]
+            a_vecs = np.stack([fe.act_vec(a) for a in legal], axis=0)
 
             with torch.no_grad():
-                s_t = torch.from_numpy(s_vec).to(device).unsqueeze(0)  # [1, D]
+                s_t = torch.from_numpy(s_vec).to(device).unsqueeze(0)
                 v = value_net(s_t).cpu().item()
                 values[t] = float(v)
 
-                s_rep = s_t.repeat(a_vecs.shape[0], 1)  # [N, D]
+                s_rep = s_t.repeat(a_vecs.shape[0], 1)
                 a_t = torch.from_numpy(a_vecs).to(device)
-                logits_t = act_net(s_rep, a_t).cpu().numpy()  # [N]
+                logits_t = act_net(s_rep, a_t).cpu().numpy()
 
             idx, lp = softmax_sample(logits_t)
             act = legal[idx]
@@ -253,20 +240,46 @@ def train_ppo():
             rewards[t] = float(r)
             dones[t] = 1.0 if done else 0.0
 
-            ep_return += float(r)
-            ep_len += 1
-
             obs = next_obs
+
+            # ----- YOUR LOG FORMAT -----
+            # "turn" is best-effort: prefer env turn, then info['turn'], else derive from t.
+            turn = None
+            if isinstance(info, dict) and "turn" in info:
+                try:
+                    turn = int(info["turn"])
+                except Exception:
+                    turn = None
+            if turn is None and hasattr(env, "turn"):
+                try:
+                    turn = int(getattr(env, "turn"))
+                except Exception:
+                    turn = None
+            if turn is None:
+                # derive something sensible
+                turn = 1 + (t % max(1, env.cfg.horizon_turns))
+
+            # fitness: best-effort from obs (or you can replace with your exact function)
+            fitness = _fitness_from_obs(obs)
+
+            # one line per turn with fitness value
+            print(
+                f"  turn {turn:03d}/{env.cfg.horizon_turns} "
+                f"action={act['action']} "
+                f"data={act.get('data', {})} "
+                f"fitness={fitness:,.3f}"
+            )
+
 
             if done:
                 obs = env.reset()
                 episodes += 1
-                ep_return = 0.0
-                ep_len = 0
 
         # Bootstrap value for last obs
         with torch.no_grad():
-            last_v = value_net(torch.from_numpy(fe.obs_vec(obs)).to(device).unsqueeze(0)).cpu().item()
+            last_v = value_net(
+                torch.from_numpy(fe.obs_vec(obs)).to(device).unsqueeze(0)
+            ).cpu().item()
 
         adv, ret = compute_gae(
             rewards=rewards,
@@ -276,7 +289,6 @@ def train_ppo():
             gamma=ppo.gamma,
             lam=ppo.gae_lambda,
         )
-        # Normalize advantage
         adv = (adv - adv.mean()) / (adv.std() + 1e-8)
 
         # -------- Train --------
@@ -292,14 +304,7 @@ def train_ppo():
                 adv_mb = torch.from_numpy(adv[mb]).to(device)
                 ret_mb = torch.from_numpy(ret[mb]).to(device)
 
-                # New logp
                 logits = act_net(s_mb, a_mb)
-                # log-softmax over a single chosen action is not meaningful;
-                # we stored logp_old from a categorical at sampling time.
-                # Here we approximate PPO by treating logits as unnormalized and
-                # using a sigmoid-based surrogate on the selected action.
-                # This works as a practical first pass with parametric actions.
-                # (Next iteration we can compute exact logp by rescoring the full legal set.)
                 logp_new = -torch.nn.functional.softplus(-logits)  # log(sigmoid(logits))
 
                 ratio = torch.exp(logp_new - logp_old_mb)
@@ -309,17 +314,20 @@ def train_ppo():
                 v = value_net(s_mb)
                 value_loss = ((v - ret_mb) ** 2).mean()
 
-                entropy = torch.nn.functional.softplus(-logits).mean()  # rough entropy proxy
+                entropy = torch.nn.functional.softplus(-logits).mean()
 
                 loss = policy_loss + ppo.value_coef * value_loss - ppo.entropy_coef * entropy
 
                 optimizer.zero_grad()
                 loss.backward()
-                nn.utils.clip_grad_norm_(list(value_net.parameters()) + list(act_net.parameters()), ppo.max_grad_norm)
+                nn.utils.clip_grad_norm_(
+                    list(value_net.parameters()) + list(act_net.parameters()),
+                    ppo.max_grad_norm,
+                )
                 optimizer.step()
 
-        # Basic progress print
+        # One compact end-of-iter summary (optional, but useful)
         avg_r = float(np.mean(rewards))
-        print(f"iter={it:04d}  avg_step_reward={avg_r:+.4f}  episodes={episodes}")
+        print(f"End loop {it}/{ppo.iters}  avg_step_reward={avg_r:+.4f}  episodes={episodes}")
 
-    print("Done.")
+    print("\nDone.")

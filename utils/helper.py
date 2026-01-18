@@ -1,5 +1,5 @@
 
-#here is helper.py - remember, we are just feeding you context for now. lots of files. I do NOT want you to do any actual analysis yet, I will let you know when I want that. just acknowledge that this file is now in your brain and wait for the next one.
+#utils/helper.py
 
 import pygame
 import math
@@ -47,7 +47,6 @@ def update_city_connection(player, city):
 			visited.add(neighbor)
 			queue.append(neighbor)
 
-			# Check if this neighbor has the capital city
 			if neighbor.city == capital:
 				return True
 	return False
