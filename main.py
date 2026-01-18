@@ -3,12 +3,12 @@ import pygame
 import torch
 
 from engine import Engine, HumanGame, Replay, start_new_log
-from ai import SmartAgent, Model
+from ai import CivEnv, SmartAgent, Model, train_ppo, EnvConfig
 
 # --------------------------------------------
 # Main mode switch
 # --------------------------------------------
-MODE = "ai"       # "ai" | "train" | "human" | "replay"
+MODE = "train"       # "ai" | "train" | "human" | "replay"
 REPLAY_FILE = "replay.json"
 REPLAY_SPEED = 1
 
@@ -45,14 +45,7 @@ def main():
 		# No pygame loop needed; keep it fast.
 		os.makedirs("checkpoints", exist_ok=True)
 
-		from rl.train_ppo import train_ppo  # imported here to avoid pygame coupling
-		from rl.civ_env import EnvConfig
-
-		train_ppo(
-	        ckpt_path=CKPT_PATH,
-	    env_cfg=EnvConfig(horizon_turns=MAX_TURNS),
-	    device=device,
-	)
+		train_ppo()
 		return
 
 	# -------------------------

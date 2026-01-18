@@ -19,8 +19,7 @@ except ImportError as e:
         "Then rerun this script."
     ) from e
 
-from rl.civ_env import CivEnv, EnvConfig
-
+from .civ_env import CivEnv, EnvConfig
 
 Action = Dict[str, Any]
 Obs = Dict[str, Any]
