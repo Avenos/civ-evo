@@ -1,5 +1,5 @@
 
-#here is unit.py - remember, we are just feeding you context for now. lots of files. I do NOT want you to do any actual analysis yet, I will let you know when I want that. just acknowledge that this file is now in your brain and wait for the next one.
+#entities/unit.py
 
 from data import dictionary, constants
 from utils import helper, BoolResult
@@ -23,6 +23,7 @@ class Unit:
 		self.type = "unit"
 		self.q = int(q) if q is not None else None
 		self.r = int(r) if r is not None else None
+		self.engine = None
 
 		self.hp = hp
 		self.moves = moves
@@ -41,6 +42,11 @@ class Unit:
 		self.route_turns_remaining = 0
 
 	def can_move_to(self, to_tile):
+		# Always validate against the authoritative engine grid if available
+		eng = getattr(self, "engine", None)
+		if eng is not None and to_tile is not None and hasattr(to_tile, "q") and hasattr(to_tile, "r"):
+			to_tile = eng.get_tile(to_tile.q, to_tile.r)
+
 		if to_tile is None:
 			return BoolResult(False, "Invalid tile (tile does not exist).")
 
@@ -49,9 +55,9 @@ class Unit:
 
 		if self.moves_left == 0:
 			return BoolResult(False, "No moves left!")
-		
+
 		if self.name == "Caravan":
-			return BoolResult(False, "Caravans cannot move")		
+			return BoolResult(False, "Caravans cannot move")
 
 		if helper.hex_distance(self.q, self.r, to_tile.q, to_tile.r) != 1:
 			return BoolResult(False, "Can only move to adjacent tiles.")
@@ -64,7 +70,19 @@ class Unit:
 
 		return BoolResult(True, "Valid move.")
 
-	def move_to(self, from_tile, to_tile): #easy as this?
+
+	def move_to(self, from_tile, to_tile):  # keep signature: no call-site changes
+		"""
+		Moves using the authoritative engine grid when unit.engine is set.
+		We accept from_tile/to_tile for compatibility, but we do NOT trust them.
+		"""
+		eng = getattr(self, "engine", None)
+
+		# Re-resolve tiles from the authoritative engine grid if available
+		if eng is not None and to_tile is not None and hasattr(to_tile, "q") and hasattr(to_tile, "r"):
+			to_tile = eng.get_tile(to_tile.q, to_tile.r)
+			from_tile = eng.get_tile(self.q, self.r)
+
 		if not (result := self.can_move_to(to_tile)):
 			return result
 
@@ -76,8 +94,12 @@ class Unit:
 				move_cost = max(move_cost, self.moves_left)
 
 		self.moves_left -= move_cost
+
+		# Update occupancy on the authoritative grid tiles
 		from_tile.unit = None
 		to_tile.unit = self
+
+		# Update unit coordinates
 		self.q = to_tile.q
 		self.r = to_tile.r
 
@@ -86,6 +108,8 @@ class Unit:
 			ruin.trigger(self.owner, to_tile)
 
 		return BoolResult(True, "Unit moved successfully.")
+
+
 
 	#to get a LIST of all legal tile improvements do i have to poll every single one...? I guess
 	#also roads are a separate thing really...

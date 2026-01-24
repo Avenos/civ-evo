@@ -104,7 +104,7 @@ class Player:
 
 	@property
 	def faith_per_turn(self):
-		faith_per_turn = 1 + sum(city.faith for city in self.cities)
+		faith_per_turn = sum(city.faith for city in self.cities)
 		return faith_per_turn
 
 	@property
@@ -142,14 +142,18 @@ class Player:
 
 	def can_found_city(self, unit, engine):
 		if not unit:
-			result = BoolResult(False, "Unit not found for founding city")
-			
+			return BoolResult(False, "Unit not found for founding city")
+	
+
+		if getattr(unit, "mission", None):
+			return BoolResult(False, "Unit is on a mission; cancel it before founding.")
+	
 		if unit.name != "Settler":
 			return BoolResult(False, "Only Settlers can found cities!")
-
+	
 		if unit.moves_left < 1:
 			return BoolResult(False, "Not enough movement to found a city!")
-
+	
 		for player in engine.players:
 			for city in player.cities:
 				if helper.hex_distance(unit.q, unit.r, city.q, city.r) < 4:
@@ -381,12 +385,12 @@ class Player:
 
 		for u in self.units:
 			u.reset_movement()
+			
+		helper.advance_unit_missions(engine)
 
 		self.update_golden_age()
-
 		#culture growth logic?
-
+		
 		engine.end_turn()
-
 		return BoolResult(True, "Turn ended successfully.")
 	

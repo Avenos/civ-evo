@@ -406,7 +406,7 @@ def a_star_path(start, goal, game_map, move_points_per_turn=2):
 			if not getattr(neighbor_tile, "passable", True):
 				continue
 
-			crossing_river = helper.has_river_between(current_tile, neighbor_tile)
+			crossing_river = has_river_between(current_tile, neighbor_tile)
 			cost_to_enter = neighbor_tile.movement_cost
 
 			# Movement logic
@@ -483,3 +483,83 @@ def compute_influence_distance(city, game_map, max_range=5):
 			heapq.heappush(frontier, (total_cost, (nq, nr)))
 
 	return distances
+
+def advance_unit_missions(engine):
+	p = engine.current_player
+
+	for unit in list(p.units):
+		m = getattr(unit, "mission", None)
+		if not m or m.get("type") != "found_city":
+			continue
+
+		# Goal is required for found_city missions
+		goal = tuple(m.get("goal", (None, None)))
+		if goal == (None, None):
+			# If your mission builder forgot to set it, fall back to path end
+			path = m.get("path") or []
+			if path:
+				goal = tuple(path[-1])
+				m["goal"] = goal
+			else:
+				unit.mission = None
+				continue
+
+		path = m.get("path")
+		if not path or len(path) < 2:
+			unit.mission = None
+			continue
+
+		# Keep i aligned to actual unit position on the path
+		pos = (unit.q, unit.r)
+		if pos in path:
+			i = path.index(pos)
+			m["i"] = i
+		else:
+			# Unit got off the path; cancel (or recompute path elsewhere)
+			unit.mission = None
+			continue
+
+		# If we're already on the goal, attempt to found (requires >= 1 move)
+		if (unit.q, unit.r) == goal:
+			if unit.moves_left >= 1:
+				# can_found_city rejects if mission exists, so temporarily clear
+				saved = unit.mission
+				unit.mission = None
+				r = p.found_city(unit, engine)
+				if not r:
+					unit.mission = saved
+			continue
+
+		# Move along path while we have movement
+		while unit.moves_left > 0 and i < len(path) - 1:
+			nq, nr = path[i + 1]
+			from_tile = engine.get_tile(unit.q, unit.r)
+			to_tile = engine.get_tile(nq, nr)
+
+			can = unit.can_move_to(to_tile)
+			if not can:
+				unit.mission = None
+				break
+
+			res = unit.move_to(from_tile, to_tile)  # keep your existing signature
+			if not res:
+				unit.mission = None
+				break
+
+			i += 1
+			m["i"] = i
+
+		# Persist mission dict changes
+		if getattr(unit, "mission", None) is not None:
+			unit.mission = m
+
+		# If we reached goal after moving, try founding
+		if getattr(unit, "mission", None) and (unit.q, unit.r) == goal:
+			if unit.moves_left >= 1:
+				saved = unit.mission
+				unit.mission = None
+				r = p.found_city(unit, engine)
+				if not r:
+					unit.mission = saved
+				else:
+					unit.mission = None

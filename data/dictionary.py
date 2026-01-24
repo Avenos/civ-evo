@@ -57,10 +57,10 @@
 
 UNITS = {
 	"Settler": {"moves": 2, "hp": 100, "production_cost": 106, "gold_cost": 500},
-	"Worker": {"moves": 2, "production_cost": 70, "hp": 100, "gold_cost": 220},
-	"Scout": {"moves": 2, "production_cost": 25, "hp": 100, "gold_cost": 140},
-	"Warrior": {"moves": 2,  "production_cost": 40,"hp": 100, "gold_cost": 200},
-	"Caravan": {"moves": 0, "hp": 100, "techs_required": ["Animal Husbandry"], "production_cost": 75, "gold_cost": 390},
+	#"Worker": {"moves": 2, "production_cost": 70, "hp": 100, "gold_cost": 220},
+	#"Scout": {"moves": 2, "production_cost": 25, "hp": 100, "gold_cost": 140},
+	#"Warrior": {"moves": 2,  "production_cost": 40,"hp": 100, "gold_cost": 200},
+	#"Caravan": {"moves": 0, "hp": 100, "techs_required": ["Animal Husbandry"], "production_cost": 75, "gold_cost": 390},
 	#Caravel
 	"Great Scientist": {"moves": 2, "hp": 100},
 	"Great Engineer": {"moves": 2, "hp": 100},

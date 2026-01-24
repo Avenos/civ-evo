@@ -88,11 +88,10 @@ class Engine:
 
 		self.players = [Player()]
 		self.current_player = self.players[0]
-		self.replay_log_filepath = None
+		self.replay_log_filepath = None 
 
-		self.spawn_unit(self.players[0], "Worker", 10, 8)
+		#self.spawn_unit(self.players[0], "Worker", 10, 8)
 		self.spawn_unit(self.players[0], "Settler", 11, 8)
-		self.spawn_unit(self.players[0], "Warrior", 12, 8)
 
 		self.tiles[6][6].ancient_ruin = AncientRuins(2)
 
@@ -167,15 +166,50 @@ class Engine:
 	def get_legal_actions(self, player):
 		actions = []
 
-		for unit in player.units:
-			for dq, dr in helper.hex_neighbors(unit.q, unit.r):
-				to_tile = self.get_tile(dq, dr)
-				if unit.can_move_to(to_tile):
-					actions.append({"action": "move_unit", "data": {"unit_id": unit.id, "to": [dq, dr]}})
+		#for unit in player.units:
+			#for dq, dr in helper.hex_neighbors(unit.q, unit.r):
+				#to_tile = self.get_tile(dq, dr)
+				#if unit.can_move_to(to_tile):
+					#actions.append({"action": "move_unit", "data": {"unit_id": unit.id, "to": [dq, dr]}})
 
+		# Predefined settle targets (map-specific)
+		SETTLE_SITES = [
+			(10, 6),
+			(12, 5),
+			(8, 9),
+			(14, 7),
+			(6, 6),
+			(9, 12),
+			(15, 10),
+			(5, 4),
+			(11, 14),
+			(7, 8),
+			(13, 3),
+			(4, 10),
+		]
+		
 		for unit in player.units:
-			if player.can_found_city(unit, self):
-				actions.append({"action": "found_city", "data": {"unit_id": unit.id}})
+			if unit.name == "Settler" and not getattr(unit, "mission", None):
+		
+				for (q, r) in SETTLE_SITES:
+					# Temporarily "teleport" unit to test legality
+					orig_q, orig_r = unit.q, unit.r
+					unit.q, unit.r = q, r
+		
+					ok = player.can_found_city(unit, self)
+		
+					# Restore unit position
+					unit.q, unit.r = orig_q, orig_r
+		
+					if not ok:
+						continue
+		
+					actions.append({
+				    "action": "found_city_at",
+				"data": {"unit_id": unit.id, "to": [q, r]}
+			    })
+
+
 
 		for unit in player.units:
 			if unit.name == "Worker":
@@ -363,3 +397,54 @@ class Engine:
 				for col in self.tiles
 				],
 		}
+
+
+
+
+
+	#for city in player.cities:
+		#for tile in city.worked_tiles:
+			#if city.can_unassign_tile(tile):
+				#actions.append({
+					#"action": "unassign_tile",
+					#"data": {"city_id": city.id, "tile": (tile.q, tile.r)}
+				#})
+				
+	#for city in player.cities:	
+		#if len(city.worked_tiles) < city.population + 1:
+			#workable_tiles = city.get_workable_tiles(self)
+			#for tile in workable_tiles:
+				#if tile not in city.worked_tiles:
+					#actions.append({
+						#"action": "assign_tile",
+						#"data": {"city_id": city.id, "tile": (tile.q, tile.r)}
+					#})
+
+	#for unit in player.units:
+		#tile = self.get_tile(unit.q, unit.r)
+		#if unit.name == "Caravan" and not unit.route_active:
+			#if tile.city: # and "Granary" in tile.city.buildings:
+				#for dest in player.cities:
+					#if dest != tile.city:
+						#if unit.can_establish_trade_route(dest, self):
+							#actions.append({
+								#"action": "establish_trade_route",
+								#"data": {
+									#"unit_id": unit.id,
+									#"dest_city_id": dest.id
+								#}
+							#})
+							
+	#for city in player.cities:
+		#tile = self.get_tile(city.q, city.r)
+		#if city != tile.city:
+			#if unit.can_rebase(city):
+				#actions.append({
+					#"action": "rebase_caravan",
+					#"data": {
+						#"unit_id": unit.id,
+						#"dest_city_id": city.id
+					#}
+				#})
+
+	#choose ancient ruins bonus

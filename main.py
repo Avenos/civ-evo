@@ -1,11 +1,13 @@
-import os
+import os, sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 import pygame
 import torch
 
 from engine import Engine, HumanGame, Replay, start_new_log
 from ai import CivEnv, SmartAgent, Model, train_ppo, EnvConfig
 
-MODE = "train"         # "ai" | "train" | "human" | "replay"
+MODE = "human"         # "ai" | "train" | "human" | "replay"
 REPLAY_FILE = "replay.json"
 REPLAY_SPEED = 1
 
@@ -30,7 +32,6 @@ def main():
 		return
 
 	if MODE == "train":
-		# No pygame loop needed; keep it fast.
 		os.makedirs("checkpoints", exist_ok=True)
 
 		train_ppo()
@@ -39,12 +40,10 @@ def main():
 	if MODE == "ai":
 		engine = Engine()
 
-		# record a replay of this run
 		start_new_log(engine, prefix="replayai", folder="replays")
 
 		model = Model().to(device)
 
-		# load checkpoint if present
 		if os.path.exists(CKPT_PATH):
 			model.load_state_dict(torch.load(CKPT_PATH, map_location=device))
 			print(f"[main] loaded checkpoint: {CKPT_PATH}")

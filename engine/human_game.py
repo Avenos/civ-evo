@@ -145,13 +145,29 @@ class HumanGame:
 							elif event.button == 3:
 								if 0 <= q < constants.GRID_WIDTH and 0 <= r < constants.GRID_HEIGHT:
 									tile = self.engine.tiles[q][r]
+							
+									# ---- UNIT RIGHT-CLICK ----
 									if self.engine.selected_unit:
-										unit_id = self.engine.selected_unit.id
-										action_data = {"unit_id": unit_id, "to": (q, r)}
-										result = handle_action(self.engine, "move_unit", action_data)
-										self.engine.show_message(result.message)
-										#helper.check_city_state_proximity(self.engine, self.engine.current_player)
-										
+										u = self.engine.selected_unit
+										unit_id = u.id
+							
+										# If unit is already on a mission, ignore clicks
+										if getattr(u, "mission", None):
+											self.engine.show_message("Unit is already traveling.")
+							
+										# Settler = macro settle
+										elif u.name == "Settler":
+											action_data = {"unit_id": unit_id, "to": (q, r)}
+											result = handle_action(self.engine, "found_city_at", action_data)
+											self.engine.show_message(result.message)
+							
+										# Everyone else = normal move
+										else:
+											action_data = {"unit_id": unit_id, "to": (q, r)}
+											result = handle_action(self.engine, "move_unit", action_data)
+											self.engine.show_message(result.message)
+							
+									# ---- CITY RIGHT-CLICK ----
 									elif self.engine.selected_city:
 										city_id = self.engine.selected_city.id
 										action_data = {"city_id": city_id, "tile_coords": (q, r)}
@@ -159,6 +175,7 @@ class HumanGame:
 										self.engine.show_message(result.message)
 								else:
 									self.engine.show_message("Clicked outside map bounds.")
+
 						else:
 							self.engine.show_message("Invalid tile.")
 

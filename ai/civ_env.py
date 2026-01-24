@@ -49,25 +49,15 @@ class CivEnv:
     def legal_actions(self) -> List[Action]:
         assert self.engine is not None
         player = self.engine.current_player
+    
         actions = self.engine.get_legal_actions(player)
-
-        # reduce move branching (top-K per unit by local tile yields)
-        actions = self._reduce_move_actions(actions)
-
-        # cap total action count (keep all non-moves first, then sample moves if needed)
+    
+        # Hard cap action space (just sample if somehow too large)
         if len(actions) > self.cfg.max_legal_actions:
-            non_moves = [a for a in actions if a.get("action") != "move_unit"]
-            moves = [a for a in actions if a.get("action") == "move_unit"]
-
-            budget = max(0, self.cfg.max_legal_actions - len(non_moves))
-            if budget <= 0:
-                actions = non_moves[: self.cfg.max_legal_actions]
-            else:
-                if len(moves) > budget:
-                    moves = random.sample(moves, budget)
-                actions = non_moves + moves
-
+            actions = random.sample(actions, self.cfg.max_legal_actions)
+    
         return actions
+
 
     def step(self, action: Action) -> Tuple[Obs, float, bool, Dict[str, Any]]:
         assert self.engine is not None
